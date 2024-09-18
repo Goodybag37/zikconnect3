@@ -1,0 +1,35 @@
+/* Popup.css */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.popup-box {
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 100%;
+  color: rgb(255, 255, 255);
+}
+
+.popup-actions {
+  margin-top: 20px;
+  display: flex;
+}
+
+.popup-checkbox {
+  margin-top: 20px;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.popup-checkboxLabel {
+  cursor: pointer;
+}
