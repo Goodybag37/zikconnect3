@@ -668,9 +668,6 @@ app.get("/buysellapi", cors(), async (req, res) => {
   }
 });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 app.get("/buysell/:id", async (req, res) => {
   const id = req.params.id;
   try {
