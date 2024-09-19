@@ -375,7 +375,7 @@ app.get("/*", function (req, res) {
   );
 });
 
-app.get("/follow", function (req, res) {
+app.get("/fol", function (req, res) {
   res.sendFile(
     path.join(__dirname, "../client/react-dashboard/build", "index.html"),
     function (err) {
