@@ -375,6 +375,16 @@ app.get("/*", function (req, res) {
   );
 });
 
+app.get("/follow", function (req, res) {
+  res.sendFile(
+    path.join(__dirname, "../client/react-dashboard/build", "index.html"),
+    function (err) {
+      if (err) {
+        res.status(500).send(err);
+      }
+    }
+  );
+});
 app.get("/logout", async (req, res) => {
   //  Passport's req.logout() to log the user out
   req.logout((err) => {
