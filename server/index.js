@@ -2080,5 +2080,5 @@ app.get("/lodgeapi", cors(), async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`server is listening on port ${port}`);
+  console.log(`server is listening on port ${PORT}`);
 });
