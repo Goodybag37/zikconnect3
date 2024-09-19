@@ -361,7 +361,7 @@ app.get(
 
 app.get("/*", function (req, res) {
   res.sendFile(
-    path.join(__dirname, "../client/react-dashboard/build/static/index.html"),
+    path.join(__dirname, "../client/react-dashboard/build/index.html"),
     function (err) {
       if (err) {
         res.status(500).send(err);
