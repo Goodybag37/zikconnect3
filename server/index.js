@@ -119,7 +119,7 @@ let transporter = nodemailer.createTransport({
   },
 });
 
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "..client/react-dashboard/build")));
 app.use(bodyParser.urlencoded({ extended: true }));
 // app.use(fileUpload());
 
@@ -361,7 +361,7 @@ app.get(
 
 app.get("/*", function (req, res) {
   res.sendFile(
-    path.join(__dirname, "../client/react-dashboard/build/index.html"),
+    path.join(__dirname, "../client/react-dashboard/build", "index.html"),
     function (err) {
       if (err) {
         res.status(500).send(err);
