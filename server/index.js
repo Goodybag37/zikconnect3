@@ -4,7 +4,7 @@ import pg from "pg";
 import fs from "fs";
 import compression from "compression";
 // import fileUpload from "express-fileupload";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
