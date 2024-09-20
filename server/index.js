@@ -102,13 +102,6 @@ app.use(
 );
 
 app.use(compression());
-// app.use(
-//   "/api", // Adjust this path based on your needs
-//   createProxyMiddleware({
-//     target: "http://localhost:3001", // Replace with the actual port of your React development server
-//     changeOrigin: true,
-//   })
-// );
 
 let transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
