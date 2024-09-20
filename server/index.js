@@ -499,7 +499,7 @@ app.post("/api/log", async (req, res, next) => {
   }
 });
 
-app.post("/login", cors(), async (req, res, next) => {
+app.post("/login", async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -539,7 +539,7 @@ app.post("/login", cors(), async (req, res, next) => {
   }
 });
 
-app.post("/api/register", cors(), async (req, res) => {
+app.post("/api/register", async (req, res) => {
   const { email, password, fullname } = req.body;
 
   console.log(`Received email: ${email}`); // Debugging line
@@ -583,7 +583,7 @@ app.post("/api/register", cors(), async (req, res) => {
   }
 });
 
-app.get("/api/roommatesapi", cors(), async (req, res) => {
+app.get("/api/roommatesapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(fullname) AS fullname, department, gender, phone, fk_user_id FROM roommates ORDER BY id DESC"
@@ -628,7 +628,7 @@ app.get("/api/roommates/:id", async (req, res) => {
   res.end(imageBase64, "base64");
 });
 
-app.get("/api/buysellapi", cors(), async (req, res) => {
+app.get("/api/buysellapi", async (req, res) => {
   try {
     const { search, page = 1, pageSize = 5 } = req.query;
 
@@ -1053,7 +1053,7 @@ app.post("/api/preference-toggleask", async (req, res) => {
   }
 });
 
-app.get("/api/courseagentsapi", cors(), async (req, res) => {
+app.get("/api/courseagentsapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, course, contact, good_rating, bad_rating,  fk_user_id, contact FROM courseagents ORDER BY id DESC"
@@ -1115,7 +1115,7 @@ app.post("/api/patchratingcourse", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/api/cryptoagentsapi", cors(), async (req, res) => {
+app.get("/api/cryptoagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1244,7 +1244,7 @@ app.post("/api/patchratingcrypto", async (req, res) => {
   }
 });
 
-app.get("/api/cybercafeagentsapi", cors(), async (req, res) => {
+app.get("/api/cybercafeagentsapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact,  fk_user_id, good_rating, bad_rating FROM cybercafeagents ORDER BY id DESC"
@@ -1308,7 +1308,7 @@ app.post("/api/patchratingcyber", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/api/deliveryagentsapi", cors(), async (req, res) => {
+app.get("/api/deliveryagentsapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact,  fk_user_id, good_rating, bad_rating, contact FROM deliveryagents ORDER BY id DESC"
@@ -1371,7 +1371,7 @@ app.post("/api/patchratingdelivery", async (req, res) => {
   }
 });
 
-app.get("/api/rideragentsapi", cors(), async (req, res) => {
+app.get("/api/rideragentsapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact,  fk_user_id, good_rating, bad_rating, contact FROM rideragents ORDER BY id DESC"
@@ -1432,7 +1432,7 @@ app.post("/api/patchratingrider", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/api/schoolfeeagentsapi", cors(), async (req, res) => {
+app.get("/api/schoolfeeagentsapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact, good_rating, bad_rating,  fk_user_id FROM schoolfeeagents ORDER BY id DESC"
@@ -1499,7 +1499,7 @@ app.get("/api/schoolfeeagentsapi", cors(), async (req, res) => {
     }
   });
 });
-app.get("/api/whatsapptvagentsapi", cors(), async (req, res) => {
+app.get("/api/whatsapptvagentsapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact, good_rating, bad_rating,  fk_user_id, contact FROM whatsapptvagents ORDER BY id DESC"
@@ -2071,7 +2071,7 @@ app.get("/api/agentprofile", async (req, res) => {
   }
 });
 
-app.get("/api/lodgeapi", cors(), async (req, res) => {
+app.get("/api/lodgeapi", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, location,  description,  fk_user_id, contact  FROM lodge ORDER BY id DESC"
