@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "cd server && node index.js"
+    "start": "cd server && node index.js",
+    "heroku-postbuild": "npm install --prefix client/react-dashboard && npm run build --prefix client/react-dashboard"
   },
   "author": "",
   "license": "ISC",
