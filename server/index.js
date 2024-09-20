@@ -1104,8 +1104,7 @@ app.post("/api/patchratingcourse", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/cryptoagentsapi", async (req, res) => {
-  console.log("requst was made ii");
+app.get("/api/cryptoagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
