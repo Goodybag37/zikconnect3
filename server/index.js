@@ -177,8 +177,8 @@ passport.use(
 );
 
 app.get(
-  "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login" }),
+  "/api/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/api/login" }),
   function (req, res) {
     // Successful authentication, redirect to the app with token.
     const token = req.user.token; // Assuming you attach token to the user object
@@ -347,20 +347,20 @@ function ensureAuthenticated(req, res, next) {
   req.session.returnTo = req.originalUrl;
 
   // If not authenticated, redirect to the login route
-  res.redirect("/login");
+  res.redirect("/api/login");
 }
 
 app.get(
-  "/auth/google",
+  "/api/auth/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
 app.get(
-  "/auth/google/roommates",
-  passport.authenticate("google", { failureRedirect: "/" }),
+  "/api/auth/google/roommates",
+  passport.authenticate("google", { failureRedirect: "/api/" }),
   (req, res) => {
     // Successful authentication, redirect home.
-    res.redirect("/");
+    res.redirect("/api/");
   }
 );
 
@@ -385,7 +385,7 @@ app.get("/fol", function (req, res) {
     }
   );
 });
-app.get("/logout", async (req, res) => {
+app.get("/api/logout", async (req, res) => {
   //  Passport's req.logout() to log the user out
   req.logout((err) => {
     if (err) {
@@ -398,7 +398,7 @@ app.get("/logout", async (req, res) => {
   res.redirect("/");
 });
 
-app.get("/profile", ensureAuthenticated, async (req, res) => {
+app.get("/api/profile", ensureAuthenticated, async (req, res) => {
   const id = req.user.id;
   try {
     const result = await pool.query(
@@ -436,7 +436,7 @@ app.get("/profile", ensureAuthenticated, async (req, res) => {
   }
 });
 
-app.post("/log", async (req, res, next) => {
+app.post("/api/log", async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -537,7 +537,7 @@ app.post("/login", cors(), async (req, res, next) => {
   }
 });
 
-app.post("/register", cors(), async (req, res) => {
+app.post("/api/register", cors(), async (req, res) => {
   const { email, password, fullname } = req.body;
 
   console.log(`Received email: ${email}`); // Debugging line
@@ -581,7 +581,7 @@ app.post("/register", cors(), async (req, res) => {
   }
 });
 
-app.get("/roommatesapi", cors(), async (req, res) => {
+app.get("/api/roommatesapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(fullname) AS fullname, department, gender, phone, fk_user_id FROM roommates ORDER BY id DESC"
@@ -613,7 +613,7 @@ app.get("/roommatesapi", cors(), async (req, res) => {
   }
 });
 
-app.get("/roommates/:id", async (req, res) => {
+app.get("/api/roommates/:id", async (req, res) => {
   const id = req.params.id;
   const result = await pool.query(
     "SELECT picture FROM roommates WHERE id = $1",
@@ -626,7 +626,7 @@ app.get("/roommates/:id", async (req, res) => {
   res.end(imageBase64, "base64");
 });
 
-app.get("/buysellapi", cors(), async (req, res) => {
+app.get("/api/buysellapi", cors(), async (req, res) => {
   try {
     const { search, page = 1, pageSize = 5 } = req.query;
 
@@ -680,7 +680,7 @@ app.get("/buysellapi", cors(), async (req, res) => {
   }
 });
 
-app.get("/buysell/:id", async (req, res) => {
+app.get("/api/buysell/:id", async (req, res) => {
   const id = req.params.id;
   try {
     // Query to get file metadata
@@ -774,7 +774,7 @@ const upload = multer({
   },
 });
 
-app.post("/upload-property", upload.single("file"), async (req, res) => {
+app.post("/api/upload-property", upload.single("file"), async (req, res) => {
   try {
     let { originalname, filename, mimetype } = req.file;
     const { name, description, user, price, located } = req.body;
@@ -857,7 +857,7 @@ app.post("/upload-property", upload.single("file"), async (req, res) => {
   }
 });
 
-app.put("/edit-upload/:id", upload.single("file"), async (req, res) => {
+app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
   const { id } = req.params;
   console.log("id", id);
   const { name, description, price, location } = req.body;
@@ -960,7 +960,7 @@ app.put("/edit-upload/:id", upload.single("file"), async (req, res) => {
   }
 });
 
-app.post("/delete-upload/:id", async (req, res) => {
+app.post("/api/delete-upload/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -974,7 +974,7 @@ app.post("/delete-upload/:id", async (req, res) => {
   } catch (error) {}
 });
 
-app.get("/get-status/:userId", async (req, res) => {
+app.get("/api/get-status/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
@@ -1007,7 +1007,7 @@ app.get("/get-status/:userId", async (req, res) => {
   }
 });
 
-app.post("/update-status/:type", async (req, res) => {
+app.post("/api/update-status/:type", async (req, res) => {
   const { status, userId } = req.body;
   const { type } = req.params;
   try {
@@ -1032,7 +1032,7 @@ app.post("/update-status/:type", async (req, res) => {
   }
 });
 
-app.post("/preference-toggleask", async (req, res) => {
+app.post("/api/preference-toggleask", async (req, res) => {
   const { userId } = req.body;
 
   try {
@@ -1051,7 +1051,7 @@ app.post("/preference-toggleask", async (req, res) => {
   }
 });
 
-app.get("/courseagentsapi", cors(), async (req, res) => {
+app.get("/api/courseagentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, course, contact, good_rating, bad_rating,  fk_user_id, contact FROM courseagents ORDER BY id DESC"
@@ -1080,7 +1080,7 @@ app.get("/courseagentsapi", cors(), async (req, res) => {
   }
 });
 
-app.post("/patchratingcourse", async (req, res) => {
+app.post("/api/patchratingcourse", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -1113,7 +1113,7 @@ app.post("/patchratingcourse", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/cryptoagentsapi", cors(), async (req, res) => {
+app.get("/api/cryptoagentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1208,7 +1208,7 @@ ORDER BY
   }
 });
 
-app.post("/patchratingcrypto", async (req, res) => {
+app.post("/api/patchratingcrypto", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -1242,7 +1242,7 @@ app.post("/patchratingcrypto", async (req, res) => {
   }
 });
 
-app.get("/cybercafeagentsapi", cors(), async (req, res) => {
+app.get("/api/cybercafeagentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact,  fk_user_id, good_rating, bad_rating FROM cybercafeagents ORDER BY id DESC"
@@ -1273,7 +1273,7 @@ app.get("/cybercafeagentsapi", cors(), async (req, res) => {
     console.log(error);
   }
 });
-app.post("/patchratingcyber", async (req, res) => {
+app.post("/api/patchratingcyber", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -1306,7 +1306,7 @@ app.post("/patchratingcyber", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/deliveryagentsapi", cors(), async (req, res) => {
+app.get("/api/deliveryagentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact,  fk_user_id, good_rating, bad_rating, contact FROM deliveryagents ORDER BY id DESC"
@@ -1335,7 +1335,7 @@ app.get("/deliveryagentsapi", cors(), async (req, res) => {
   }
 });
 
-app.post("/patchratingdelivery", async (req, res) => {
+app.post("/api/patchratingdelivery", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -1369,7 +1369,7 @@ app.post("/patchratingdelivery", async (req, res) => {
   }
 });
 
-app.get("/rideragentsapi", cors(), async (req, res) => {
+app.get("/api/rideragentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact,  fk_user_id, good_rating, bad_rating, contact FROM rideragents ORDER BY id DESC"
@@ -1397,7 +1397,7 @@ app.get("/rideragentsapi", cors(), async (req, res) => {
     console.log(error);
   }
 });
-app.post("/patchratingrider", async (req, res) => {
+app.post("/api/patchratingrider", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -1430,7 +1430,7 @@ app.post("/patchratingrider", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/schoolfeeagentsapi", cors(), async (req, res) => {
+app.get("/api/schoolfeeagentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact, good_rating, bad_rating,  fk_user_id FROM schoolfeeagents ORDER BY id DESC"
@@ -1461,7 +1461,7 @@ app.get("/schoolfeeagentsapi", cors(), async (req, res) => {
     console.log(error);
   }
 
-  app.post("/patchratingschoolfee", async (req, res) => {
+  app.post("/api/patchratingschoolfee", async (req, res) => {
     const agentId = req.query.agentId;
     const goodRating = parseInt(req.query.goodRating);
     const badRating = parseInt(req.query.badRating);
@@ -1497,7 +1497,7 @@ app.get("/schoolfeeagentsapi", cors(), async (req, res) => {
     }
   });
 });
-app.get("/whatsapptvagentsapi", cors(), async (req, res) => {
+app.get("/api/whatsapptvagentsapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, contact, good_rating, bad_rating,  fk_user_id, contact FROM whatsapptvagents ORDER BY id DESC"
@@ -1529,7 +1529,7 @@ app.get("/whatsapptvagentsapi", cors(), async (req, res) => {
   }
 });
 
-app.post("/submitreview", async (req, res) => {
+app.post("/api/submitreview", async (req, res) => {
   try {
     const { type, agentType, userid, agentId, review } = req.body;
     console.log("Received data:", { type, agentType, userid, agentId, review });
@@ -1561,7 +1561,7 @@ app.post("/submitreview", async (req, res) => {
 
 app;
 
-app.post("/patchratingwhatsapptv", async (req, res) => {
+app.post("/api/patchratingwhatsapptv", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -1594,7 +1594,7 @@ app.post("/patchratingwhatsapptv", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.post("/send-connect-email", async (req, res) => {
+app.post("/api/send-connect-email", async (req, res) => {
   const { agentId, userId, orderId, agentType, agentUserId } = req.body;
   const message = "connect request";
 
@@ -1699,7 +1699,7 @@ app.post("/send-connect-email", async (req, res) => {
 });
 
 // Backend endpoint to handle agent's response
-app.post("/respond-to-connect", async (req, res) => {
+app.post("/api/respond-to-connect", async (req, res) => {
   const { order_id, user_id, agent_id, status } = req.query;
 
   // Debug logs
@@ -1738,7 +1738,7 @@ app.post("/respond-to-connect", async (req, res) => {
   }
 });
 
-app.get("/check-pending-connects", async (req, res) => {
+app.get("/api/check-pending-connects", async (req, res) => {
   const { userId } = req.query;
 
   console.log(userId);
@@ -1762,7 +1762,7 @@ app.get("/check-pending-connects", async (req, res) => {
   }
 });
 
-app.get("/respond-to-connect", async (req, res) => {
+app.get("/api/respond-to-connect", async (req, res) => {
   const { order_id, user_id, agent_id, status } = req.query;
 
   // Debug logs
@@ -1801,7 +1801,7 @@ app.get("/respond-to-connect", async (req, res) => {
   }
 });
 
-app.post("/confirm-connect", async (req, res) => {
+app.post("/api/confirm-connect", async (req, res) => {
   const { messageId, orderId } = req.body; // Correctly extracting order_id from the request body
   console.log(orderId);
   try {
@@ -1843,7 +1843,7 @@ app.post("/confirm-connect", async (req, res) => {
   }
 });
 
-app.post("/complete-connect", async (req, res) => {
+app.post("/api/complete-connect", async (req, res) => {
   const { orderCode } = req.body;
 
   console.log("order has connected ", orderCode);
@@ -1861,7 +1861,7 @@ function generateVerificationCode() {
 }
 
 // Route to check if the phone number has been used
-app.get("/get-used-number", async (req, res) => {
+app.get("/api/get-used-number", async (req, res) => {
   const phone = req.query.phoneUsed; // Access the query parameter from the request
 
   try {
@@ -1885,7 +1885,7 @@ app.get("/get-used-number", async (req, res) => {
   }
 });
 
-app.post("/send-verification-code", async (req, res) => {
+app.post("/api/send-verification-code", async (req, res) => {
   const phone = req.body.phone;
   const userId = req.body.user;
 
@@ -1933,7 +1933,7 @@ app.post("/send-verification-code", async (req, res) => {
   }
 });
 
-app.post("/verify-phone", async (req, res) => {
+app.post("/api/verify-phone", async (req, res) => {
   const { phone, code, user } = req.body;
 
   try {
@@ -1963,7 +1963,7 @@ app.post("/verify-phone", async (req, res) => {
     res.status(500).json({ error: "Failed to verify phone number" });
   }
 });
-app.post("/reject-connect", async (req, res) => {
+app.post("/api/reject-connect", async (req, res) => {
   const { orderId } = req.body; // Correctly extracting order_id from the request body
 
   try {
@@ -1984,7 +1984,7 @@ app.post("/reject-connect", async (req, res) => {
   }
 });
 
-app.post("/connectbuysell", async (req, res) => {
+app.post("/api/connectbuysell", async (req, res) => {
   const { itemId } = req.body;
   console.log("updating buysell ", itemId);
 
@@ -2020,7 +2020,7 @@ app.post("/connectbuysell", async (req, res) => {
   }
 });
 
-app.get("/messages", async (req, res) => {
+app.get("/api/messages", async (req, res) => {
   const { userbread } = req.query;
   console.log(userbread);
 
@@ -2041,7 +2041,7 @@ app.get("/messages", async (req, res) => {
   } catch (error) {}
 });
 
-app.get("/agentprofile", async (req, res) => {
+app.get("/api/agentprofile", async (req, res) => {
   const { userId, type } = req.query;
 
   console.log("Received userId:", userId);
@@ -2069,7 +2069,7 @@ app.get("/agentprofile", async (req, res) => {
   }
 });
 
-app.get("/lodgeapi", cors(), async (req, res) => {
+app.get("/api/lodgeapi", cors(), async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT id, UPPER(name) AS name, location,  description,  fk_user_id, contact  FROM lodge ORDER BY id DESC"
