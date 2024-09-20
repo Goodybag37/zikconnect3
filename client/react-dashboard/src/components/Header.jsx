@@ -38,8 +38,7 @@ function Header(props) {
     setShowMessages(!showMessages);
     try {
       const result = await axios.get(
-        `${apiUrl}/api/messages?userbread=${userbread}`,
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        `${apiUrl}/api/messages?userbread=${userbread}`
       );
       const response = result.data;
       setMessages(response);

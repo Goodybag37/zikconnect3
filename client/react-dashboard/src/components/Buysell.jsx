@@ -168,9 +168,7 @@ function YourComponent() {
   const fetchSettingStatus = async (userId) => {
     try {
       // Ensure the API endpoint is correct and accessible
-      const response = await axios.get(`${apiUrl}/api/get-status/${userId}`, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
+      const response = await axios.get(`${apiUrl}/api/get-status/${userId}`);
 
       // Make sure the data structure matches
       const settings = response.data;
