@@ -49,7 +49,6 @@ function YourComponent() {
     location: "",
   });
 
-  const apiUrl = process.env.REACT_APP_API_URL;
   const usersPerPage = 10;
   const pagesVisited = pageNumber * usersPerPage;
 
@@ -77,6 +76,7 @@ function YourComponent() {
   const maxLengthD = 200;
   const maxLengthL = 25;
   const maxLengthP = 15;
+  const apiUrl = process.env.REACT_APP_API_URL;
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
