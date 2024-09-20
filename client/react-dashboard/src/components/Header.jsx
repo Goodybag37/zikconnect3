@@ -29,7 +29,8 @@ function Header(props) {
   const [acceptedMessages, setAcceptedMessages] = useState([]); // Array to track accepted message IDs
   const [countdownEndTime, setCountdownEndTime] = useState({});
   const [expired, setExpired] = useState({});
-  const [showProfile, setShowProfile] = useState(false); // Track expiry of messages
+  const [showProfile, setShowProfile] = useState(false);
+  const apiUrl = process.env.REACT_APP_API_URL; // Track expiry of messages
 
   const userbread = user.userId; // Optional chaining to avoid errors if user is null
 
@@ -37,7 +38,7 @@ function Header(props) {
     setShowMessages(!showMessages);
     try {
       const result = await axios.get(
-        `http://localhost:4000/messages?userbread=${userbread}`,
+        `${apiUrl}/api/messages?userbread=${userbread}`,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
       const response = result.data;
@@ -63,7 +64,7 @@ function Header(props) {
   const confirmConnect = async (messageId, orderId) => {
     try {
       await axios.post(
-        "http://localhost:4000/confirm-connect",
+        `${apiUrl}/api/confirm-connect`,
         {
           messageId,
           orderId,
@@ -87,7 +88,7 @@ function Header(props) {
 
   const rejectConnect = async (messageId, orderId) => {
     try {
-      await axios.post("http://localhost:4000/reject-connect", {
+      await axios.post(`${apiUrl}/api/reject-connect`, {
         messageId,
         orderId,
       });
@@ -101,7 +102,7 @@ function Header(props) {
   };
 
   // useEffect(() => {
-  //   const socket = io("http://localhost:4000");
+  //   const socket = io("${apiUrl}/api");
   //   // Call to handle existing messages if needed on initial render
 
   //   // Listen for the "newMessage" event and update messages in real-time

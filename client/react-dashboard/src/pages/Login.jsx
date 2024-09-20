@@ -17,6 +17,7 @@ const Login = () => {
   const location = useLocation();
   const { isAuthenticated, user, login } = useContext(AuthContext);
   const { setProfile } = useContext(UserContext);
+  const apiUrl = process.env.REACT_APP_API_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +32,7 @@ const Login = () => {
       formData.append("email", email);
       formData.append("password", password);
 
-      const response = await axios.post("http://localhost:4000/log", formData, {
+      const response = await axios.post(`${apiUrl}/api/log`, formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
       const userData = response.data;
@@ -81,7 +82,7 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     // Redirect to the Google login route provided by the server
-    window.location.href = "http://localhost:4000/auth/google";
+    window.location.href = `${apiUrl}/api/auth/google`;
 
     const redirectPath =
       new URLSearchParams(location.search).get("redirect") || "/agents";

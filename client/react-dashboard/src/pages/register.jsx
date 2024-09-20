@@ -15,6 +15,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false); // Add loading state
   const navigate = useNavigate();
   const location = useLocation();
+  const apiUrl = process.env.REACT_APP_API_URL;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
   // const { setProfile } = useContext(UserContext);
@@ -35,11 +36,9 @@ const Register = () => {
       formData.append("fullname", fullname);
 
       // Send the data
-      const response = await axios.post(
-        "http://localhost:4000/register",
-        formData,
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-      );
+      const response = await axios.post(`${apiUrl}/api/register`, formData, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
 
       console.log("Registration successful:", response.data);
 
