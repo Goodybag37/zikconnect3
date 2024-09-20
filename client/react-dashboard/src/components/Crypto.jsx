@@ -84,7 +84,9 @@ function YourComponent() {
   const fetchData = async (page) => {
     try {
       const response = await axios.get(
-        `${apiUrl}/cryptoagentsapi?page=${page + 1}&pageSize=${usersPerPage}`
+        `${apiUrl}/api/cryptoagentsapi?page=${
+          page + 1
+        }&pageSize=${usersPerPage}`
       );
       console.log(response);
       const {
