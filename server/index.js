@@ -627,6 +627,8 @@ app.get("/api/roommates/:id", async (req, res) => {
 });
 
 app.get("/api/buysellapi", async (req, res) => {
+  console.log("request was made to buysellapoo");
+
   try {
     const { search, page = 1, pageSize = 5 } = req.query;
 
@@ -1114,6 +1116,7 @@ app.post("/api/patchratingcourse", async (req, res) => {
   }
 });
 app.get("/api/cryptoagentsapi", async (req, res) => {
+  console.log("requst was made ii");
   try {
     const result = await pool.query(`
       SELECT 
@@ -1182,7 +1185,7 @@ ORDER BY
 
       `);
 
-    const cryptoagents = result.rows;
+    const cryptoagents = result.rows[0];
 
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 5;
