@@ -23,7 +23,7 @@ import {
   BsArchiveFill,
 } from "react-icons/bs";
 
-// const socket = io("http://localhost:4000");
+// const socket = io("${apiUrl}/api");
 
 function YourComponent() {
   const [buysells, setbuysells] = useState([]);
@@ -49,6 +49,7 @@ function YourComponent() {
     location: "",
   });
 
+  const apiUrl = process.env.REACT_APP_API_URL;
   const usersPerPage = 10;
   const pagesVisited = pageNumber * usersPerPage;
 
@@ -112,7 +113,7 @@ function YourComponent() {
 
   const fetchData = async (page, searchQuery) => {
     try {
-      const response = await axios.get(`http://localhost:4000/buysellapi`, {
+      const response = await axios.get(`${apiUrl}/api/buysellapi`, {
         params: {
           page: page + 1,
           pageSize: usersPerPage,
@@ -146,7 +147,7 @@ function YourComponent() {
 
         // Send a POST request to update the status in the database
         await axios.post(
-          `http://localhost:4000/preference-toggleask/`,
+          `${apiUrl}/api/preference-toggleask/`,
           {
             userId: userbread,
             // or any other identifier if needed
@@ -167,12 +168,9 @@ function YourComponent() {
   const fetchSettingStatus = async (userId) => {
     try {
       // Ensure the API endpoint is correct and accessible
-      const response = await axios.get(
-        `http://localhost:4000/get-status/${userId}`,
-        {
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        }
-      );
+      const response = await axios.get(`${apiUrl}/api/get-status/${userId}`, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
 
       // Make sure the data structure matches
       const settings = response.data;
@@ -224,7 +222,7 @@ function YourComponent() {
 
       // Send a POST request to update the status in the database
       await axios.post(
-        `http://localhost:4000/update-status/${type}`,
+        `${apiUrl}/api/update-status/${type}`,
         {
           status: newStatus,
           userId: userbread,
@@ -250,7 +248,7 @@ function YourComponent() {
 
       // Send the connect request to the backend
       await axios.post(
-        `http://localhost:4000/connectbuysell`,
+        `${apiUrl}/api/connectbuysell`,
         { itemId },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -275,13 +273,10 @@ function YourComponent() {
 
   const handleShowPicture = async (itemId) => {
     try {
-      const response = await axios.get(
-        `http://localhost:4000/buysell/${itemId}`,
-        {
-          responseType: "blob", // Important: Fetch the image as a Blob
-          validateStatus: (status) => status < 500,
-        }
-      );
+      const response = await axios.get(`${apiUrl}/api/buysell/${itemId}`, {
+        responseType: "blob", // Important: Fetch the image as a Blob
+        validateStatus: (status) => status < 500,
+      });
       if (response.status === 404) {
         // Check if the Blob is empty, indicating no image was found
         setModalContent(
@@ -395,7 +390,7 @@ function YourComponent() {
     );
 
     try {
-      await axios.post(`http://localhost:4000/delete-upload/${itemToDelete}`, {
+      await axios.post(`${apiUrl}/api/delete-upload/${itemToDelete}`, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
     } catch (error) {
@@ -430,7 +425,7 @@ function YourComponent() {
 
       // Send the FormData to the server using a PUT request
       await axios.put(
-        `http://localhost:4000/edit-upload/${itemId}`,
+        `${apiUrl}/api/edit-upload/${itemId}`,
         formData
 
         // Send FormData instead of JSON

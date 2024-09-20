@@ -77,13 +77,14 @@ function YourComponent() {
   const userbread = user.userId; // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
   const isPhoneVerified = user.isPhoneVerified;
+  const apiUrl = process.env.REACT_APP_API_URL;
 
   console.log("user bread", userbread);
 
   const fetchData = async (page) => {
     try {
       const response = await axios.get(
-        `http://localhost:4000/cryptoagentsapi?page=${
+        `${apiUrl}/api/cryptoagentsapi?page=${
           page + 1
         }&pageSize=${usersPerPage}`
       );
@@ -119,7 +120,7 @@ function YourComponent() {
 
       try {
         const response = await axios.get(
-          `http://localhost:4000/check-pending-connects?userId=${userId}`
+          `${apiUrl}/api/check-pending-connects?userId=${userId}`
         );
         console.log(response.data);
         const agent = response.data.agent_id;
@@ -293,7 +294,7 @@ function YourComponent() {
   //   const checkPendingConnect = async () => {
   //     try {
   //       const userId = localStorage.getItem('user'); // Assuming the user's ID is stored in localStorage or some other state
-  //       const response = await axios.get(`http://localhost:4000/check-pending-connects?userId=${userId}`);
+  //       const response = await axios.get(`${apiUrl}/api/check-pending-connects?userId=${userId}`);
 
   //       if (response.data.user_id) {
   //         console.log(response.data.order_id)
@@ -383,7 +384,7 @@ function YourComponent() {
     console.log(" i have updated", orderId);
     try {
       await axios.post(
-        `http://localhost:4000/complete-connect`,
+        `${apiUrl}/api/complete-connect`,
         { orderCode },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -394,7 +395,7 @@ function YourComponent() {
     const orderId = orderCode2;
     try {
       await axios.post(
-        `http://localhost:4000/incomplete-connect`,
+        `${apiUrl}/api/incomplete-connect`,
         { orderId },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -411,7 +412,7 @@ function YourComponent() {
 
     try {
       await axios.post(
-        `http://localhost:4000/submitreview`,
+        `${apiUrl}/api/submitreview`,
         {
           type,
           agentType,
@@ -444,7 +445,7 @@ function YourComponent() {
   const handleShowProfile = async () => {
     try {
       const result = await axios.get(
-        `http://localhost:4000/agentprofile?userId=${userbread}&type=cryptoagents`,
+        `${apiUrl}/api/agentprofile?userId=${userbread}&type=cryptoagents`,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
 
@@ -596,7 +597,7 @@ function YourComponent() {
 
     try {
       const response = await axios.post(
-        `http://localhost:4000/patchratingcrypto?agentId=${agentId}&goodRating=${goodRating}`
+        `${apiUrl}/api/patchratingcrypto?agentId=${agentId}&goodRating=${goodRating}`
       );
       const updatedRating = response.data.goodRating;
 
@@ -716,7 +717,7 @@ function YourComponent() {
       const agentType = "crypto";
       const agentUserId = selectedAgent.fk_user_id;
       await axios.post(
-        "http://localhost:4000/send-connect-email",
+        `${apiUrl}/api/send-connect-email`,
         {
           agentId: agentId,
           userId: userId,
@@ -746,7 +747,7 @@ function YourComponent() {
 
     try {
       const response = await axios.post(
-        `http://localhost:4000/patchratingcrypto?agentId=${agentId}&badRating=${badRating}`
+        `${apiUrl}/api/patchratingcrypto?agentId=${agentId}&badRating=${badRating}`
       );
       const updatedRating = response.data.badRating;
 
