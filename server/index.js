@@ -1173,7 +1173,7 @@ ORDER BY
 
       `);
 
-    const cryptoagents = result.rows[0];
+    const cryptoagents = result.rows;
 
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 5;
