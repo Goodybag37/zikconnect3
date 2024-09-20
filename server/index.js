@@ -11,7 +11,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import flash from "connect-flash";
 import "dotenv/config";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { createProxyMiddleware } from "http-proxy-middleware";
+// import { createProxyMiddleware } from "http-proxy-middleware";
 import cors from "cors";
 import path from "path";
 import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
@@ -97,13 +97,13 @@ myQueue.process(async (job) => {
 
 app.use(cors());
 app.use(compression());
-app.use(
-  "/api", // Adjust this path based on your needs
-  createProxyMiddleware({
-    target: "http://localhost:3001", // Replace with the actual port of your React development server
-    changeOrigin: true,
-  })
-);
+// app.use(
+//   "/api", // Adjust this path based on your needs
+//   createProxyMiddleware({
+//     target: "http://localhost:3001", // Replace with the actual port of your React development server
+//     changeOrigin: true,
+//   })
+// );
 
 let transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -138,10 +138,11 @@ app.set("trust proxy", 1); // trust first proxy
 // });
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // This is needed for SSL connections on Heroku
-  },
+  connectionString: process.env.DATABASE_URL, // your database URL from Heroku config vars
+  ssl:
+    process.env.NODE_ENV === "production"
+      ? { rejectUnauthorized: false }
+      : false,
 });
 const PORT = process.env.PORT || 4000;
 const saltRounds = 10;
@@ -439,6 +440,7 @@ app.get("/api/profile", ensureAuthenticated, async (req, res) => {
 app.post("/api/log", async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
+  console.log("request made to me ");
 
   try {
     // Query to get user info from the database
