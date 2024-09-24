@@ -77,8 +77,8 @@ function YourComponent() {
   const userbread = user.userId; // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
   const isPhoneVerified = user.isPhoneVerified;
-  const apiUrl = process.env.REACT_APP_API_URL;
-
+  const apiUrls = process.env.REACT_APP_API_URL;
+  const apiUrl = "http://localhost:4000";
   console.log("user bread", userbread);
 
   const fetchData = async (page) => {
@@ -289,62 +289,6 @@ function YourComponent() {
       [id]: !prev[id],
     }));
   };
-
-  // useEffect(() => {
-  //   const checkPendingConnect = async () => {
-  //     try {
-  //       const userId = localStorage.getItem('user'); // Assuming the user's ID is stored in localStorage or some other state
-  //       const response = await axios.get(`${apiUrl}/api/check-pending-connects?userId=${userId}`);
-
-  //       if (response.data.user_id) {
-  //         console.log(response.data.order_id)
-  //         const { agent, orderCode, countdownEndTime } = response.data;
-
-  //         // Set state with the details from the response
-  //         setSelectedAgent(agent);
-  //         setOrderCode(orderCode);
-  //         setCountdownEndTime(new Date(countdownEndTime));
-
-  //         // Prepare the modal content
-  //         const content = (
-  //           <>
-  //             <h2 className='popup-heading'>Connect Request</h2>
-  //             <p className='popup-paragraph'>
-  //               You have an ongoing connect. The agent will have until the countdown ends to respond.
-  //             </p>
-  //             <h4 className='popup-heading'>Details</h4>
-  //             <p className='popup-paragraph'>Order Number: {orderCode}</p>
-  //             <p className='popup-paragraph'>Agent ID: {agent.id}</p>
-  //             <p className='popup-paragraph'>Agent Full Name: {agent.name}</p>
-  //             <div className="chat-call-buttons">
-  //               <a href={`https://wa.me/${agent.contact}`}>
-  //                 <button className='bg-blue-gradient roommate-button'>
-  //                   <LogoWhatsapp className='connect_icon' />Chat
-  //                 </button>
-  //               </a>
-  //               <a href={`tel:${agent.contact}`}>
-  //                 <button className='bg-blue-gradient roommate-button'>
-  //                   <BisPhoneCall className='connect_icon' />Call
-  //                 </button>
-  //               </a>
-  //             </div>
-  //             <CountdownTimer endTime={new Date(countdownEndTime)} />
-
-  //           </>
-  //         );
-
-  //         setModalContent(content);
-  //         setShowModal(true); // Show modal on page load
-  //       } else {
-  //         fetchData(pageNumber); // Load agents normally
-  //       }
-  //     } catch (error) {
-  //       console.error('Error checking pending connect:', error);
-  //     }
-  //   };
-
-  //   checkPendingConnect();
-  // }, [pageNumber]);
 
   const toggleReviewForm = (agentId) => {
     setShowReviewForm((prev) => ({

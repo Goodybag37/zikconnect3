@@ -21,6 +21,7 @@ import VerifyPhone from "../pages/VerifyPhone";
 import VerifyId from "../pages/VerifyId";
 import ProtectedRoutes from "./ProtectedRoutes";
 import UploadProperty from "../pages/UploadProperty";
+import UploadLodge from "../pages/UploadLodge";
 function App() {
   const [openSidebarToggle, setOpenSidebarToggle] = useState(false);
   // const location = useLocation();
@@ -69,6 +70,7 @@ function App() {
             />
           }
         >
+          <Route path="/uploadlodge" element={<UploadLodge />} />
           <Route path="/uploadproperty" element={<UploadProperty />} />
         </Route>
 

@@ -23,22 +23,40 @@
 // export default Profiles
 
 // ProfilePage.js
-import React, { useContext } from "react";
-import AuthContext from "../AuthContext"; // Import the context
+import { useState } from "react";
+import "../App.css";
+import Header from "../components/Header";
+import Sidebar from "../components/Sidebar";
+import Lodge from "../components/Lodge";
+import Profile from "../components/Profile";
+import { Routes, Route, useParams, useLocation } from "react-router-dom";
 
-const ProfilePage = () => {
-  const { user, isAuthenticated } = useContext(AuthContext); // Access user and isAuthenticated
+function Profiles() {
+  const [openSidebarToggle, setOpenSidebarToggle] = useState(false);
 
-  if (!isAuthenticated) {
-    return <p>Please log in to view this page.</p>;
-  }
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+
+  const userId = searchParams.get("userId");
+  const userEmail = searchParams.get("email");
+
+  const heading = "Profile";
+
+  const OpenSidebar = () => {
+    setOpenSidebarToggle(!openSidebarToggle);
+  };
 
   return (
-    <div>
-      <h1>Welcome, {user.email}!</h1>
-      <p>User ID: {user.id}</p>
+    <div className="grid-container">
+      <Header OpenSidebar={OpenSidebar} heading={heading} />
+      <Sidebar
+        openSidebarToggle={openSidebarToggle}
+        OpenSidebar={OpenSidebar}
+      />
+
+      <Profile />
     </div>
   );
-};
+}
 
-export default ProfilePage;
+export default Profiles;

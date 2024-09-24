@@ -8,7 +8,13 @@ import { LazyLoadComponent } from "react-lazy-load-image-component";
 import Modal from "../components/Modal";
 import AuthContext from "../AuthContext";
 import Popup from "./Popup";
-import { BsZoomIn, BsBrowserEdge, BsFillPersonXFill } from "react-icons/bs";
+import {
+  BsZoomIn,
+  BsPatchCheckFill,
+  BsFillPersonXFill,
+  BsXOctagonFill,
+  BsBrowserEdge,
+} from "react-icons/bs";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 // import { io } from "socket.io-client"; // WebSocket client
 import {
@@ -76,8 +82,8 @@ function YourComponent() {
   const maxLengthD = 200;
   const maxLengthL = 25;
   const maxLengthP = 15;
-  const apiUrl = process.env.REACT_APP_API_URL;
-
+  const apiUrls = process.env.REACT_APP_API_URL;
+  const apiUrl = "http://localhost:4000";
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
 
@@ -275,6 +281,7 @@ function YourComponent() {
         responseType: "blob", // Important: Fetch the image as a Blob
         validateStatus: (status) => status < 500,
       });
+
       if (response.status === 404) {
         // Check if the Blob is empty, indicating no image was found
         setModalContent(
@@ -589,6 +596,7 @@ function YourComponent() {
                     }
                     onClick={() => handleConnectClick(buysell.id)}
                   >
+                    <BsBrowserEdge className="connect_icon" />
                     {buttonStatus[buysell.id] === "order"
                       ? "In Order..."
                       : "Connect"}
@@ -733,8 +741,22 @@ function YourComponent() {
           header="Delete Item"
           message="Are you sure you want to delete this item?"
           buttons={[
-            { label: "Confirm", onClick: handleDeleteItem },
-            { label: "Cancel", onClick: cancelDelete },
+            {
+              label: (
+                <>
+                  <BsPatchCheckFill className="connect_icon" /> Confirm
+                </>
+              ),
+              onClick: handleDeleteItem,
+            },
+            {
+              label: (
+                <>
+                  <BsXOctagonFill className="connect_icon" /> Cancel
+                </>
+              ),
+              onClick: cancelDelete,
+            },
           ]}
         />
       )}
@@ -748,7 +770,14 @@ function YourComponent() {
               : "You have switched to inactive mode, your items are hidden from buyers."
           }
           buttons={[
-            { label: "Confirm", onClick: () => setIsPopupVisible2(false) }, // Fix here
+            {
+              label: (
+                <>
+                  <BsPatchCheckFill className="connect_icon" /> Confirm
+                </>
+              ),
+              onClick: () => setIsPopupVisible2(false),
+            }, // Fix here
           ]}
           checkbox={{
             label: "Don't ask again",
