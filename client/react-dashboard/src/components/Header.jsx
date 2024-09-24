@@ -30,8 +30,8 @@ function Header(props) {
   const [countdownEndTime, setCountdownEndTime] = useState({});
   const [expired, setExpired] = useState({});
   const [showProfile, setShowProfile] = useState(false);
-  const apiUrl = process.env.REACT_APP_API_URL; // Track expiry of messages
-
+  const apiUrls = process.env.REACT_APP_API_URL; // Track expiry of messages
+  const apiUrl = "http://localhost:4000";
   const userbread = user.userId; // Optional chaining to avoid errors if user is null
 
   const handleMessages = async () => {

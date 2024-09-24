@@ -29,7 +29,6 @@ function UploadProperty() {
   const maxLengthD = 200;
   const maxLengthL = 25;
   const maxLengthP = 15;
-  const apiUrl = process.env.REACT_APP_API_URL;
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -89,7 +88,7 @@ function UploadProperty() {
 
       // Send the data
       const response = await axios.post(
-        `${apiUrl}/api/upload-property`,
+        "http://localhost:4000/api/upload-property",
         formData
         // {
         //   headers: { "Content-Type": "multipart/form-data" },
