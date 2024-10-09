@@ -124,6 +124,8 @@ import {
   BsFillPersonXFill,
   BsXOctagonFill,
   BsBrowserEdge,
+  BsInfoCircleFill,
+  BsFillGearFill,
 } from "react-icons/bs";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 // import { io } from "socket.io-client"; // WebSocket client
@@ -169,7 +171,9 @@ function YourComponent() {
   const pagesVisited = pageNumber * usersPerPage;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const userbread = user.userId; // Optional chaining to avoid errors if user is null
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
+  // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
   const [located, setLocated] = useState("");
   const [name, setName] = useState("");
@@ -186,7 +190,8 @@ function YourComponent() {
   const [toggled, setToggled] = useState(true);
   const [viewMode, setViewMode] = useState("general");
   const [askToggle, setAskToggle] = useState(true);
-  const [profile, setProfile] = useState([]);
+  const [profile, setProfile] = useState({});
+  const [selectedComponent, setSelectedComponent] = useState("Profile");
 
   const [showMessages, setShowMessages] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -232,6 +237,22 @@ function YourComponent() {
       // If validation passes, reset error and set file
       setErrorMessage("");
       setSelectedFile(selectedFile);
+    }
+  };
+
+  const handleComponentChange = (event) => {
+    setSelectedComponent(event.target.value);
+  };
+
+  // Render the selected component
+  const renderComponent = () => {
+    switch (selectedComponent) {
+      case "Profile":
+        return <Profile />;
+      case "Lodge":
+        return <Lodge />;
+      default:
+        return <Profile />; // Default to "Profile" if no valid selection
     }
   };
 
@@ -286,17 +307,21 @@ function YourComponent() {
 
   const fetchData = async (page) => {
     try {
-      const response = await axios.get(`http://localhost:4000/profileapi`);
-      const profile = response.data;
+      const response = await axios.get(
+        `${apiUrl}/api/profile?userbread=${userbread}`
+      );
+      const profiles = response.data;
+
+      setProfile(profiles);
 
       const response2 = await axios.get(
         `${apiUrl}/api/messages?userbread=${userbread}`
       );
-      const fullMessage = response2.data;
-      setMessages(fullMessage);
+      const { messages, unreadCount } = response2.data;
+      setMessages(messages);
 
       const expiry = {};
-      fullMessage.forEach((msg) => {
+      messages.forEach((msg) => {
         const requestTime = new Date(msg.timestamp);
         const expiryTime = new Date(requestTime.getTime() + 10 * 60 * 1000);
         if (expiryTime < new Date()) {
@@ -421,117 +446,9 @@ function YourComponent() {
     }
   };
 
-  const handleConnectClick = async (itemId) => {
-    try {
-      // Optimistically update the button for the current user
-      setButtonStatus((prevState) => ({
-        ...prevState,
-        [itemId]: "in order",
-      }));
-
-      // Send the connect request to the backend
-      await axios.post(
-        `${apiUrl}/api/connectbuysell`,
-        { itemId },
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-      );
-
-      // The backend will broadcast the update to all connected users
-    } catch (error) {
-      console.error("Error connecting:", error);
-    }
-  };
-
-  const handleSearchSubmit = (event) => {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
-    setPageNumber(0);
-    fetchData(0, searchQuery); // Fetch data based on the search query
-  };
-
   useEffect(() => {
     fetchData(pageNumber, searchQuery);
   }, [pageNumber, searchQuery]);
-
-  const handleShowPicture = async (itemId) => {
-    try {
-      const response = await axios.get(`${apiUrl}/api/buysell/${itemId}`, {
-        responseType: "blob", // Important: Fetch the image as a Blob
-        validateStatus: (status) => status < 500,
-      });
-
-      console.log(response.data);
-      if (response.status === 404) {
-        // Check if the Blob is empty, indicating no image was found
-        setModalContent(
-          <div>
-            <p>No image found for this item.</p>
-            <button
-              style={{
-                marginTop: "20px",
-                background: "#ff0000",
-                color: "#fff",
-                border: "none",
-                padding: "10px",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-              onClick={() => setShowModal(false)} // Close the modal when clicked
-            >
-              Close
-            </button>
-          </div>
-        );
-      } else {
-        // If the image exists, display it
-        const imageUrl = URL.createObjectURL(response.data);
-
-        setModalContent(
-          <div style={{ position: "relative" }}>
-            <img
-              src={imageUrl}
-              alt="Item"
-              style={{
-                width: "100%",
-                height: "auto",
-                maxWidth: "100%",
-                objectFit: "contain",
-              }}
-            />
-            <button
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                background: "#ff0000",
-                color: "#fff",
-                border: "none",
-                padding: "10px",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-              onClick={() => setShowModal(false)} // Close the modal when clicked
-            >
-              Close
-            </button>
-          </div>
-        );
-      }
-
-      setShowModal(true); // Show the modal with the image
-    } catch (error) {
-      console.error("Error fetching image:", error);
-    }
-  };
-
-  const all = () => {
-    setSearchQuery(""); // Reset the search query to an empty string
-    setPageNumber(0);
-    setViewMode("general");
-    setSelectedAgent(""); // Reset the page number to the first page
-    fetchData(pageNumber, ""); // Fetch all data without any search query
-  };
 
   useEffect(() => {
     fetchData(pageNumber);
@@ -570,17 +487,32 @@ function YourComponent() {
 
   const handleDeleteItem = async () => {
     setIsPopupVisible(false);
-    setbuysells((prevBuysells) =>
-      prevBuysells.filter((buysell) => buysell.id !== itemToDelete)
+    setMessages((prevMessages) =>
+      prevMessages.filter((message) => message.id !== itemToDelete)
     );
 
     try {
-      await axios.post(`${apiUrl}/api/delete-upload/${itemToDelete}`, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
+      const response = await axios.post(
+        `${apiUrl}/api/delete-connect`,
+        {
+          itemToDelete: itemToDelete,
+        },
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+
+      if (response.status === 200) {
+        // Remove the rejected message from the state
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== messageId)
+        );
+
+        // Optionally call fetchData if you want to ensure data consistency
+        // fetchData(pageNumber, searchQuery);
+      } else {
+        console.error("Failed to delete message:", response);
+      }
     } catch (error) {
-      console.log(error);
-    } finally {
+      console.error("Error rejecting connect:", error);
     }
   };
 
@@ -612,14 +544,44 @@ function YourComponent() {
 
   const rejectConnect = async (messageId, orderId) => {
     try {
-      await axios.post(`${apiUrl}/api/reject-connect`, {
-        messageId,
-        orderId,
-      });
+      await axios.post(
+        `${apiUrl}/api/reject-connect`,
+        {
+          messageId,
+          orderId,
+        },
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
       // Remove the rejected message from the state
       setMessages((prevMessages) =>
         prevMessages.filter((msg) => msg.id !== messageId)
       );
+    } catch (error) {
+      console.error("Error rejecting connect:", error);
+    }
+  };
+
+  const deleteConnect = async (messageId) => {
+    try {
+      const response = await axios.post(
+        `${apiUrl}/api/delete-connect`,
+        {
+          messageId,
+        },
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+
+      if (response.status === 200) {
+        // Remove the rejected message from the state
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => msg.id !== messageId)
+        );
+
+        // Optionally call fetchData if you want to ensure data consistency
+        // fetchData(pageNumber, searchQuery);
+      } else {
+        console.error("Failed to delete message:", response);
+      }
     } catch (error) {
       console.error("Error rejecting connect:", error);
     }
@@ -671,54 +633,58 @@ function YourComponent() {
     const isAccepted = acceptedMessages.includes(messages.id); // Check if this message is accepted
 
     return (
-      <div className={`cardBuysell2 ${isFlipped ? "flipped" : ""} `}>
+      <div className={`cardProfile ${isFlipped ? "flipped" : ""}`}>
         <div className={`card-inner ${isFlipped ? "flippedCard" : ""}`}>
           {isFlipped ? (
             <div>
-              <h2 className="info-header">Info</h2>
+              <h2 className="INFO text-gradient">Info</h2>
+              <BsXLg
+                className="text-gradient cardIconFlip3"
+                onClick={() => handleFlip(messages.id)}
+              />
 
               <p>
-                {messages.timestamp}
-                <br />
-                ID: {messages.id}
+                <strong> ID: </strong>
+                {messages.id}
                 <hr />
                 <br />
-                <br />
-                AGENT TYPE: {messages.type}
+                <strong> AGENT TYPE:</strong> {messages.type}
                 <hr />
                 <br />
-                <br />
-                USER NAME: {messages.sender_name}
+                <strong> CUSTOMER NAME: </strong> {messages.sender_fullname}
                 <hr />
                 <br />
-                <br />
-                USER ID: {messages.sender_id}
+                <strong> CUSTOMER ID: </strong> {messages.sender_id}
                 <hr />
                 <br />
-                <br />
-                ORDER CODE : {messages.order_code}
+                <strong> ORDER CODE : </strong> {messages.order_code}
                 <hr />
                 <br />
-                <br />
-                <a> Report User ? </a>
+                <a className="reportUser" href="#">
+                  Report User?
+                </a>
                 <hr />
               </p>
             </div>
           ) : (
             <div key={messages.id}>
-              {isAccepted ? (
+              {isAccepted || messages.message === "connect accepted" ? (
                 <ul className="roommate-list-head">
                   <li>
-                    <div className="profilePicRoommate">
+                    <div className="profilePicProfile">
                       <div className="profileHeaderR bg-blue-gradient">
                         <p className="profileInfo">Connect Accepted</p>
+
+                        <BsInfoCircleFill
+                          className="text-gradient  text-gradient cardIconFlip"
+                          onClick={() => handleFlip(messages.id)}
+                        />
                       </div>
                       <BsPeopleFill className="connectProfile" />
                     </div>
                   </li>
-
                   <li className="roommateList">
-                    BY : {messages.sender_fullname}{" "}
+                    BY : {messages.sender_fullname}
                   </li>
                   <hr />
                   <li className="roommateList">ON : {messages.timestamp}</li>
@@ -726,77 +692,42 @@ function YourComponent() {
                   <li className="roommateList">
                     TYPE : {capitalizeFirstLetter(messages.type)}
                   </li>
-                  <li className="roommate-list">
-                    {/* <button
-                    className="bg-blue-gradient roommateButtonConnect"
-                    disabled={
-                      buttonStatus[buysell.id] === "in order" ||
-                      selectedAgent ||
-                      buysell.fk_user_id === userIn
-                    }
-                    onClick={() => handleConnectClick(buysell.id)}
-                  >
-                    <BsBrowserEdge className="connect_icon" />
-                    {buttonStatus[buysell.id] === "order"
-                      ? "In Order..."
-                      : "Connect"}
-                  </button>
-
-                  <button
-                    onClick={() => handleShowPicture(buysell.id)}
-                    className="roommateButtonPicture "
-                  >
-                    <BsPeopleFill className="connect_icon" />
-                    See Picture
-                  </button> */}
-                    {/* {selectedAgent && (
-                    <BsArchiveFill
-                      className="text-gradient cardIconDelete"
-                      onClick={() => {
-                        handleDeleteClick(buysell.id);
-                      }}
-                    />
-                  )}
-
-                  {selectedAgent && (
-                    <BsEyedropper
-                      className="text-gradient cardIconFlip2"
-                      onClick={() => {
-                        handleEditClick(buysell);
-                        handleFlip(buysell.id);
-                      }}
-                    />
-                  )} */}
-                  </li>
                   <li className="chat-call-buttons">
                     <button
-                      disabled={isExpired2}
                       className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                    >
-                      Chat
-                    </button>
-                    <button
                       disabled={isExpired2}
-                      className="bg-blue-gradient roommate-button connect-accept-button"
                     >
+                      <BsPatchCheckFill className="connect_icon" />
                       Call
                     </button>
+                    <button
+                      className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                      disabled={isExpired2}
+                    >
+                      <BsXOctagonFill className="connect_icon" />
+                      Chat
+                    </button>
+                    <p className="text-gradient">
+                      <CountdownTimer endTime={expiryTime2} />
+                    </p>
                   </li>
                 </ul>
               ) : (
                 <ul className="roommate-list-head">
                   <li>
-                    <div className="profilePicRoommate">
+                    <div className="profilePicProfile">
                       <div className="profileHeaderR bg-blue-gradient">
                         <p className="profileInfo">{messages.message}</p>
+                        <BsInfoCircleFill
+                          className="text-gradient  text-gradient cardIconFlip"
+                          onClick={() => handleFlip(messages.id)}
+                        />
                       </div>
-
                       <BsPeopleFill className="connectProfile" />
                     </div>
                   </li>
-
                   <li className="roommateList">
-                    BY : {messages.sender_fullname}{" "}
+                    BY : {messages.sender_fullname}
                   </li>
                   <hr />
                   <li className="roommateList">ON : {messages.timestamp}</li>
@@ -806,7 +737,9 @@ function YourComponent() {
                   </li>
                   <li className="chat-call-buttons">
                     <button
-                      onClick={() => confirmConnect(msg.id, msg.order_code)}
+                      onClick={() =>
+                        confirmConnect(messages.id, messages.order_code)
+                      }
                       className="bg-blue-gradient roommate-button connect-accept-button-chat"
                       disabled={isExpired || isAccepted}
                     >
@@ -814,154 +747,19 @@ function YourComponent() {
                       Confirm
                     </button>
                     <button
-                      onClick={() => rejectConnect(msg.id)}
+                      onClick={() => {
+                        handleDeleteClick(messages.id);
+                        // deleteConnect(messages.id);
+                      }}
                       className="bg-blue-gradient roommate-button connect-accept-button"
                     >
                       <BsXOctagonFill className="connect_icon" />
-                      Reject
+                      {isExpired ? "Delete" : "Reject"}
                     </button>
                   </li>
-
                   <p className="text-gradient">
                     <CountdownTimer endTime={expiryTime} />
                   </p>
-                  {/* {isExpired && <p className="text-red">Connect Expired</p>} */}
-                  <li className="roommate-list">
-                    {/* <button
-                    className="bg-blue-gradient roommateButtonConnect"
-                    disabled={
-                      buttonStatus[buysell.id] === "in order" ||
-                      selectedAgent ||
-                      buysell.fk_user_id === userIn
-                    }
-                    onClick={() => handleConnectClick(buysell.id)}
-                  >
-                    <BsBrowserEdge className="connect_icon" />
-                    {buttonStatus[buysell.id] === "order"
-                      ? "In Order..."
-                      : "Connect"}
-                  </button>
-
-                  <button
-                    onClick={() => handleShowPicture(buysell.id)}
-                    className="roommateButtonPicture "
-                  >
-                    <BsPeopleFill className="connect_icon" />
-                    See Picture
-                  </button> */}
-                    {/* {selectedAgent && (
-                    <BsArchiveFill
-                      className="text-gradient cardIconDelete"
-                      onClick={() => {
-                        handleDeleteClick(buysell.id);
-                      }}
-                    />
-                  )}
-
-                  {selectedAgent && (
-                    <BsEyedropper
-                      className="text-gradient cardIconFlip2"
-                      onClick={() => {
-                        handleEditClick(buysell);
-                        handleFlip(buysell.id);
-                      }}
-                    />
-                  )} */}
-                  </li>
-                </ul>
-              )}
-
-              {messages.message === "connect accepted" && (
-                <ul className="roommate-list-head">
-                  <li>
-                    <div className="profilePicRoommate">
-                      <div className="profileHeaderR bg-blue-gradient">
-                        <p className="profileInfo">Connect Accepted</p>
-                      </div>
-
-                      <p className="text-gradient">
-                        <CountdownTimer endTime={expiryTime2} />
-                      </p>
-
-                      <BsPeopleFill className="connectProfile" />
-                    </div>
-                  </li>
-                  <li>
-                    <BsXLg
-                      className="text-gradient card-icon-flip"
-                      onClick={() => handleFlip(agent.id)}
-                    />
-                  </li>
-
-                  <li className="roommateList">
-                    BY : {messages.sender_fullname}{" "}
-                    <BsXLg
-                      className="card-icon-flip"
-                      onClick={() => handleFlip(agent.id)}
-                    />
-                  </li>
-                  <hr />
-                  <li className="roommateList">ON : {messages.timestamp}</li>
-                  <hr />
-                  <li className="roommateList">
-                    TYPE : {capitalizeFirstLetter(messages.type)}
-                  </li>
-                  <li className="roommate-list">
-                    {/* <button
-                    className="bg-blue-gradient roommateButtonConnect"
-                    disabled={
-                      buttonStatus[buysell.id] === "in order" ||
-                      selectedAgent ||
-                      buysell.fk_user_id === userIn
-                    }
-                    onClick={() => handleConnectClick(buysell.id)}
-                  >
-                    <BsBrowserEdge className="connect_icon" />
-                    {buttonStatus[buysell.id] === "order"
-                      ? "In Order..."
-                      : "Connect"}
-                  </button>
-
-                  <button
-                    onClick={() => handleShowPicture(buysell.id)}
-                    className="roommateButtonPicture "
-                  >
-                    <BsPeopleFill className="connect_icon" />
-                    See Picture
-                  </button> */}
-                    {/* {selectedAgent && (
-                    <BsArchiveFill
-                      className="text-gradient cardIconDelete"
-                      onClick={() => {
-                        handleDeleteClick(buysell.id);
-                      }}
-                    />
-                  )}
-
-                  {selectedAgent && (
-                    <BsEyedropper
-                      className="text-gradient cardIconFlip2"
-                      onClick={() => {
-                        handleEditClick(buysell);
-                        handleFlip(buysell.id);
-                      }}
-                    />
-                  )} */}
-                  </li>
-                  <li className="chat-call-buttons">
-                    <button
-                      disabled={isExpired2}
-                      className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                    >
-                      Chat
-                    </button>
-                    <button
-                      disabled={isExpired2}
-                      className="bg-blue-gradient roommate-button connect-accept-button"
-                    >
-                      Call
-                    </button>
-                  </li>
                 </ul>
               )}
             </div>
@@ -978,36 +776,53 @@ function YourComponent() {
     return true; // Show all items in profile view
   });
 
-  // const displayUsers2 = filteredBuysells
-  //   .filter((buysell) =>
-  //     selectedAgent ? buysell.fk_user_id === selectedAgent : true
-  //   )
-  //   .map(createCard);
+  const displayMessages = messages.map(createCard);
 
-  const displayUsers = messages.map(createCard);
+  function createProfile(profile) {
+    return (
+      <div>
+        <h2 className="INFO text-gradient">Info</h2>
+        <BsXLg
+          className="text-gradient cardIconFlip3"
+          onClick={() => handleFlip(profile.id)}
+        />
+
+        <p>
+          <strong> ID: </strong>
+          {profile.people_id}
+          <hr />
+          <br />
+          <strong> AGENT TYPE:</strong> {messages.type}
+          <hr />
+          <br />
+          <strong> CUSTOMER NAME: </strong> {messages.sender_fullname}
+          <hr />
+          <br />
+          <strong> USER ID: </strong> {messages.sender_id}
+          <hr />
+          <br />
+          <strong> ORDER CODE : </strong> {messages.order_code}
+          <hr />
+          <br />
+          <a className="reportUser" href="#">
+            Report User?
+          </a>
+          <hr />
+        </p>
+      </div>
+    );
+  }
 
   return (
     <main className="main-container">
-      <div className="main-title">
-        <form className="inputGroup box-shadow" onSubmit={handleSearchSubmit}>
-          <div className="inputGroup box-shadow">
-            <input
-              type="text"
-              name="department"
-              className="inputSearch"
-              placeholder="Search for item "
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)} // Update search query state
-            />
-            <button type="submit" className="btn btn--accent searchButton">
-              <BsZoomIn className="search" />
-            </button>{" "}
-            {/* <button type="submit" className="btn btn--accent search">
-              {" "}
-              Go{" "}
-            </button> */}
-          </div>
-        </form>
+      <div className="mainTitle">
+        <Link to="/settings">
+          <h3 className="text-gradient">
+            {" "}
+            <BsFillGearFill className="connectIcon" />
+            Settings ?
+          </h3>
+        </Link>
 
         {selectedAgent && (
           <button
@@ -1020,31 +835,20 @@ function YourComponent() {
           </button>
         )}
 
-        {/* <p onClick={all} className="buysellAll text-gradient">
-          {" "}
-          All
-        </p>
-        <p
-          onClick={() => {
-            setSelectedAgent(userbread);
-            setViewMode("profile");
-          }}
-          className="buysellProfile text-gradient"
-        >
-          {" "}
-          <BsFillPersonFill />
-          Profile
-        </p> */}
         <h3 className="text-gradient">CONNECTS</h3>
       </div>
 
       {messages.length === 0 ? (
         <div className="noItems ">
-          <p>Oops!! No Messages displayed 🥹</p>
+          <p>Oops!! No Connects displayed 🥹</p>
         </div>
       ) : (
         <LazyLoadComponent>
-          <div className="main-cards-roommates">{displayUsers}</div>
+          <div className="main-cards-roommates">
+            {selectedComponent === "Profile"
+              ? displayMessages
+              : createProfile()}
+          </div>
         </LazyLoadComponent>
       )}
 

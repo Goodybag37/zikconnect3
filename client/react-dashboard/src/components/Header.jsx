@@ -7,10 +7,14 @@ import {
   BsBriefcaseFill,
   BsEyedropper,
   BsJustify,
+  BsFillPlusSquareFill,
+  BsCashCoin,
 } from "react-icons/bs";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import AuthContext from "../AuthContext";
+import { io } from "socket.io-client"; // Optional chaining to avoid errors if user is null
+
 // import { io } from "socket.io-client"; // WebSocket client
 import {
   BsPatchCheckFill,
@@ -29,21 +33,26 @@ function Header(props) {
   const [acceptedMessages, setAcceptedMessages] = useState([]); // Array to track accepted message IDs
   const [countdownEndTime, setCountdownEndTime] = useState({});
   const [expired, setExpired] = useState({});
+  const [unread, setUnread] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
+  const [updateCount, setUpdateCount] = useState(0);
   const apiUrls = process.env.REACT_APP_API_URL; // Track expiry of messages
   const apiUrl = "http://localhost:4000";
-  const userbread = user.userId; // Optional chaining to avoid errors if user is null
-
+  const userbread = user.userId;
+  // const socket = io(apiUrl);
   const handleMessages = async () => {
     setShowMessages(!showMessages);
     try {
       const result = await axios.get(
-        `${apiUrl}/api/messages?userbread=${userbread}`
+        `${apiUrl}/api/messages?userbread=${userbread}&reset=true`
       );
-      const response = result.data;
-      setMessages(response);
+      const { messages, unreadCount } = result.data;
+
+      setMessages(messages); // Set the messages state
+      setUnread(unreadCount); // Set the unread count state
+
       const expiry = {};
-      response.forEach((msg) => {
+      messages.forEach((msg) => {
         const requestTime = new Date(msg.timestamp);
         const expiryTime = new Date(requestTime.getTime() + 10 * 60 * 1000);
         if (expiryTime < new Date()) {
@@ -55,6 +64,154 @@ function Header(props) {
       console.error("Error fetching messages:", error);
     }
   };
+
+  // const fetchData = async () => {
+  //   try {
+  //     const result = await axios.get(
+  //       `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+  //     );
+
+  //     const { messages, unreadCount } = result.data;
+  //     setMessages(messages);
+  //     setUnread(unreadCount);
+
+  //     const expiry = {};
+  //     messages.forEach((msg) => {
+  //       const requestTime = new Date(msg.timestamp);
+  //       const expiryTime = new Date(requestTime.getTime() + 10 * 60 * 1000);
+  //       if (expiryTime < new Date()) {
+  //         expiry[msg.id] = true; // Mark as expired if current time exceeds expiry time
+  //       }
+  //     });
+  //     setExpired(expiry);
+  //   } catch (error) {
+  //     console.error("Error fetching messages:", error);
+  //   }
+  // };
+
+  // const fetchData = async () => {
+  //   try {
+  //     const result = await axios.get(
+  //       `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+  //     );
+
+  //     const { messages, unreadCount } = result.data;
+  //     setMessages(messages);
+  //     setUnread(unreadCount);
+
+  //     const expiry = {};
+  //     messages.forEach((msg) => {
+  //       const requestTime = new Date(msg.timestamp);
+  //       const expiryTime = new Date(requestTime.getTime() + 10 * 60 * 1000);
+  //       if (expiryTime < new Date()) {
+  //         expiry[msg.id] = true; // Mark as expired if current time exceeds expiry time
+  //       }
+  //     });
+  //     setExpired(expiry);
+  //   } catch (error) {
+  //     console.error("Error fetching messages:", error);
+  //   }
+  // };
+
+  // useEffect(() => {
+  //   fetchData();
+  // }, []);
+
+  const fetchData = async () => {
+    try {
+      const result = await axios.get(
+        `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+      );
+
+      const { messages, unreadCount } = result.data;
+
+      console.log("result is", unreadCount);
+      setMessages(messages);
+      setUnread(unreadCount);
+
+      const expiry = {};
+      messages.forEach((msg) => {
+        const requestTime = new Date(msg.timestamp);
+        const expiryTime = new Date(requestTime.getTime() + 10 * 60 * 1000);
+        if (expiryTime < new Date()) {
+          expiry[msg.id] = true;
+        }
+      });
+      setExpired(expiry);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (userbread) {
+      fetchData();
+    }
+  }, [userbread]); // Ensure fetchData runs when userbread changes
+
+  // useEffect(() => {
+  //   // Fetch data when the component mounts
+  //   fetchData();
+
+  //   // Cleanup function if you need to clear any states or intervals on unmount
+  //   return () => {
+  //     // Add any cleanup logic if necessary
+  //     // e.g., resetting states, clearing timers, etc.
+  //     setMessages([]);
+  //     setUnread(0);
+  //     setExpired({});
+  //   };
+  // }, []); // Dependencies array
+
+  // useEffect(() => {
+  //   const socket = io(apiUrl); // Connect to the WebSocket server
+  //   socket.on("connect", () => {
+  //     console.log("Connected to WebSocket server with ID:", socket.id);
+  //   });
+
+  //   if (userbread) {
+  //     // Join the room specific to the user
+  //     socket.emit("joinRoom", userbread);
+
+  // Listen for new message events
+  // socket.on("newMessages", (data) => {
+  //   setMessages(data.messages); // Update messages
+  //   setUnread(data.unreadCount); // Update unread count
+  //   setUpdateCount((prev) => prev + 1); // Force re-render
+  // });
+  // }
+
+  //   fetchData(); // Fetch initial messages
+
+  //   return () => {
+  //     // Clean up the WebSocket connection on component unmount
+  //     socket.disconnect();
+  //   };
+  // }, [userbread]);
+
+  // useEffect(() => {
+  //   socket.on("connect", () => {
+  //     console.log("Connected to WebSocket server with ID:", socket.id);
+  //   });
+
+  //   socket.on("message", (data) => {
+  //     console.log("Message received from server:", data); // Should log "hello"
+  //   });
+  //   socket.on("newMessages", (data) => {
+  //     setMessages(data.messages); // Update messages
+  //     setUnread(data.unreadCount); // Update unread count
+  //     setUpdateCount((prev) => prev + 1); // Force re-render
+  //     console.log("Message received from server:", data);
+  //   });
+
+  //   socket.on("disconnect", () => {
+  //     console.log("Disconnected from WebSocket server");
+  //   });
+
+  //   return () => {
+  //     socket.disconnect();
+  //   };
+  // }, []);
 
   const handleProfileClick = () => {
     setShowProfile(!showProfile);
@@ -123,9 +280,21 @@ function Header(props) {
       <div className="header-left"></div>
       <div className="text-gradient agent-title">{heading}</div>
       <div className="header-right">
-        <BsFillBellFill className="icon-bell" />
-        <BsFillEnvelopeFill onClick={() => handleMessages()} className="icon" />
-        <BsPersonCircle onClick={handleProfileClick} className="icon" />
+        <p className="unread">
+          <strong>{unread} </strong>
+        </p>
+        <BsFillBellFill className={unread > 0 ? "icon-bell" : "icon"} />
+
+        <BsFillEnvelopeFill
+          onClick={() => handleMessages()}
+          className={
+            unread > 0 ? "icon iconBlack iconCursor" : "icon iconCursor"
+          }
+        />
+        <BsPersonCircle
+          onClick={handleProfileClick}
+          className="icon iconCursor"
+        />
       </div>
 
       {showMessages && (
@@ -143,39 +312,22 @@ function Header(props) {
 
             return (
               <div key={msg.id} className={`message-card ${msg.type}`}>
-                {isAccepted ? (
+                {msg.message === "connect accepted" ? (
                   <div className="card bg-discount-gradient">
                     <div>
                       <h1 className="text-gradient connectHeadingMessage">
                         Connect Accepted
                       </h1>
-                      <p className="text-gradient">
-                        <CountdownTimer endTime={countdownEndTime[msg.id]} />
+                      <p>
+                        {requestTime
+                          .toISOString()
+                          .slice(0, 19)
+                          .replace("T", " ")}
                       </p>
-                      <ul>
-                        <li>Connect Type: {msg.type}</li>
-                        <br />
-                        <li>Order No: {msg.order_code}</li>
-                        <br />
-                        <li>
-                          Sender: User({msg.sender_id}) {msg.sender_fullname}
-                        </li>
-                        <br />
-                      </ul>
-                    </div>
-                    <div className="chat-call-buttons">
-                      <button
-                        disabled={isExpired2}
-                        className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                      >
-                        Chat
-                      </button>
-                      <button
-                        disabled={isExpired2}
-                        className="bg-blue-gradient roommate-button connect-accept-button"
-                      >
-                        Call
-                      </button>
+
+                      <p className="text-gradient">
+                        <CountdownTimer endTime={expiryTime2} />
+                      </p>
                     </div>
 
                     {isExpired2 && <p className="text-red">Connect Expired</p>}
@@ -196,81 +348,17 @@ function Header(props) {
                         <p className="text-gradient">
                           <CountdownTimer endTime={expiryTime} />
                         </p>
-                        <ul>
-                          <li>Connect Type: {msg.type}</li>
-                          <br />
-                          <li>Order No: {msg.order_code}</li>
-                          <br />
-                          <li>
-                            Sender: User({msg.sender_id}) {msg.sender_fullname}
-                          </li>
-                          <br />
-                        </ul>
                       </div>
-                      <div className="chat-call-buttons">
-                        <button
-                          onClick={() => confirmConnect(msg.id, msg.order_code)}
-                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                          disabled={isExpired || isAccepted}
-                        >
-                          <BsPatchCheckFill className="connect_icon" />
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => rejectConnect(msg.id)}
-                          className="bg-blue-gradient roommate-button connect-accept-button"
-                        >
-                          <BsXOctagonFill className="connect_icon" />
-                          Reject
-                        </button>
-                      </div>
+                      {!isExpired && (
+                        <Link className="iconCursor iconPink" to="/profiles">
+                          See
+                        </Link>
+                      )}
                       {isExpired && <p className="text-red">Connect Expired</p>}
                     </div>
                   )
                 )}
-                {msg.message === "connect accepted" && (
-                  <div className="card bg-discount-gradient">
-                    <div>
-                      <h1 className="text-gradient connectHeadingMessage">
-                        Connect Accepted
-                      </h1>
-                      <p>
-                        {requestTime
-                          .toISOString()
-                          .slice(0, 19)
-                          .replace("T", " ")}
-                      </p>
-                      <p className="text-gradient">
-                        <CountdownTimer endTime={expiryTime2} />
-                      </p>
-                      <ul>
-                        <li>Connect Type: {msg.type}</li>
-                        <br />
-                        <li>Order No: {msg.order_code}</li>
-                        <br />
-                        <li>
-                          Sender: User({msg.sender_id}) {msg.sender_fullname}
-                        </li>
-                        <br />
-                      </ul>
-                    </div>
-                    <div className="chat-call-buttons">
-                      <button
-                        disabled={isExpired2}
-                        className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                      >
-                        Chat
-                      </button>
-                      <button
-                        disabled={isExpired2}
-                        className="bg-blue-gradient roommate-button connect-accept-button"
-                      >
-                        Call
-                      </button>
-                    </div>
-                    {isExpired2 && <p className="text-red">Connect Expired</p>}
-                  </div>
-                )}
+
                 {msg.type === "error" && (
                   <button className="btn-error">Error Action</button>
                 )}
@@ -283,22 +371,29 @@ function Header(props) {
       {showProfile && (
         <div className="profile-popup bg-black-gradient">
           <h3 className="profile-head text-gradient">{user.full_name}</h3>
+          <p className="profileParagraph text-gradient">{user.email}</p>
+          <br />
           <hr />
           <br />
           <p className="profileParagraph">
             <BsFillPersonFill /> <strong>User: </strong> {user.id}
           </p>
           <br></br>
-          <p className="profileParagraph">
-            <BsBriefcaseFill />
-            <strong>Email: </strong> {user.email}
-          </p>
-          <br />
+
           <p className="profileParagraph">
             <BsFillTelephoneFill />
             <strong>Phone: </strong> {user.phone}
             <Link className="editPhone" to="/verifyphone">
               <BsEyedropper />
+            </Link>
+          </p>
+          <br />
+
+          <p className="profileParagraph">
+            <BsCashCoin className="cashIcon" />
+            <strong>Account Balance: </strong> {user.account_balance}
+            <Link className="editPhone" to="/agents">
+              <BsFillPlusSquareFill />
             </Link>
           </p>
           <br />
@@ -323,3 +418,112 @@ function Header(props) {
 }
 
 export default Header;
+
+// import React, { useEffect, useState, useContext } from "react";
+// import {
+//   BsFillBellFill,
+//   BsFillEnvelopeFill,
+//   BsPersonCircle,
+//   BsFillPersonXFill,
+//   BsBriefcaseFill,
+//   BsEyedropper,
+//   BsJustify,
+//   BsFillPlusSquareFill,
+//   BsCashCoin,
+// } from "react-icons/bs";
+// import axios from "axios";
+// import { Link } from "react-router-dom";
+// import AuthContext from "../AuthContext";
+// import { io } from "socket.io-client";
+// import CountdownTimer from "../components/Countdowntimer";
+
+// function Header(props) {
+//   const { OpenSidebar, heading } = props;
+//   const { isAuthenticated, user, logout } = useContext(AuthContext);
+//   const [showMessages, setShowMessages] = useState(false);
+//   const [messages, setMessages] = useState([]);
+//   const [acceptedMessages, setAcceptedMessages] = useState([]);
+//   const [countdownEndTime, setCountdownEndTime] = useState({});
+//   const [expired, setExpired] = useState({});
+//   const [unread, setUnread] = useState(0);
+//   const [showProfile, setShowProfile] = useState(false);
+//   const apiUrl = "http://localhost:4000";
+//   const userbread = user.userId;
+
+//   const fetchData = async () => {
+//     try {
+//       const result = await axios.get(
+//         `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+//       );
+
+//       const { messages, unreadCount } = result.data;
+//       setMessages(messages);
+//       setUnread(unreadCount);
+
+//       const expiry = {};
+//       messages.forEach((msg) => {
+//         const requestTime = new Date(msg.timestamp);
+//         const expiryTime = new Date(requestTime.getTime() + 10 * 60 * 1000);
+//         if (expiryTime < new Date()) {
+//           expiry[msg.id] = true;
+//         }
+//       });
+//       setExpired(expiry);
+//     } catch (error) {
+//       console.error("Error fetching messages:", error);
+//     }
+//   };
+
+//   useEffect(() => {
+//     if (userbread) {
+//       fetchData();
+//     }
+//   }, [userbread]); // Ensure fetchData runs when userbread changes
+
+//   const handleMessages = () => {
+//     setShowMessages(!showMessages);
+//     fetchData(); // Fetch messages whenever the icon is clicked
+//   };
+
+//   return (
+//     <header className="header">
+//       <div className="menu-icon">
+//         <BsJustify className="icon" onClick={OpenSidebar} />
+//       </div>
+//       <div className="header-left"></div>
+//       <div className="text-gradient agent-title">{heading}</div>
+//       <div className="header-right">
+//         <p className="unread">
+//           <strong>{unread} </strong>
+//         </p>
+//         <BsFillBellFill className={unread > 0 ? "icon-bell" : "icon"} />
+//         <BsFillEnvelopeFill
+//           onClick={handleMessages}
+//           className={
+//             unread > 0 ? "icon iconBlack iconCursor" : "icon iconCursor"
+//           }
+//         />
+//         <BsPersonCircle
+//           onClick={() => setShowProfile(!showProfile)}
+//           className="icon iconCursor"
+//         />
+//       </div>
+//       {showMessages && (
+//         <div className="message-popup">
+//           {messages.map((msg) => (
+//             <div key={msg.id} className={`message-card ${msg.type}`}>
+//               {/* Message card content */}
+//             </div>
+//           ))}
+//         </div>
+//       )}
+//       {showProfile && (
+//         <div className="profile-popup bg-black-gradient">
+//           {/* Profile content */}
+//         </div>
+//       )}
+//     </header>
+//   );
+// }
+
+// export default Header;

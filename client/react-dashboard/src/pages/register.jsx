@@ -5,6 +5,7 @@ import "../App.css";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logo } from "../assets"; // Corrected import
 import AuthContext from "../AuthContext";
+import UserContext from "../UserContext";
 import { BsFillPersonFill, BsLockFill } from "react-icons/bs";
 
 const Register = () => {
@@ -15,10 +16,11 @@ const Register = () => {
   const [loading, setLoading] = useState(false); // Add loading state
   const navigate = useNavigate();
   const location = useLocation();
-  const apiUrl = process.env.REACT_APP_API_URL;
+  const apiUrls = process.env.REACT_APP_API_URL;
+  const apiUrl = "http://localhost:4000";
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  // const { setProfile } = useContext(UserContext);
+  const { setProfile } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,6 +42,8 @@ const Register = () => {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
+      const userData = response.data;
+
       console.log("Registration successful:", response.data);
 
       localStorage.setItem("authToken", response.data.token); // Assuming the token is in response.data.token
@@ -49,9 +53,14 @@ const Register = () => {
 
       login({
         ...userData,
+        id: userData.id,
+        full_name: userData.full_name,
+        email: userData.email,
+        account_balance: userData.account_balance,
         isPhoneVerified: userData.phone || false,
         isIdVerified: userData.isIdVerified || true,
       });
+
       const redirectPath =
         new URLSearchParams(location.search).get("redirect") || "/agents";
 

@@ -1,26 +1,48 @@
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState();
   const [user, setUser] = useState({
     id: null,
     full_name: null,
     email: null,
     phoneNumber: null,
+    account_balance: null,
     isIdVerified: true,
     isPhoneVerified: false,
   });
 
+  useEffect(() => {
+    // Check localStorage for user info
+    const userData = localStorage.getItem("user");
+    const localAuthenticated = localStorage.getItem("isAuthenticated");
+
+    if (localAuthenticated === true) {
+      setIsAuthenticated(true);
+      setUser({
+        ...userData,
+        id: userData.userId,
+        email: userData.email,
+        full_name: userData.full_name,
+        account_balance: userData.account_balance,
+        isIdVerified: userData.isIdVerified || true,
+        isPhoneVerified: userData.isPhoneVerified || false,
+      });
+    }
+  }, []);
+
   const login = (userData) => {
-    console.log("Login Function Called with:", userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("isAuthenticated", true);
     setIsAuthenticated(true);
     setUser({
       ...userData,
       id: userData.userId,
       email: userData.email,
       full_name: userData.full_name,
+      account_balance: userData.account_balance,
       isIdVerified: userData.isIdVerified || true,
       isPhoneVerified: userData.isPhoneVerified || false,
     });
@@ -34,14 +56,6 @@ export const AuthProvider = ({ children }) => {
       })
     );
     localStorage.setItem("isAuthenticated", true);
-    console.log("State After Login:", {
-      isAuthenticated: true,
-      user: {
-        ...userData,
-        isIdVerified: userData.isIdVerified || false,
-        isPhoneVerified: userData.isPhoneVerified || false,
-      },
-    });
   };
 
   const logout = () => {

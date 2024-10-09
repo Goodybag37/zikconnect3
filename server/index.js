@@ -25,23 +25,150 @@ import heicConvert from "heic-convert";
 import sharp from "sharp";
 import nodemailer from "nodemailer";
 import http from "http"; // Required to create the server
-import { Server } from "socket.io";
+// import { Server } from "socket.io";
 import Bull from "bull";
 import Redis from "redis";
 
 const app = express();
+// const server = http.createServer(app); // Create an HTTP server
+// const io = new Server(server, {
+//   cors: {
+//     origin: "http://localhost:3000", // Allow requests from your frontend
+//     methods: ["GET", "POST"],
+//     allowedHeaders: ["my-custom-header"],
+//     credentials: true, // If you need to include credentials (like cookies)
+//   },
+// });
+app.use(express.json());
+
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
   secretOrKey: "your-secret-key", // Replace with your secret key
 };
 
-const server = http.createServer(app);
-// const io = new Server(server, {
-//   cors: {
-//     origin: "https://zikconnect-36adf65e1cf3.herokuapp.com/", // Enable CORS if your frontend is served from a different domain or port
-//     methods: ["GET", "POST"],
-//   },
+// io.on("connection", (socket) => {
+//   console.log("A user connected:", socket.id);
+
+//   // Emit message to client
+//   socket.emit("message", "hello");
+
+//   socket.on("joinRoom", (userId) => {
+//     socket.join(userId);
+//     console.log(`User with ID ${userId} joined room ${userId}`);
+//   });
+
+//   socket.on("disconnect", () => {
+//     console.log("User disconnected:", socket.id);
+//   });
 // });
+
+// const notifyNewMessages = async (userId) => {
+//   try {
+//     // Fetch the new messages for the user
+//     const result = await pool.query(
+//       "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
+//       [userId]
+//     );
+
+//     // Get unread message count for the user
+//     const unreadResult = await pool.query(
+//       `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
+//       [userId, "unread"]
+//     );
+//     const unreadCount = unreadResult.rows[0].unread_count;
+
+//     // Emit the new messages to the user in their room
+//     io.to(userId).emit("newMessages", {
+//       messages: result.rows,
+//       unreadCount: unreadCount,
+//     });
+
+//     console.log(`Notifying user ${userId} about new message`);
+//   } catch (error) {
+//     console.error("Error in messageCreated:", error);
+//   }
+// };
+
+// const userSockets = {};
+
+// io.on("connection", (socket) => {
+//   console.log("A user connected:", socket.id);
+
+//   // When the user joins a room based on their userId
+//   socket.on("joinRoom", async (userId) => {
+//     userSockets[userId] = socket;
+//     socket.join(userId); // Join room with userId
+//     socket.userId = userId; // Store userId in socket for later reference// Join the room with the userId
+//     console.log(`User with ID ${userId} joined room ${userId}`);
+
+//     // Notify the user of any unread messages when they join
+//     await notifyNewMessages(userId);
+//   });
+
+//   // When a new message is created, notify the user
+//   socket.on("newMessageCreated", async (messageData) => {
+//     const { userId } = messageData; // Assuming the message data includes userId
+//     console.log(`New message created for user ${userId}`);
+
+//     // Call the notify function to notify the user of new messages
+//     await notifyNewMessages(userId);
+//   });
+
+//   // Listen for disconnection
+//   socket.on("disconnect", () => {
+//     console.log("User disconnected:", socket.id);
+//     // Optionally: Clean up or manage user-related data on disconnect
+//   });
+// });
+
+// // io.on("connection", (socket) => {
+// //   console.log("A user connected:", socket.id);
+
+// //   // Register user and join room
+// //   socket.on("register", (userId) => {
+// //     userSockets[userId] = socket;
+// //     socket.join(userId); // Join room with userId
+// //     socket.userId = userId; // Store userId in socket for later reference
+// //   });
+
+// //   socket.on("disconnect", () => {
+// //     // Clean up when the user disconnects
+// //     delete userSockets[socket.userId];
+// //   });
+// // });
+
+// // The notifyNewMessages function that sends new message notifications
+// const notifyNewMessages = async (userId) => {
+//   try {
+//     // Fetch the new messages for the user
+//     const result = await pool.query(
+//       "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
+//       [userId]
+//     );
+
+//     console.log("result is", result.rows[0]);
+
+//     // Get unread message count for the user
+
+//     const unreadResult = await pool.query(
+//       `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
+//       [userId, "unread"]
+//     );
+//     const unreadCount = unreadResult.rows[0].unread_count;
+
+//     // Emit the new messages to the user in their room
+//     io.to(userId).emit("newMessages", {
+//       messages: result.rows[0],
+//       unreadCount: unreadCount,
+//     });
+
+//     console.log(
+//       `Notifying user ${userId} about new messages ${result.rows[0]}`
+//     );
+//   } catch (error) {
+//     console.error("Error in notifyNewMessages:", error);
+//   }
+// };
 
 let itemStatus = {}; // Store the status of items
 
@@ -228,15 +355,23 @@ const findOrCreateUser = async (profile) => {
   }
 };
 
-cron.schedule("* * * * * ", async () => {
+cron.schedule("* * * * *", async () => {
   try {
+    // Delete old pending connects
     await pool.query(`
-        DELETE FROM connect
-        WHERE request_time < NOW() - INTERVAL '10 minutes' AND status = 'pending'
-      `);
-    console.log("Old pending connects deleted successfully");
+      DELETE FROM connect
+      WHERE request_time < NOW() - INTERVAL '10 minutes' AND status = 'pending'
+    `);
+
+    // Get settings from all people
+    // const result = await pool.query(`SELECT id, settings FROM people  `);
+
+    // if (result.rows.length === 0) {
+    //   console.log("No people found to update.");
+    //   return;
+    // }
   } catch (error) {
-    console.error("Error deleting old pending connects:", error);
+    console.error("Error processing cron job:", error);
   }
 });
 
@@ -327,7 +462,6 @@ passport.use(
 );
 
 passport.serializeUser((user, done) => {
-  console.log("Serializing user:", user);
   // Ensure user.id is non-null and unique
   done(null, user.id || "0");
 });
@@ -396,40 +530,66 @@ app.get("/api/logout", async (req, res) => {
   res.redirect("/");
 });
 
-app.get("/api/profile", ensureAuthenticated, async (req, res) => {
-  const id = req.user.id;
+app.get("/api/profile/", async (req, res) => {
+  const { userbread } = req.query;
+
+  // Check if userbread is provided
+  if (!userbread) {
+    return res
+      .status(400)
+      .send("Bad Request: 'userbread' query parameter is required.");
+  }
+
   try {
     const result = await pool.query(
-      "SELECT people.id AS people_id, " +
-        "roommates.fullname AS roommate_name, " +
-        "lodge.name AS lodge_name, lodge.description AS lodge_description, " +
-        "buysell.name AS buysell_name, buysell.description AS buysell_description, buysell.id AS buysell_id, " +
-        "courseagents.id AS courseagent_id, courseagents.course as courseagents_course, " +
-        "cryptoagents.id AS cryptoagent_id, " +
-        "cybercafeagents.id AS cybercafeagent_id, " +
-        "deliveryagents.id AS deliveryagent_id, " +
-        "rideragents.id AS rideragent_id, " +
-        "schoolfeeagents.id AS schoolfeeagent_id, " +
-        "whatsapptvagents.id AS whatsapptvagent_id " +
-        "FROM people " +
-        "LEFT JOIN roommates ON people.id = roommates.fk_user_id " +
-        "LEFT JOIN lodge ON people.id = lodge.fk_user_id " +
-        "LEFT JOIN buysell ON people.id = buysell.fk_user_id " +
-        "LEFT JOIN courseagents ON people.id = courseagents.fk_user_id " +
-        "LEFT JOIN cryptoagents ON people.id = cryptoagents.fk_user_id " +
-        "LEFT JOIN cybercafeagents ON people.id = cybercafeagents.fk_user_id " +
-        "LEFT JOIN deliveryagents ON people.id = deliveryagents.fk_user_id " +
-        "LEFT JOIN rideragents ON people.id = rideragents.fk_user_id " +
-        "LEFT JOIN schoolfeeagents ON people.id = schoolfeeagents.fk_user_id " +
-        "LEFT JOIN whatsapptvagents ON people.id = whatsapptvagents.fk_user_id " +
-        "WHERE people.id = $1",
-      [id]
+      `SELECT 
+        people.id AS people_id, 
+        full_name AS people_fullname, 
+        email AS PEOPLE_email, 
+        people.date AS account_created, 
+        roommates.fullname AS roommate_name, 
+        lodges.name AS lodge_name, 
+        lodges.description AS lodge_description, 
+        buysell.name AS buysell_name, 
+        buysell.description AS buysell_description, 
+        buysell.id AS buysell_id, 
+        courseagents.id AS courseagent_id, 
+        courseagents.course AS courseagents_course, 
+        cryptoagents.id AS cryptoagent_id, 
+        cybercafeagents.id AS cybercafeagent_id, 
+        deliveryagents.id AS deliveryagent_id, 
+        rideragents.id AS rideragent_id, 
+        schoolfeeagents.id AS schoolfeeagent_id, 
+        whatsapptvagents.id AS whatsapptvagent_id, 
+        settings ->> 'account_balance' AS settings_account_balance,  
+        settings -> 'Completed Orders' AS settings_completed_orders,
+        settings -> 'Totl Connect Made' AS settings_total_connectmade,
+        settings -> 'Totl Connect Received' AS settings_total_connectreceived,
+        settings -> 'Avg Completed Orders' AS settings_average_orders    
+      FROM people 
+      LEFT JOIN roommates ON people.id = roommates.fk_user_id 
+      LEFT JOIN lodges ON people.id = lodges.fk_user_id 
+      LEFT JOIN buysell ON people.id = buysell.fk_user_id 
+      LEFT JOIN courseagents ON people.id = courseagents.fk_user_id 
+      LEFT JOIN cryptoagents ON people.id = cryptoagents.fk_user_id 
+      LEFT JOIN cybercafeagents ON people.id = cybercafeagents.fk_user_id 
+      LEFT JOIN deliveryagents ON people.id = deliveryagents.fk_user_id 
+      LEFT JOIN rideragents ON people.id = rideragents.fk_user_id 
+      LEFT JOIN schoolfeeagents ON people.id = schoolfeeagents.fk_user_id 
+      LEFT JOIN whatsapptvagents ON people.id = whatsapptvagents.fk_user_id 
+      WHERE people.id = $1`,
+      [userbread]
     );
 
-    const profile = result.rows;
-    res.render("profile.ejs", { profile: profile });
+    // Check if a profile was found
+    if (result.rows.length === 0) {
+      return res.status(404).send("Profile not found.");
+    }
+
+    const profile = result.rows[0];
+    res.json(profile); // Send the profile as a JSON response
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching profile:", error);
     res.status(500).send("Internal Server Error");
   }
 });
@@ -437,12 +597,11 @@ app.get("/api/profile", ensureAuthenticated, async (req, res) => {
 app.post("/api/log", cors(), async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
-  console.log("request made to me ");
 
   try {
     // Query to get user info from the database
     const result = await pool.query(
-      "SELECT id, email, password, phone, id_card, full_name FROM people WHERE email=$1",
+      "SELECT id, email, password, phone, id_card, full_name, account_balance FROM people WHERE email=$1",
       [email]
     );
     const foundMail = result.rows[0];
@@ -476,7 +635,8 @@ app.post("/api/log", cors(), async (req, res, next) => {
               phone: foundMail.phone,
               id_card: foundMail.id_card,
               email: foundMail.email,
-              full_name: foundMail.full_name, // Send the user ID from the database
+              full_name: foundMail.full_name,
+              account_balance: foundMail.account_balance, // Send the user ID from the database
             });
           });
         })(req, res, next);
@@ -536,11 +696,78 @@ app.post("/login", async (req, res, next) => {
   }
 });
 
+// app.post("/api/register", async (req, res) => {
+//   const { email, password, fullname } = req.body;
+
+//   try {
+//     // Check if the email already exists in the database
+//     const result = await pool.query("SELECT email FROM people WHERE email=$1", [
+//       email,
+//     ]);
+//     const existingUser = result.rows[0];
+
+//     if (existingUser) {
+//       // User already exists
+//       return res
+//         .status(400)
+//         .json({ message: "Email already registered. Please log in." });
+//     }
+
+//     const capitalizedFullName = fullname
+//       .split(" ") // Split by space
+//       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) // Capitalize the first letter of each word
+//       .join(" "); // Join the words back together
+
+//     // Hash the password before storing it
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     // Insert the new user into the database
+//     // await pool.query(
+//     //   "INSERT INTO people (email, password, full_name) VALUES ($1, $2,)",
+//     //   [email, hashedPassword, capitalizedFullName]
+//     // );
+
+//     await pool.query(
+//       `INSERT INTO people (email, password, full_name, settings)
+//    VALUES ($1, $2, $3, $4)`,
+//       [
+//         email,
+//         hashedPassword,
+//         capitalizedFullName,
+//         JSON.stringify({
+//           theme: "dark",
+//           connects: {
+//             buysell: 0,
+//           },
+//           preferences: {
+//             delete_ask: "yes",
+//             toggle_ask: "No",
+//           },
+//           notifications: true,
+//           toggle_status: {
+//             buysell: "unavailable",
+//           },
+//           "Totl Connect Made": 0,
+//           "Totl Connect Received": 0,
+//           "Completed Orders": 0,
+//           "Avg Completed Orders": 0,
+//           account_balance: 2000,
+//         }),
+//       ]
+//     );
+
+//     // Registration successful
+//     return res
+//       .status(201)
+//       .json({ message: "Registration successful. You can now log in." });
+//   } catch (error) {
+//     console.error("Error during registration:", error);
+//     return res.status(500).json({ message: "Internal Server Error" });
+//   }
+// });
+
 app.post("/api/register", async (req, res) => {
   const { email, password, fullname } = req.body;
-
-  console.log(`Received email: ${email}`); // Debugging line
-  console.log(`Received password: ${password}`); // Debugging line
 
   try {
     // Check if the email already exists in the database
@@ -566,14 +793,54 @@ app.post("/api/register", async (req, res) => {
 
     // Insert the new user into the database
     await pool.query(
-      "INSERT INTO people (email, password, full_name) VALUES ($1, $2)",
-      [email, hashedPassword, capitalizedFullName]
+      `INSERT INTO people (email, password, full_name, settings) 
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [
+        email,
+        hashedPassword,
+        capitalizedFullName,
+        JSON.stringify({
+          theme: "dark",
+          connects: {
+            buysell: 0,
+          },
+          preferences: {
+            delete_ask: "yes",
+            toggle_ask: "No",
+          },
+          notifications: true,
+          toggle_status: {
+            buysell: "unavailable",
+            event: "unavailable",
+            lodge: "unavailable",
+          },
+          "Totl Connect Made": 0,
+          "Totl Connect Received": 0,
+          "Completed Orders": 0,
+          "Avg Completed Orders": 0,
+          account_balance: 2000,
+        }),
+      ]
     );
 
-    // Registration successful
-    return res
-      .status(201)
-      .json({ message: "Registration successful. You can now log in." });
+    // Query to retrieve the newly inserted user
+    const userResult = await pool.query(
+      "SELECT id, email, password, phone, id_card, full_name, account_balance FROM people WHERE email=$1",
+      [email]
+    );
+    const newUser = userResult.rows[0];
+
+    // Registration successful, return user data to frontend
+    return res.status(201).json({
+      message: "Registration successful.",
+      userId: newUser.id,
+      email: newUser.emaiL,
+      phone: newUser.phone,
+      id_card: newUser.email,
+      full_name: newUser.full_name,
+      account_balance: newUser.account_balance,
+      // token: "jwt_token_placeholder", // add JWT token here if needed
+    });
   } catch (error) {
     console.error("Error during registration:", error);
     return res.status(500).json({ message: "Internal Server Error" });
@@ -626,8 +893,6 @@ app.get("/api/roommates/:id", async (req, res) => {
 });
 
 app.get("/api/buysellapi", async (req, res) => {
-  console.log("request was made to buysellapoo");
-
   try {
     const { search, page = 1, pageSize = 5 } = req.query;
 
@@ -681,9 +946,60 @@ app.get("/api/buysellapi", async (req, res) => {
   }
 });
 
-app.get("/api/lodgeapi", async (req, res) => {
-  console.log("request was made to lodgeapoo");
+app.get("/api/eventapi", async (req, res) => {
+  try {
+    const { search, page = 1, pageSize = 5 } = req.query;
 
+    let queryText = `
+      SELECT 
+        id, 
+        name, 
+        description, 
+        contact, 
+        fk_user_id, 
+        TO_CHAR(event_date, 'FMMonth DD, YYYY') AS formatted_date, 
+        price AS formatted_price, 
+        location, 
+        seller_name,
+        status 
+      FROM event 
+      WHERE status IN ('available', 'order', 'unavailable')
+    `;
+
+    const queryParams = [];
+
+    // Add search condition if a search term is provided
+    if (search) {
+      queryText += `AND (name ILIKE $1 OR description ILIKE $1 OR location ILIKE $1 OR seller_name ILIKE $1)`;
+      queryParams.push(`%${search}%`);
+    }
+
+    queryText += `ORDER BY id DESC`;
+
+    const result = await pool.query(queryText, queryParams);
+    const events = result.rows;
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = page * pageSize;
+
+    const paginatedRoommates = events.slice(startIndex, endIndex);
+    const totalItems = events.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    res.json({
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      events: paginatedRoommates,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/lodgeapi", async (req, res) => {
   try {
     const { search, page = 1, pageSize = 5 } = req.query;
 
@@ -782,6 +1098,52 @@ app.get("/api/buysell/:id", async (req, res) => {
   }
 });
 
+app.get("/api/event/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    // Query to get file metadata
+    const result = await pool.query(
+      "SELECT original_name, unique_name FROM event WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length > 0) {
+      const { original_name, unique_name } = result.rows[0];
+
+      if (!unique_name) {
+        // Return a 404 response indicating no image found for the item
+        return res.status(404).send("No image found for this item");
+      }
+
+      // Define the file path
+      const filePath = path.join(__dirname, "uploads", unique_name);
+
+      // Check if the file exists
+      if (fs.existsSync(filePath)) {
+        // Set the appropriate content type based on file extension
+        const ext = path.extname(original_name).toLowerCase();
+        let contentType = "application/octet-stream"; // Default for binary files
+
+        if (ext === ".png") contentType = "image/png";
+        else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+        else if (ext === ".webp") contentType = "image/webp";
+
+        res.setHeader("Content-Type", contentType);
+
+        // Pipe the file to the response
+        fs.createReadStream(filePath).pipe(res);
+      } else {
+        res.status(404).send("File not found");
+      }
+    } else {
+      res.status(404).send("Record not found");
+    }
+  } catch (error) {
+    console.error("Error fetching file:", error);
+    res.status(500).send("Server error");
+  }
+});
+
 app.get("/api/lodge/:id", async (req, res) => {
   const id = req.params.id;
 
@@ -794,7 +1156,7 @@ app.get("/api/lodge/:id", async (req, res) => {
 
     if (result.rows.length > 0) {
       const { pictures } = result.rows[0];
-      console.log("pictures.length is", pictures.length); // This is an array of picture objects
+      // This is an array of picture objects
 
       if (pictures.length === 0) {
         // Return a 404 response indicating no images found for the item
@@ -825,7 +1187,6 @@ app.get("/api/lodge/:id", async (req, res) => {
 
       // Filter out any undefined file paths (in case any files were missing)
       const validImageUrls = imageUrls.filter((url) => url);
-      console.log("validImageUrls.length is ", validImageUrls);
 
       if (validImageUrls.length > 0) {
         // Send the array of image URLs as the response
@@ -896,6 +1257,20 @@ app.post("/api/upload-property", upload.single("file"), async (req, res) => {
     const { name, description, user, price, located } = req.body;
     // const fkUserId = parseInt(fk_user_id, 10);
 
+    const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+    const settingsResult = await pool.query(settingsQuery, [user]);
+    const userSettings = settingsResult.rows[0]?.settings || {};
+
+    // Extract toggle_status.buysell from settings
+    const toggleStatusBuysell =
+      userSettings?.toggle_status?.buysell || "available"; // Default to "available" if not found
+
+    // Step 2: Check the toggle status, set property status accordingly
+    let propertyStatus = "available";
+    if (toggleStatusBuysell === "unavailable") {
+      propertyStatus = "unavailable";
+    }
+
     if (
       filename.endsWith(".heic") ||
       filename.endsWith(".HEIC") ||
@@ -949,10 +1324,10 @@ app.post("/api/upload-property", upload.single("file"), async (req, res) => {
     const sellerName = sellerResult.rows[0].full_name || "Unknown";
     const sellerContact = sellerResult.rows[0].phone || "Unknown";
 
-    // Insert into buysells
+    // Insert into events
     const insertQuery = `
-      INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `;
     await pool.query(insertQuery, [
       name,
@@ -964,6 +1339,106 @@ app.post("/api/upload-property", upload.single("file"), async (req, res) => {
       sellerContact,
       originalname,
       filename,
+      propertyStatus,
+    ]);
+
+    res.send("File uploaded successfully");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("An error occurred");
+  }
+});
+
+app.post("/api/upload-event", upload.single("file"), async (req, res) => {
+  try {
+    let { originalname, filename, mimetype } = req.file;
+    const { name, description, event_date, user, price, located } = req.body;
+    // const fkUserId = parseInt(fk_user_id, 10);
+
+    const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+    const settingsResult = await pool.query(settingsQuery, [user]);
+    const userSettings = settingsResult.rows[0]?.settings || {};
+
+    // Extract toggle_status.buysell from settings
+    const toggleStatusBuysell =
+      userSettings?.toggle_status?.event || "available"; // Default to "available" if not found
+
+    // Step 2: Check the toggle status, set property status accordingly
+    let propertyStatus = "available";
+    if (toggleStatusBuysell === "unavailable") {
+      propertyStatus = "unavailable";
+    }
+
+    if (
+      filename.endsWith(".heic") ||
+      filename.endsWith(".HEIC") ||
+      filename.endsWith(".heif") ||
+      filename.endsWith(".HEIF")
+    ) {
+      const inputPath = req.file.path;
+      const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+
+      // Convert HEIC to JPEG
+      const buffer = fs.readFileSync(inputPath);
+      const outputBuffer = await heicConvert({
+        buffer,
+        format: "JPEG",
+        quality: 1, // 1 is maximum quality
+      });
+
+      // Save the converted JPEG
+      fs.writeFileSync(outputPath, outputBuffer);
+
+      // Update filename and mimetype
+      filename = path.basename(outputPath);
+      req.file.mimetype = "image/jpeg";
+
+      // Delete the original HEIC file
+      fs.unlinkSync(inputPath);
+    } else {
+      // Optimize other formats with Sharp
+      const inputPath = req.file.path;
+      const outputPath = path.join(
+        "uploads/",
+        Date.now() + path.extname(req.file.originalname)
+      );
+
+      // Compress and optimize the image
+      await sharp(inputPath)
+        .resize({ width: 800, withoutEnlargement: true })
+        .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
+        .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
+        .toFile(outputPath);
+
+      // Update filename
+      filename = path.basename(outputPath);
+
+      // Delete the original file
+      fs.unlinkSync(inputPath);
+    }
+    // Fetch seller details
+    const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+    const sellerResult = await pool.query(sellerQuery, [user]);
+    const sellerName = sellerResult.rows[0].full_name || "Unknown";
+    const sellerContact = sellerResult.rows[0].phone || "Unknown";
+
+    // Insert into events
+    const insertQuery = `
+      INSERT INTO event (name, description, fk_user_id, event_date,  price, location, seller_name, contact, original_name, unique_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `;
+    await pool.query(insertQuery, [
+      name,
+      description,
+      user,
+      event_date,
+      price,
+      located,
+      sellerName,
+      sellerContact,
+      originalname,
+      filename,
+      propertyStatus,
     ]);
 
     res.send("File uploaded successfully");
@@ -1023,15 +1498,15 @@ app.post(
         return res.status(400).json({ message: "No files uploaded" });
       }
 
-      console.log("Number of files received:", filesArray.length);
-      console.log("Files Array:", filesArray);
+      // console.log("Number of files received:", filesArray.length);
+      // console.log("Files Array:", filesArray);
 
       for (let file of filesArray) {
         let { originalname, filename, mimetype, path: filePath } = file;
-        console.log("Processing file:", originalname, "at path:", filePath);
+        // console.log("Processing file:", originalname, "at path:", filePath);
 
         // Check if file exists before processing
-        console.log(`Checking if file exists: ${filePath}`);
+        // console.log(`Checking if file exists: ${filePath}`);
         if (!fs.existsSync(filePath)) {
           console.error(`File not found: ${filePath}`);
           throw new Error(`Input file is missing: ${filePath}`);
@@ -1045,9 +1520,9 @@ app.post(
           const outputFilename = `${Date.now()}-${uuidv4()}.jpeg`;
           const outputPath = path.join("uploads/", outputFilename);
 
-          console.log(
-            `Converting HEIC/HEIF file to JPEG: ${filePath} -> ${outputPath}`
-          );
+          // console.log(
+          //   `Converting HEIC/HEIF file to JPEG: ${filePath} -> ${outputPath}`
+          // );
 
           // Convert HEIC/HEIF to JPEG
           const buffer = fs.readFileSync(filePath);
@@ -1059,7 +1534,7 @@ app.post(
 
           // Save converted JPEG and update file details
           fs.writeFileSync(outputPath, outputBuffer);
-          console.log(`Converted file saved to ${outputPath}`);
+          // console.log(`Converted file saved to ${outputPath}`);
 
           // Update filename and mimetype
           filename = outputFilename;
@@ -1067,7 +1542,7 @@ app.post(
 
           // Delete original HEIC/HEIF file
           fs.unlinkSync(filePath);
-          console.log(`Original HEIC/HEIF file deleted: ${filePath}`);
+          // console.log(`Original HEIC/HEIF file deleted: ${filePath}`);
         } else {
           // Optimize other formats with Sharp
           const outputFilename = `${Date.now()}-${uuidv4()}${path.extname(
@@ -1075,12 +1550,12 @@ app.post(
           )}`;
           const outputPath = path.join("uploads/", outputFilename);
 
-          console.log(
-            `Optimizing image with Sharp: ${filePath} -> ${outputPath}`
-          );
+          // console.log(
+          //   `Optimizing image with Sharp: ${filePath} -> ${outputPath}`
+          // );
 
-          // Check if input file exists before processing with Sharp
-          console.log(`Checking if input file exists for Sharp: ${filePath}`);
+          // // Check if input file exists before processing with Sharp
+          // console.log(`Checking if input file exists for Sharp: ${filePath}`);
           if (!fs.existsSync(filePath)) {
             console.error(
               `Input file missing before Sharp processing: ${filePath}`
@@ -1096,14 +1571,14 @@ app.post(
             .toFormat(mimetype.split("/")[1], { quality: 30 }) // Quality 30
             .toFile(outputPath);
 
-          console.log(`Optimized file saved to ${outputPath}`);
+          // console.log(`Optimized file saved to ${outputPath}`);
 
           // Update filename
           filename = outputFilename;
 
           // Delete the original file
           fs.unlinkSync(filePath);
-          console.log(`Original file deleted: ${filePath}`);
+          // console.log(`Original file deleted: ${filePath}`);
         }
 
         // Collect the original and unique filenames
@@ -1138,7 +1613,7 @@ app.post(
 
       const insertResult = await pool.query(insertQuery, insertValues);
 
-      console.log("Insert Result:", insertResult.rows[0]);
+      // console.log("Insert Result:", insertResult.rows[0]);
 
       res.status(201).json({
         message: "Files uploaded successfully",
@@ -1153,10 +1628,10 @@ app.post(
 
 app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
   const { id } = req.params;
-  console.log("id", id);
+  // console.log("id", id);
   const { name, description, price, location } = req.body;
 
-  console.log("body of data", req.body);
+  // console.log("body of data", req.body);
   const existingData = await pool.query("SELECT * FROM buysell WHERE id = $1", [
     id,
   ]);
@@ -1287,7 +1762,7 @@ app.get("/api/get-status/:userId", async (req, res) => {
     // Extract the entire settings JSON from the result
     const settings = result.rows[0].settings;
 
-    console.log("Fetched settings:", settings);
+    // console.log("Fetched settings:", settings);
 
     // Check if `toggle_status` exists and return it
     if (settings && settings.toggle_status) {
@@ -1304,7 +1779,15 @@ app.get("/api/get-status/:userId", async (req, res) => {
 app.post("/api/update-status/:type", async (req, res) => {
   const { status, userId } = req.body;
   const { type } = req.params;
+
   try {
+    const validTypes = ["buysell", "event", "lodge"]; // Add valid table names
+    if (!validTypes.includes(type)) {
+      return res.status(400).send({ error: "Invalid type parameter" });
+    }
+
+    const jsonPath = `'{toggle_status,${type}}'`;
+
     // Update the database with the new status
     await pool.query(`UPDATE ${type} SET status = $1 WHERE fk_user_id = $2`, [
       status,
@@ -1314,12 +1797,13 @@ app.post("/api/update-status/:type", async (req, res) => {
     const jsonStatus = JSON.stringify(status);
     await pool.query(
       `UPDATE people
-      SET settings = jsonb_set(settings, '{toggle_status, buysell}', $1::jsonb, true)
-      WHERE id = $2`,
-      [jsonStatus, userId]
+       SET settings = jsonb_set(settings, ${jsonPath}, $1::jsonb, true)
+       WHERE id = $2`,
+      [JSON.stringify(status), userId]
     );
+
     res.status(200).send({ message: "Status updated successfully" });
-    console.log("status updated to ", status);
+    // console.log("status updated to ", status);
   } catch (error) {
     console.error("Error updating status:", error);
     res.status(500).send({ error: "Failed to update status" });
@@ -1386,9 +1870,9 @@ app.post("/api/patchratingcourse", async (req, res) => {
         "UPDATE courseagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -1396,7 +1880,7 @@ app.post("/api/patchratingcourse", async (req, res) => {
         "UPDATE courseagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -1514,9 +1998,9 @@ app.post("/api/patchratingcrypto", async (req, res) => {
         "UPDATE cryptoagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -1524,7 +2008,7 @@ app.post("/api/patchratingcrypto", async (req, res) => {
         "UPDATE cybercafeagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -1645,9 +2129,9 @@ app.post("/api/patchratingcyber", async (req, res) => {
         "UPDATE cybercafeagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -1655,7 +2139,7 @@ app.post("/api/patchratingcyber", async (req, res) => {
         "UPDATE cybercafeagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -1773,9 +2257,9 @@ app.post("/api/patchratingdelivery", async (req, res) => {
         "UPDATE deliveryagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -1783,7 +2267,7 @@ app.post("/api/patchratingdelivery", async (req, res) => {
         "UPDATE deliveryagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -1902,9 +2386,9 @@ app.post("/api/patchratingrider", async (req, res) => {
         "UPDATE rideragents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -1912,7 +2396,7 @@ app.post("/api/patchratingrider", async (req, res) => {
         "UPDATE rideragents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -2033,9 +2517,9 @@ app.post("/api/patchratingschoolfee", async (req, res) => {
         "UPDATE schoolfeeagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -2043,7 +2527,7 @@ app.post("/api/patchratingschoolfee", async (req, res) => {
         "UPDATE schoolfeeagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -2156,13 +2640,13 @@ ORDER BY
 app.post("/api/submitreview", async (req, res) => {
   try {
     const { type, agentType, userid, agentId, review } = req.body;
-    console.log("Received data:", { type, agentType, userid, agentId, review });
+    // console.log("Received data:", { type, agentType, userid, agentId, review });
 
     const checkResult = await pool.query(
       "SELECT type, agent_type, user_id, agent_id, text FROM reviews WHERE user_id=$1 AND agent_id = $2",
       [userid, agentId]
     );
-    console.log("Check result rows length:", checkResult.rows.length);
+    // console.log("Check result rows length:", checkResult.rows.length);
     if (checkResult.rows.length === 1) {
       return res.status(400).json({
         message: "You have already submitted a review for this agent.",
@@ -2197,9 +2681,9 @@ app.post("/api/patchratingwhatsapptv", async (req, res) => {
         "UPDATE whatsapptvagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      console.log(
-        `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      );
+      // console.log(
+      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+      // );
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -2207,7 +2691,7 @@ app.post("/api/patchratingwhatsapptv", async (req, res) => {
         "UPDATE whatsapptvagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
-      console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
       res.sendStatus(200);
     } else {
       // Handle the case when neither goodRating nor badRating is provided in the request
@@ -2222,16 +2706,53 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
   const { agentId, userId, orderId, agentType, agentUserId } = req.body;
   const message = "connect request";
 
-  console.log(userId);
-  console.log(agentId);
-  console.log(orderId);
+  // console.log(userId);
+  // console.log(agentId);
+  // console.log(orderId);
   const requestTime = new Date(); // Current time
 
   try {
     // Query the database to get the agent's email
     await pool.query(
-      "INSERT INTO connect (order_id, user_id, agent_id, request_time ) VALUES ($1, $2, $3, $4)",
-      [orderId, userId, agentId, requestTime]
+      "INSERT INTO connect (order_id, user_id, agent_id, request_time, type ) VALUES ($1, $2, $3, $4, $5)",
+      [orderId, userId, agentId, requestTime, agentType]
+    );
+    await pool.query(
+      `
+  UPDATE people
+  SET settings = jsonb_set(
+      jsonb_set(
+          settings, -- The column you're updating
+          '{Totl Connect Made}', -- The path to the key you want to increment
+          to_jsonb((settings ->> 'Totl Connect Made')::int + 1), -- Increment the current value by 1
+          true -- Create the key if it doesn't exist
+      ),
+      '{account_balance}', -- The path to the key you want to decrement
+      to_jsonb((settings ->> 'account_balance')::int - 100), -- Decrement the value by 100
+      true -- Create the key if it doesn't exist
+  ),
+  account_balance = account_balance - 100
+  WHERE id = $1;`, // Placeholder for the userId
+      [userId] // Pass userId as a parameter here
+    );
+
+    await pool.query(
+      `
+  UPDATE people
+  SET settings = jsonb_set(
+      jsonb_set(
+          settings, -- The column you're updating
+          '{Totl Connect Received}', -- The path to the key you want to increment
+          to_jsonb((settings ->> 'Totl Connect Received')::int + 1), -- Increment the current value by 1
+          true -- Create the key if it doesn't exist
+      ),
+      '{account_balance}', -- The path to the key you want to decrement
+      to_jsonb((settings ->> 'account_balance')::int - 100), -- Decrement the value by 100
+      true -- Create the key if it doesn't exist
+  ),
+  account_balance = account_balance - 100
+  WHERE id = $1;`, // Placeholder for the userId
+      [agentUserId] // Pass userId as a parameter here
     );
 
     const response = await pool.query(
@@ -2239,6 +2760,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
    VALUES ($1, $2, $3, $4, $5) RETURNING *`, // Return the inserted row
       [agentUserId, message, agentType, userId, orderId]
     );
+    // await notifyNewMessages(agentUserId);
 
     const insertedMessage = response.rows[0]; // The inserted message with basic info
 
@@ -2263,7 +2785,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     const updatedMessage = updatedMessageResponse.rows[0]; // This will include phone and full name
 
     //  fully updated message
-    console.log(updatedMessage);
+    // console.log(updatedMessage);
     // io.emit("newMessage", updatedMessage); // Emit the fully updated message
 
     setTimeout(async () => {
@@ -2312,7 +2834,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
 
     // Send email
     const info = await transporter.sendMail(mailOptions);
-    console.log("Message sent: %s", info.messageId);
+    // console.log("Message sent: %s", info.messageId);
     res
       .status(200)
       .send({ message: "Email sent successfully!", updatedMessage });
@@ -2327,7 +2849,7 @@ app.post("/api/respond-to-connect", async (req, res) => {
   const { order_id, user_id, agent_id, status } = req.query;
 
   // Debug logs
-  console.log(order_id, user_id, agent_id, status);
+  // console.log(order_id, user_id, agent_id, status);
 
   try {
     // Fetch request time and check expiration
@@ -2363,9 +2885,10 @@ app.post("/api/respond-to-connect", async (req, res) => {
 });
 
 app.get("/api/check-pending-connects", async (req, res) => {
-  const { userId } = req.query;
+  const { userId, type } = req.query;
+  console.log("user is", userId);
 
-  console.log(userId);
+  // console.log(userId);
   if (!userId) {
     return res.status(400).json({ error: "User ID is required" });
   }
@@ -2373,13 +2896,13 @@ app.get("/api/check-pending-connects", async (req, res) => {
   try {
     // Fetch reviews from the database
     const result = await pool.query(
-      `SELECT * FROM connect WHERE user_id = $1 AND (status = $2 OR status = $3 OR status = $4) ORDER BY request_time DESC LIMIT 1`,
-      [userId, "pending", "accepted", "completed"]
+      `SELECT * FROM connect WHERE user_id = $1 AND (status = $2 OR status = $3 OR status = $4) AND type = $5 ORDER BY request_time DESC LIMIT 1`,
+      [userId, "pending", "accepted", "completed", type]
     );
 
     // Send the reviews as the response
     res.json(result.rows[0]);
-    console.log(result.rows[0]);
+    // console.log(result.rows[0]);
   } catch (err) {
     console.error("Error fetching reviews:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -2390,7 +2913,7 @@ app.get("/api/respond-to-connect", async (req, res) => {
   const { order_id, user_id, agent_id, status } = req.query;
 
   // Debug logs
-  console.log(order_id, user_id, agent_id, status);
+  // console.log(order_id, user_id, agent_id, status);
 
   try {
     // Fetch request time and check expiration
@@ -2427,7 +2950,7 @@ app.get("/api/respond-to-connect", async (req, res) => {
 
 app.post("/api/confirm-connect", async (req, res) => {
   const { messageId, orderId } = req.body; // Correctly extracting order_id from the request body
-  console.log(orderId);
+  // console.log(orderId);
   try {
     const resultT = await pool.query(
       "SELECT request_time FROM connect WHERE order_id = $1",
@@ -2456,7 +2979,7 @@ app.post("/api/confirm-connect", async (req, res) => {
     );
 
     if (result.rowCount > 0) {
-      console.log("connected");
+      // console.log("connected");
       res.status(200).send("Order status updated to connected");
     } else {
       res.status(404).send("Order not found");
@@ -2470,19 +2993,213 @@ app.post("/api/confirm-connect", async (req, res) => {
 app.post("/api/complete-connect", async (req, res) => {
   const { orderCode } = req.body;
 
-  console.log("order has connected ", orderCode);
+  // console.log("Order has connected:", orderCode);
 
   try {
+    // Update the status of the connect
     await pool.query(
-      `UPDATE connect SET status = 'connected' WHERE order_id = $1 `,
+      `UPDATE connect SET status = 'connected' WHERE order_id = $1`,
       [orderCode]
     );
-  } catch (error) {}
+
+    // Get agent_id from the connect table
+    const result = await pool.query(
+      `SELECT agent_id FROM connect WHERE order_id = $1`, // Fixed table name
+      [orderCode]
+    );
+
+    const agentId = result.rows[0]?.agent_id; // Accessing agent_id correctly
+
+    if (!agentId) {
+      return res.status(404).json({ error: "Agent not found." });
+    }
+
+    // Get user_id from the agents table
+    const result2 = await pool.query(
+      `SELECT user_id FROM agents WHERE agent_id = $1`,
+      [agentId]
+    );
+
+    const agentUserId = result2.rows[0]?.user_id; // Accessing user_id correctly
+
+    if (!agentUserId) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // Update Completed Orders count
+    await pool.query(
+      `
+      UPDATE people
+      SET settings = jsonb_set(
+          settings,
+          '{Completed Orders}', 
+          to_jsonb((settings ->> 'Completed Orders')::int + 1), 
+          true 
+      )
+      WHERE id = $1`,
+      [agentUserId] // Correctly passing the userId
+    );
+
+    // Update average completed orders
+    await pool.query(
+      `
+  UPDATE people
+  SET settings = jsonb_set(
+    settings,
+    '{average_completed_orders}',
+    to_jsonb(
+      CASE 
+        WHEN COALESCE((settings ->> 'Totl Connect Received')::int, 0) = 0 THEN 0
+        ELSE COALESCE((settings ->> 'Completed Orders')::int, 0) * 100 / COALESCE((settings ->> 'Totl Connect Received')::int, 1)
+      END
+    ),
+    true
+  )
+  WHERE id = $1`, // Ensure the WHERE clause is used
+      [agentUserId]
+    );
+
+    res.status(200).json({ message: "Connect completed successfully." });
+  } catch (error) {
+    console.error("Error completing connect:", error);
+    res.status(500).json({ error: "Internal server error." });
+  }
 });
 
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
+
+app.post("/api/delete-connect", async (req, res) => {
+  const { messageId } = req.body;
+
+  try {
+    await pool.query(`DELETE FROM messages WHERE id = $1`, [messageId]);
+  } catch (error) {}
+});
+
+app.post("/api/complete-connect", async (req, res) => {
+  const { orderCode } = req.body;
+
+  // console.log("Order has connected:", orderCode);
+
+  try {
+    // Update the status of the connect
+    await pool.query(
+      `UPDATE connect SET status = 'incomplete' WHERE order_id = $1`,
+      [orderCode]
+    );
+
+    // Get agent_id from the connect table
+    const result = await pool.query(
+      `SELECT agent_id FROM connect WHERE order_id = $1`, // Fixed table name
+      [orderCode]
+    );
+
+    const agentId = result.rows[0]?.agent_id; // Accessing agent_id correctly
+
+    // Get user_id from the agents table
+    const result2 = await pool.query(
+      `SELECT user_id FROM agents WHERE agent_id = $1`,
+      [agentId]
+    );
+
+    const agentUserId = result2.rows[0]?.user_id; // Accessing user_id correctly
+
+    if (!agentUserId) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    // Update average completed orders
+    await pool.query(
+      `
+  UPDATE people
+  SET settings = jsonb_set(
+    settings,
+    '{average_completed_orders}',
+    to_jsonb(
+      CASE 
+        WHEN COALESCE((settings ->> 'Totl Connect Received')::int, 0) = 0 THEN 0
+        ELSE COALESCE((settings ->> 'Completed Orders')::int, 0) * 100 / COALESCE((settings ->> 'Totl Connect Received')::int, 1)
+      END
+    ),
+    true
+  )
+  WHERE id = $1`, // Ensure the WHERE clause is used
+      [agentUserId]
+    );
+
+    res.status(200).json({ message: "Connect completed successfully." });
+  } catch (error) {
+    console.error("Error completing connect:", error);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+app.post("/api/delete-connect", async (req, res) => {
+  const { messageId } = req.body;
+
+  try {
+    await pool.query(`DELETE FROM messages WHERE id = $1`, [messageId]);
+  } catch (error) {}
+});
+
+app.post("/api/reject-connect", async (req, res) => {
+  const { orderId } = req.body; // Correctly extracting order_id from the request body
+
+  try {
+    const result = await pool.query(
+      `UPDATE connect SET status = 'closed' WHERE order_id = $1 RETURNING *`,
+      [orderId]
+    );
+
+    if (result.rowCount > 0) {
+      // console.log("closed");
+      res.status(200).send("Order status updated to closed");
+    } else {
+      res.status(404).send("Order not found");
+    }
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/api/connectbuysell", async (req, res) => {
+  const { itemId } = req.body;
+  // console.log("updating buysell ", itemId);
+
+  try {
+    // Update the status in the database
+    const result = await pool.query(
+      "UPDATE buysell SET status = $1 WHERE id = $2 RETURNING *",
+      ["order", itemId]
+    );
+
+    if (result.rowCount > 0) {
+      const updatedItem = result.rows[0];
+
+      // Add a job to the queue to change the status after 30 minutes
+      await myQueue.add({ itemId }, { delay: 3 * 10000 }); // 30 minutes delay
+
+      // Broadcast the status update to all connected clients
+      io.emit("statusUpdate", {
+        itemId: updatedItem.id,
+        status: updatedItem.status,
+      });
+
+      res
+        .status(200)
+        .json({ message: "Status updated successfully", item: updatedItem });
+    } else {
+      // Item not found
+      res.status(404).json({ message: "Item not found" });
+    }
+  } catch (error) {
+    console.error("Error updating status:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 // Route to check if the phone number has been used
 app.get("/api/get-used-number", async (req, res) => {
@@ -2519,6 +3236,7 @@ app.post("/api/send-verification-code", async (req, res) => {
 
   // Generate a 6-digit verification code
   const verificationCode = generateVerificationCode();
+
   console.log(verificationCode);
 
   try {
@@ -2587,89 +3305,108 @@ app.post("/api/verify-phone", async (req, res) => {
     res.status(500).json({ error: "Failed to verify phone number" });
   }
 });
-app.post("/api/reject-connect", async (req, res) => {
-  const { orderId } = req.body; // Correctly extracting order_id from the request body
+
+// app.get("/api/messages", async (req, res) => {
+//   const { userbread } = req.query;
+
+//   try {
+//     const result = await pool.query(
+//       "SELECT    FROM messages WHERE user_id = $1 ORDER BY timestamp DESC ",
+//       [userbread]
+//     );
+
+//     const status = "unread";
+
+//     const result2 = await pool.query(
+//       `SELECT status from  messages where user_id = $1 AND status =$2`,
+//       [userbread, status]
+//     );
+
+//     const response = result.rows;
+//     const unread = result2.rows;
+//     const length = unread.length;
+//     console.log("length is", length);
+
+//     if (response.length > 0) {
+//       res.json(response,);
+//     } else {
+//       // If no message  is not found, send an empty array
+//       res.json([]);
+//     }
+//   } catch (error) {}
+// });
+
+app.get("/api/messages", async (req, res) => {
+  const { userbread, reset } = req.query;
 
   try {
+    // If reset is "true", update the status of messages
+    if (reset === "true") {
+      await pool.query(
+        `UPDATE messages SET status = 'read' WHERE user_id = $1`,
+        [userbread]
+      );
+    }
+
+    // Query to get all messages for the user
     const result = await pool.query(
-      `UPDATE connect SET status = 'closed' WHERE order_id = $1 RETURNING *`,
-      [orderId]
+      "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
+      [userbread]
     );
 
-    if (result.rowCount > 0) {
-      console.log("closed");
-      res.status(200).send("Order status updated to closed");
-    } else {
-      res.status(404).send("Order not found");
-    }
+    // Get unread messages count for the user
+    const status = "unread";
+    const result2 = await pool.query(
+      `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
+      [userbread, status]
+    );
+
+    const response = result.rows; // All messages for the user
+    const unreadCount = parseInt(result2.rows[0].unread_count, 10); // Unread messages count
+
+    // If there are messages, return them along with unread count
+    res.json({ messages: response, unreadCount: unreadCount });
   } catch (error) {
-    console.error("Error updating order status:", error);
+    console.error("Error fetching messages:", error);
     res.status(500).send("Internal Server Error");
   }
 });
 
-app.post("/api/connectbuysell", async (req, res) => {
-  const { itemId } = req.body;
-  console.log("updating buysell ", itemId);
+// try {
+//   // Query to get all messages for the user
+//   const result = await pool.query(
+//     "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
+//     [userbread]
+//   );
 
-  try {
-    // Update the status in the database
-    const result = await pool.query(
-      "UPDATE buysell SET status = $1 WHERE id = $2 RETURNING *",
-      ["order", itemId]
-    );
+//   // Get unread messages count for the user
+//   const status = "unread";
+//   const result2 = await pool.query(
+//     `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
+//     [userbread, status]
+//   );
 
-    if (result.rowCount > 0) {
-      const updatedItem = result.rows[0];
+//   const response = result.rows; // All messages for the user
+//   const unreadCount = result2.rows[0].unread_count; // Unread messages count
 
-      // Add a job to the queue to change the status after 30 minutes
-      await myQueue.add({ itemId }, { delay: 3 * 10000 }); // 30 minutes delay
-
-      // Broadcast the status update to all connected clients
-      io.emit("statusUpdate", {
-        itemId: updatedItem.id,
-        status: updatedItem.status,
-      });
-
-      res
-        .status(200)
-        .json({ message: "Status updated successfully", item: updatedItem });
-    } else {
-      // Item not found
-      res.status(404).json({ message: "Item not found" });
-    }
-  } catch (error) {
-    console.error("Error updating status:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-app.get("/api/messages", async (req, res) => {
-  const { userbread } = req.query;
-  console.log(userbread);
-
-  try {
-    const result = await pool.query(
-      "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC ",
-      [userbread]
-    );
-
-    const response = result.rows;
-
-    if (response.length > 0) {
-      res.json(response);
-    } else {
-      // If no message  is not found, send an empty array
-      res.json([]);
-    }
-  } catch (error) {}
-});
+//   // If there are messages, return them along with unread count
+//   if (response.length > 0) {
+//     res.json({ messages: response, unreadCount: unreadCount });
+//   } else {
+//     // If no messages are found, return an empty array
+//     res.json({ messages: [], unreadCount: unreadCount });
+//   }
+// } catch (error) {
+//   console.error("Error fetching messages:", error);
+//   res.status(500).send("Internal Server Error");
+//   // }
+// });
 
 app.get("/api/agentprofile", async (req, res) => {
   const { userId, type } = req.query;
 
-  console.log("Received userId:", userId);
-  console.log("Received type:", type);
+  // console.log("Received userId:", userId);
+  // console.log("Received type:", type);
 
   try {
     const result = await pool.query(

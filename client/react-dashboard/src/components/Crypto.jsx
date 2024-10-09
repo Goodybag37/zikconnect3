@@ -10,6 +10,7 @@ import { LazyLoadComponent } from "react-lazy-load-image-component";
 import { BsFillPersonLinesFill } from "react-icons/bs";
 import { BisPhoneCall } from "@meronex/icons/bi/";
 import { LogoWhatsapp } from "@meronex/icons/ios/";
+import { io } from "socket.io-client";
 import {
   BsPatchCheckFill,
   BsXOctagonFill,
@@ -74,12 +75,17 @@ function YourComponent() {
   const maxLength = 250;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const userbread = user.userId; // Optional chaining to avoid errors if user is null
+
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
+
+  // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
   const isPhoneVerified = user.isPhoneVerified;
   const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
   console.log("user bread", userbread);
+  const socket = io(apiUrl);
 
   const fetchData = async (page) => {
     try {
@@ -88,6 +94,10 @@ function YourComponent() {
           page + 1
         }&pageSize=${usersPerPage}`
       );
+
+      socket.on("message ", (data) => {
+        console.log(data);
+      });
       console.log(response);
       const {
         cryptoagents: newcryptoagents,
@@ -118,9 +128,11 @@ function YourComponent() {
       const modalState = localStorage.getItem("showModal");
       const userId = userbread;
 
+      const type = "crypto";
+
       try {
         const response = await axios.get(
-          `${apiUrl}/api/check-pending-connects?userId=${userId}`
+          `${apiUrl}/api/check-pending-connects?userId=${userId}&type=${type}`
         );
         console.log(response.data);
         const agent = response.data.agent_id;
@@ -152,19 +164,21 @@ function YourComponent() {
           console.log("Remaining time (ms):", remainingTime);
 
           if (endTime) {
-            const content = (
-              <>
-                <h2 className="text-gradient popup-heading">
-                  Pending Connect{" "}
-                </h2>
-                <p className="popup-paragraph">
-                  You have a pending connect from agent{agent}. The order will
-                  expire in <CountdownTimer endTime={endTime} />
-                </p>
-              </>
-            );
+            setTimeout(() => {
+              const content = (
+                <>
+                  <h2 className="text-gradient popup-heading">
+                    Pending Connect{" "}
+                  </h2>
+                  <p className="popup-paragraph">
+                    You have a pending connect from agent{agent}. The order will
+                    expire in <CountdownTimer endTime={endTime} />
+                  </p>
+                </>
+              );
 
-            setModalContent(content);
+              setModalContent(content);
+            }, 0);
           }
         } else if (status === "accepted") {
           setShowModal2(true);
@@ -194,6 +208,7 @@ function YourComponent() {
                   seriously.
                   <CountdownTimer endTime={endTime2} />
                 </p>
+
                 <div className="chat-call-buttons">
                   <a href={`https://wa.me/${contact}`}>
                     <button className="bg-blue-gradient roommate-button  connect-accept-button-chat">
@@ -636,7 +651,9 @@ function YourComponent() {
           <p className="popup-paragraph">Order Number: {newCode}</p>
           {selectedAgent && (
             <>
-              <p className="popup-paragraph">Agent ID: {selectedAgent.id}</p>
+              <p className="popup-paragraph">
+                Agent ID: {selectedAgent.agentId}
+              </p>
               <p className="popup-paragraph">
                 Agent Full Name: {selectedAgent.name}
               </p>
@@ -792,13 +809,6 @@ function YourComponent() {
                   </div>
                 ))}
 
-                {/*                 
-                <button className='bg-blue-gradient agent-button leave-review-button' onClick={() =>{ 
-                 setOpenPopup((prev) => ({ ...prev, [agent.id]: true }));
-                  toggleReviewForm(agent.id)}}>
-                  <BsFileEarmarkPerson className='card_icon' />
-                  Leave a review
-                </button> */}
                 <button
                   className="bg-blue-gradient agent-button leave-review-button"
                   onClick={() => {

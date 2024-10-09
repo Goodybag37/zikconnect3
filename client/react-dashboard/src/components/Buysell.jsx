@@ -59,7 +59,10 @@ function YourComponent() {
   const pagesVisited = pageNumber * usersPerPage;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const userbread = user.userId; // Optional chaining to avoid errors if user is null
+
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId; // Optional chaining to avoid errors if user is null
+
   const emailbread = user.email;
   const [located, setLocated] = useState("");
   const [name, setName] = useState("");

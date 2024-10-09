@@ -21,12 +21,14 @@ function VerifyPhone() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const userId = user.userId;
+  const userId =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
   const isPhoneVerified = user.isPhoneVerified;
 
   const maxLength = 250;
   const codeLength = 6;
-  const apiUrl = process.env.REACT_APP_API_URL;
+  const apiUrls = process.env.REACT_APP_API_URL || "http://localhost:4000";
+  const apiUrl = "http://localhost:4000";
 
   const resendDelay = 60; // Delay in seconds before allowing to resend code
 

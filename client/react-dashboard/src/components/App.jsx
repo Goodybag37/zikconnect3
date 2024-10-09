@@ -4,12 +4,13 @@ import Agents from "../pages/Agents";
 import Home from "../pages/Home";
 import Roommates from "../pages/Roommates";
 import BuysellsPage from "../pages/Buysells";
+
 import Courses from "../pages/Courses";
 import Cryptos from "../pages/Cryptos";
 import Profiles from "../pages/Profiles";
 import Cybercafes from "../pages/Cybercafes";
 import Deliveries from "../pages/Deliveries";
-import Events from "../pages/Events";
+import EventsPage from "../pages/Events";
 import Riders from "../pages/Riders";
 import Lodges from "../pages/Lodges";
 import Schoolfees from "../pages/Schoolfees";
@@ -22,21 +23,11 @@ import VerifyId from "../pages/VerifyId";
 import ProtectedRoutes from "./ProtectedRoutes";
 import UploadProperty from "../pages/UploadProperty";
 import UploadLodge from "../pages/UploadLodge";
+import UploadEvent from "../pages/UploadEvent";
+
+import Settings from "../pages/Settings";
 function App() {
   const [openSidebarToggle, setOpenSidebarToggle] = useState(false);
-  // const location = useLocation();
-  // const searchParams = new URLSearchParams(location.search);
-
-  // const [usersId, setUsersId] = useState();
-  // const [email, setEmail] = useState();
-  // const userId = searchParams.get("userId");
-  // const userEmail = searchParams.get("email");
-
-  // useEffect(() => {
-  //   setUsersId(userId);
-  //   setEmail(userEmail);
-  // }, [userId, userEmail]);
-
   const OpenSidebar = () => {
     setOpenSidebarToggle(!openSidebarToggle);
   };
@@ -72,6 +63,7 @@ function App() {
         >
           <Route path="/uploadlodge" element={<UploadLodge />} />
           <Route path="/uploadproperty" element={<UploadProperty />} />
+          <Route path="/uploadevent" element={<UploadEvent />} />
         </Route>
 
         <Route path="/agents" element={<Agents />} />
@@ -79,6 +71,7 @@ function App() {
         <Route path="/verifyid" element={<VerifyId />} />
 
         <Route path="/home" element={<Home />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/buysells" element={<BuysellsPage />} />
         <Route path="/roommates" element={<Roommates />} />
         <Route path="/courses" element={<Courses />} />
@@ -86,7 +79,7 @@ function App() {
         <Route path="/profiles" element={<Profiles />} />
         <Route path="/cybercafes" element={<Cybercafes />} />
         <Route path="/deliveries" element={<Deliveries />} />
-        <Route path="/events" element={<Events />} />
+        <Route path="/events" element={<EventsPage />} />
         <Route path="/riders" element={<Riders />} />
         <Route path="/lodges" element={<Lodges />} />
         <Route path="/schoolfees" element={<Schoolfees />} />
