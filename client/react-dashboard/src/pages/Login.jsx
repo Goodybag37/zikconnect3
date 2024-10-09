@@ -39,13 +39,22 @@ const Login = () => {
 
       const userData = response.data;
 
-      localStorage.setItem("authToken", response.data.token);
+      // localStorage.setItem("authToken", response.data.token);
+
+      // Store user data in local storage
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("isAuthenticated", true);
+
+      // Update the context state or any other state management
+      // setUser(userData);
+      // isAuthenticated(true);
 
       login({
         ...userData,
         id: userData.id,
         full_name: userData.full_name,
         email: userData.email,
+        account_balance: userData.account_balance,
         isPhoneVerified: userData.phone || false,
         isIdVerified: userData.isIdVerified || true,
       });

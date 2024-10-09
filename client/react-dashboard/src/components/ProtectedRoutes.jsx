@@ -13,13 +13,6 @@ import React, { useContext } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import AuthContext from "../AuthContext";
 
-// Function to check if the user is authenticated
-// const isAuthenticated = () => {
-//   // This function should check your authentication logic, e.g., checking for a token in localStorage or checking a global state
-//   const token = localStorage.getItem("authToken"); // Example: checking local storage for a token
-//   return !!token; // Returns true if the token exists, false otherwise
-// };
-
 const userlo = localStorage.getItem("user");
 
 console.log("user lo", userlo);
@@ -29,11 +22,23 @@ const ProtectedRoutes = ({ conditions = [], redirectPaths = {} }) => {
   const { isAuthenticated, user, login } = useContext(AuthContext);
   const isPhoneVerified = user.isPhoneVerified;
   const isIdVerified = user.isIdVerified;
+  const localAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+  const userData = JSON.parse(localStorage.getItem("user"));
 
   if (!isAuthenticated) {
-    console.log(isAuthenticated);
-    // If the user is not authenticated, redirect them to the login page and pass the current location
-    return <Navigate to={`/login?redirect=${location.pathname}`} />;
+    if (localAuthenticated === true) {
+      login({
+        ...userData,
+        id: userData.userId,
+        full_name: userData.full_name,
+        email: userData.email,
+        account_balance: userData.account_balance,
+        isPhoneVerified: userData.phone || false,
+        isIdVerified: userData.isIdVerified || true,
+      });
+    } else {
+      return <Navigate to={`/login?redirect=${location.pathname}`} />;
+    }
   }
 
   if (conditions.includes("id1") && isIdVerified) {

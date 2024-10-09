@@ -74,7 +74,9 @@ function YourComponent() {
   const maxLength = 250;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const userbread = user.userId; // Optional chaining to avoid errors if user is null
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
+  // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
   const isPhoneVerified = user.isPhoneVerified;
   const apiUrls = process.env.REACT_APP_API_URL;
@@ -117,6 +119,7 @@ function YourComponent() {
     const fetchPendingConnects = async () => {
       const modalState = localStorage.getItem("showModal");
       const userId = userbread;
+      const type = "whatsapptv";
 
       try {
         const response = await axios.get(

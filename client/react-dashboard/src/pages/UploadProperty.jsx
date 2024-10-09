@@ -21,7 +21,8 @@ function UploadProperty() {
   const maxFileSize = 5 * 1024 * 1024; // Add state for file
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const userbread = user.userId; // Optional chaining to avoid errors if user is null
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId; // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
 
   const maxLength = 250;

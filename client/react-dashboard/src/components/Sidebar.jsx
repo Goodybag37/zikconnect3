@@ -54,11 +54,11 @@ function Sidebar(props) {
         <li className="sidebar-list-item">
           <CustomLink
             className="card-title"
-            to={"/roommates"}
+            to={"/events"}
             userId={id}
             email={mail}
           >
-            <BsFillPeopleFill className="icon" /> Roommates
+            <BsFillPeopleFill className="icon" /> Events
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
