@@ -38,6 +38,7 @@ function BecomeAgent() {
   const [modalContent, setModalContent] = useState("");
 
   const maxLength = 250;
+  const maxLengthN = 11;
 
   const handleSelectChange = (event) => {
     setSelectedAgent(event.target.value);
@@ -103,8 +104,6 @@ function BecomeAgent() {
         </div>
       );
 
-      setShowModal(true);
-
       const redirect = () => {
         // Get the redirect path from the URL parameters
         const redirectPath =
@@ -126,6 +125,7 @@ function BecomeAgent() {
       } else {
         setError("An unexpected error occurred. Please try again.");
       }
+      setShowModal(false);
     } finally {
       setLoading(false);
     }
@@ -155,7 +155,7 @@ function BecomeAgent() {
             required
           >
             <option value="">--Please choose an option--</option>
-            <option value="cryptoagents">Repair Agent</option>
+            <option value="repairagents">Repair Agent</option>
             <option value="courseagents">Course Agent</option>
             <option value="cybercafeagents">Cybercafe Agent</option>
             <option value="deliveryagents">Delivery Agent</option>
@@ -207,10 +207,11 @@ function BecomeAgent() {
 
         <div className="input-group">
           <input
-            maxLength={maxLength}
+            maxLength={maxLengthN}
             type="tel"
             id="description"
-            placeholder="Whatsapp Number"
+            placeholder="Whatsapp Number (11-digit)"
+            pattern="[0-9]{11}"
             value={whatsapp}
             onChange={(e) => setWhatsapp(e.target.value)}
             required // Added for form validation
