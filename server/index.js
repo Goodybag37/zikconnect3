@@ -555,7 +555,7 @@ app.get("/api/profile/", async (req, res) => {
         buysell.id AS buysell_id, 
         courseagents.id AS courseagent_id, 
         courseagents.course AS courseagents_course, 
-        cryptoagents.id AS cryptoagent_id, 
+        repairagents.id AS cryptoagent_id, 
         cybercafeagents.id AS cybercafeagent_id, 
         deliveryagents.id AS deliveryagent_id, 
         rideragents.id AS rideragent_id, 
@@ -571,7 +571,7 @@ app.get("/api/profile/", async (req, res) => {
       LEFT JOIN lodges ON people.id = lodges.fk_user_id 
       LEFT JOIN buysell ON people.id = buysell.fk_user_id 
       LEFT JOIN courseagents ON people.id = courseagents.fk_user_id 
-      LEFT JOIN cryptoagents ON people.id = cryptoagents.fk_user_id 
+      LEFT JOIN repairagents ON people.id = repairagents.fk_user_id 
       LEFT JOIN cybercafeagents ON people.id = cybercafeagents.fk_user_id 
       LEFT JOIN deliveryagents ON people.id = deliveryagents.fk_user_id 
       LEFT JOIN rideragents ON people.id = rideragents.fk_user_id 
@@ -1891,20 +1891,20 @@ app.post("/api/patchratingcourse", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
-app.get("/api/cryptoagentsapi", async (req, res) => {
+app.get("/api/repairagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-  cryptoagents.agent_id AS id, 
-  UPPER(cryptoagents.name) AS name, 
-  cryptoagents.contact, 
-  cryptoagents.location, 
-  cryptoagents.account_created, 
-  cryptoagents.agent_date AS agent_date, 
+  repairagents.agent_id AS id, 
+  UPPER(repairagents.name) AS name, 
+  repairagents.contact, 
+  repairagents.location, 
+  repairagents.account_created, 
+  repairagents.agent_date AS agent_date, 
   people.date AS account_creation_date,
-  cryptoagents.fk_user_id,  
-  cryptoagents.good_rating, 
-  cryptoagents.bad_rating, 
+  repairagents.fk_user_id,  
+  repairagents.good_rating, 
+  repairagents.bad_rating, 
   COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
   COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
   ARRAY_AGG(
@@ -1924,43 +1924,43 @@ app.get("/api/cryptoagentsapi", async (req, res) => {
     END
   ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
 FROM 
-  cryptoagents
+  repairagents
 LEFT JOIN 
   reviews 
 ON 
-  cryptoagents.agent_id = reviews.agent_id 
+  repairagents.agent_id = reviews.agent_id 
   AND reviews.agent_type = 'crypto'
 
   LEFT JOIN 
                 agents 
             ON 
-                cryptoagents.agent_id = agents.agent_id  -- Join with the agents table
+                repairagents.agent_id = agents.agent_id  -- Join with the agents table
 
                 LEFT JOIN 
                 people 
             ON 
-                cryptoagents.fk_user_id = people.id  -- Join people table to get account creation date
+                repairagents.fk_user_id = people.id  -- Join people table to get account creation date
           
         
 GROUP BY 
-  cryptoagents.agent_id,
-  cryptoagents.name,
-  cryptoagents.contact,
-  cryptoagents.location,
-  cryptoagents.account_created,
-  cryptoagents.agent_date,
-  cryptoagents.fk_user_id,
+  repairagents.agent_id,
+  repairagents.name,
+  repairagents.contact,
+  repairagents.location,
+  repairagents.account_created,
+  repairagents.agent_date,
+  repairagents.fk_user_id,
   agents.date,
   people.date,
-  cryptoagents.good_rating,
-  cryptoagents.bad_rating
+  repairagents.good_rating,
+  repairagents.bad_rating
 ORDER BY 
-  cryptoagents.agent_id DESC;
+  repairagents.agent_id DESC;
 
 
       `);
 
-    const cryptoagents = result.rows;
+    const repairagents = result.rows;
 
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 5;
@@ -1969,8 +1969,8 @@ ORDER BY
     const endIndex = page * pageSize;
     const userId = req.user;
 
-    const paginatedCryptoagents = cryptoagents.slice(startIndex, endIndex);
-    const totalItems = cryptoagents.length;
+    const paginatedrepairagents = repairagents.slice(startIndex, endIndex);
+    const totalItems = repairagents.length;
     const totalPages = Math.ceil(totalItems / pageSize);
 
     res.json({
@@ -1979,7 +1979,7 @@ ORDER BY
       pageSize,
       totalItems,
       totalPages,
-      cryptoagents: paginatedCryptoagents,
+      repairagents: paginatedrepairagents,
     });
   } catch (error) {
     console.log(error);
@@ -1995,7 +1995,7 @@ app.post("/api/patchratingcrypto", async (req, res) => {
     if (!isNaN(goodRating)) {
       const newGoodRating = goodRating + 1;
       const result = await pool.query(
-        "UPDATE cryptoagents SET good_rating = $1 WHERE id = $2",
+        "UPDATE repairagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
       // console.log(
@@ -2407,6 +2407,7 @@ app.post("/api/patchratingrider", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
+
 app.get("/api/schoolfeeagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2539,7 +2540,7 @@ app.post("/api/patchratingschoolfee", async (req, res) => {
   }
 });
 
-app.get("/api/cryptoagentsapi", async (req, res) => {
+app.get("/api/whatsapptvagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -2702,9 +2703,96 @@ app.post("/api/patchratingwhatsapptv", async (req, res) => {
     res.sendStatus(500); // Internal Server Error
   }
 });
+
+app.get("/api/total-connect", async (req, res) => {
+  try {
+    const query = `
+      SELECT agent_type, total_connect FROM total_connect;
+    `;
+
+    const result = await pool.query(query); // Assuming you're using `pg` for PostgreSQL
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
+app.post("/api/become-agent", async (req, res) => {
+  const { type, located, description, call, whatsapp, email, user, fullName } =
+    req.body;
+
+  // Check if required fields are present
+  if (!type || !fullName || !email || !user || !call || !whatsapp) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  // Define email content for the user
+  const subject = "Pending Approval";
+  const text = `YOU HAVE MADE A REQUEST TO BECOME ONE OF OUR ${type}. WE WILL REVIEW YOUR DOCUMENT WITHIN 24-48hrs.`;
+  const html = `<h1>ZIKCONNECT</h1>
+                <p>Dear ${fullName}, you have made a request to become one of our ${type}.An interview would be conducted on your whatsapp number by one of our customer agents within 24-48 hours. 
+                <br><strong>BEST WISHES</strong>
+                </p>`;
+
+  // Email options for the user
+  const mailOptions = {
+    from: "goodnessezeanyika024@gmail.com", // Sender's address
+    to: email, // User's email
+    subject: subject, // Subject line
+    text: text, // Plain text body
+    html: html, // HTML body
+  };
+
+  // Define email content for the admin
+  const subject2 = "Pending Approval";
+  const text2 = `Dear Admin, a user made a request to become one of our ${type}. Here are their details below. Be sure to interview them on WhatsApp before approving or rejecting their request.`;
+  const html2 = `<h1>ZIKCONNECT</h1>
+                 <p>Dear Admin, a user made a request to become one of our ${type}. Here are their details:
+                 <ul>
+                 <h2>INFO</h2>
+                   <li><strong>User:</strong> ${user}</li>
+                    <li><strong>Full  Name:</strong> ${fullName}</li>
+                   <li><strong>Email:</strong> ${email}</li>
+                   <li><strong>Location:</strong> ${located}</li>
+                   <br></br>
+                   <br></br>
+                   <h2>INTERVIEW</h2>
+                   <li><button><a href="https://wa.me/${whatsapp}">Chat</a></button></li>
+                   <li><button><a href="tel:${call}">Call</a></button></li>
+                    <br></br>
+                   <br></br>
+                   <h2>RESPONSE</h2>
+                    <li><button><a href="https://wa.me/${whatsapp}">Accept</a></button></li>
+                   <li><button><a href="tel:${call}">Decline</a></button></li>
+                 </ul>
+                 </p>`;
+
+  // Email options for the admin
+  const mailOptions2 = {
+    from: "goodnessezeanyika024@gmail.com", // Sender's address
+    to: "goodnessezeanyika123@gmail.com", // Admin's email
+    subject: subject2, // Subject line
+    text: text2, // Plain text body
+    html: html2, // HTML body
+  };
+
+  // Send emails and handle errors
+  try {
+    const info = await transporter.sendMail(mailOptions); // Email to user
+    const info2 = await transporter.sendMail(mailOptions2); // Email to admin
+    console.log("Emails sent successfully:", info.messageId, info2.messageId);
+    res.status(200).json({ message: "Emails sent successfully" });
+  } catch (error) {
+    console.error("Error sending emails:", error);
+    res.status(500).json({ message: "Failed to send emails", error });
+  }
+});
+
 app.post("/api/send-connect-email", cors(), async (req, res) => {
   const { agentId, userId, orderId, agentType, agentUserId } = req.body;
   const message = "connect request";
+  const agent = agentType + "agents";
 
   // console.log(userId);
   // console.log(agentId);
@@ -2716,6 +2804,10 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     await pool.query(
       "INSERT INTO connect (order_id, user_id, agent_id, request_time, type ) VALUES ($1, $2, $3, $4, $5)",
       [orderId, userId, agentId, requestTime, agentType]
+    );
+    await pool.query(
+      `UPDATE total_connect SET total_connect = total_connect + 1 WHERE agent_type = $1`,
+      [agent]
     );
     await pool.query(
       `

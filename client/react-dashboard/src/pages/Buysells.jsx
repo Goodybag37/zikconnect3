@@ -7,6 +7,7 @@ import { Routes, Route, useParams, useLocation } from "react-router-dom";
 import { BsZoomIn } from "react-icons/bs";
 function BuysellsPage(props) {
   const location = useLocation();
+
   const searchParams = new URLSearchParams(location.search);
 
   const userId = searchParams.get("userId");

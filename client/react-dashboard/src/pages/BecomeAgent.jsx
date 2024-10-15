@@ -1,14 +1,29 @@
 import React from "react";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import styles from "../style"; // Ensure this path is correct
 import "../App.css";
+import AuthContext from "../AuthContext";
+import Modal from "../components/Modal";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logo } from "../assets"; // Corrected import
 
 function BecomeAgent() {
   const [type, setType] = useState("");
   const [located, setLocated] = useState("");
+  const { isAuthenticated, user, login } = useContext(AuthContext);
+
+  const userPhone =
+    user?.phone || JSON.parse(localStorage.getItem("user"))?.phone; // Optional chaining to avoid errors if user is null
+
+  const fullName =
+    user?.full_name || JSON.parse(localStorage.getItem("user"))?.full_name;
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId; // Optional chaining to avoid errors if user is null
+
+  const emailbread =
+    user?.email || JSON.parse(localStorage.getItem("user"))?.email;
+
   const [description, setDescription] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [call, setCall] = useState("");
@@ -19,6 +34,8 @@ function BecomeAgent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedAgent, setSelectedAgent] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState("");
 
   const maxLength = 250;
 
@@ -37,29 +54,72 @@ function BecomeAgent() {
     try {
       // Prepare the data in x-www-form-urlencoded format
       const formData = new URLSearchParams();
-      formData.append("type", type);
+      formData.append("type", selectedAgent);
       formData.append("located", located);
       formData.append("description", description);
-      formData.append("call", call);
+      formData.append("call", userPhone);
       formData.append("whatsapp", whatsapp);
+      formData.append("email", emailbread);
+      formData.append("user", userbread);
+      formData.append("fullName", fullName);
 
       // Send the data
+      // const response = await axios.post(
+      //   "http://localhost:4000/api/become-agent",
+      //   formData,
+      //   {
+      //     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      //   }
+      // );
+
+      // console.log("you have been added as agent", response.data);
+
+      setModalContent(
+        <div>
+          <h1 className="text-gradient"> Pending !! </h1>
+          <p>
+            {" "}
+            Dear {fullName}. Your request has been recieved. An interview would
+            be conducted on your whatsapp number by one of our customer agents
+            within the next 24-48 hours{" "}
+          </p>
+          <button
+            style={{
+              marginTop: "20px",
+              background: "#ff0000",
+              color: "#fff",
+              border: "none",
+              padding: "10px",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              setShowModal(false);
+              redirect();
+            }} // Close the modal when clicked
+          >
+            Close
+          </button>
+        </div>
+      );
+
+      setShowModal(true);
+
+      const redirect = () => {
+        // Get the redirect path from the URL parameters
+        const redirectPath =
+          new URLSearchParams(location.search).get("redirect") || "/agents";
+
+        // Navigate to the original destination or a default page
+        navigate(redirectPath);
+      };
       const response = await axios.post(
-        "http://localhost:4000/become-agent",
+        "http://localhost:4000/api/become-agent",
         formData,
         {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
         }
       );
-
-      console.log("you have been added as agent", response.data);
-
-      // Get the redirect path from the URL parameters
-      const redirectPath =
-        new URLSearchParams(location.search).get("redirect") || "/agents";
-
-      // Navigate to the original destination or a default page
-      navigate(redirectPath);
     } catch (error) {
       if (error.response) {
         setError(error.response.data.message);
@@ -84,7 +144,7 @@ function BecomeAgent() {
         <div className="logo-login">
           <img src={logo} alt="Logo" className="icon_header logo" />
         </div>
-        <h2 className="login-title">Become Agent</h2>
+        <h2 className="login-title"> Become Agent </h2>
         {error && <p className="error-message">{error}</p>}
         <div className="input-group input-email">
           <select
@@ -95,7 +155,7 @@ function BecomeAgent() {
             required
           >
             <option value="">--Please choose an option--</option>
-            <option value="cryptoagents">Crypto Agent</option>
+            <option value="cryptoagents">Repair Agent</option>
             <option value="courseagents">Course Agent</option>
             <option value="cybercafeagents">Cybercafe Agent</option>
             <option value="deliveryagents">Delivery Agent</option>
@@ -103,6 +163,20 @@ function BecomeAgent() {
             <option value="schoolfeeagents">Schoolfees Agent</option>
             <option value="whatsapptvagents">Whatsapp Tv Agent</option>
           </select>
+        </div>
+
+        <div className="input-group input-email">
+          <input
+            maxLength={maxLength}
+            type="text" // Changed to 'email' for validation
+            id="full_name"
+            placeholder={fullName}
+            value={fullName}
+            readOnly
+            // onChange={(e) => setCall(e.target.value)}
+            required // Added for form validation
+            className="bg-gray-100 text-gray-500 cursor-not-allowed"
+          />
         </div>
 
         <div className="input-group input-email">
@@ -122,10 +196,12 @@ function BecomeAgent() {
             type="tel"
             maxLength={maxLength}
             id="number"
-            placeholder="Call Number "
-            value={call}
-            onChange={(e) => setCall(e.target.value)}
+            placeholder={userPhone}
+            value={userPhone}
+            readOnly
+            // onChange={(e) => setCall(e.target.value)}
             required // Added for form validation
+            className="bg-gray-100 text-gray-500 cursor-not-allowed"
           />
         </div>
 
@@ -154,6 +230,15 @@ function BecomeAgent() {
           {loading ? "Submitting..." : "Submit"}
         </button>
       </form>
+      <Modal
+        show={showModal}
+        onClose={() => {
+          setShowModal(false);
+
+          localStorage.removeItem("showModal");
+        }}
+        content={modalContent}
+      />
     </div>
   );
 }
