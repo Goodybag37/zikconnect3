@@ -6,7 +6,7 @@ import Roommates from "../pages/Roommates";
 import BuysellsPage from "../pages/Buysells";
 
 import Courses from "../pages/Courses";
-import Cryptos from "../pages/Cryptos";
+import Repairs from "../pages/Repairs";
 import Profiles from "../pages/Profiles";
 import Cybercafes from "../pages/Cybercafes";
 import Deliveries from "../pages/Deliveries";
@@ -75,7 +75,7 @@ function App() {
         <Route path="/buysells" element={<BuysellsPage />} />
         <Route path="/roommates" element={<Roommates />} />
         <Route path="/courses" element={<Courses />} />
-        <Route path="/cryptos" element={<Cryptos />} />
+        <Route path="/repairs" element={<Repairs />} />
         <Route path="/profiles" element={<Profiles />} />
         <Route path="/cybercafes" element={<Cybercafes />} />
         <Route path="/deliveries" element={<Deliveries />} />

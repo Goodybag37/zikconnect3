@@ -122,7 +122,7 @@ const Login = () => {
           <BsLockFill className="input-icon" />
           <input
             type="password"
-            id="email"
+            id="password"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

@@ -9,7 +9,7 @@
 // export default ProtectedRoutes
 
 // PrivateRoute.js
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import AuthContext from "../AuthContext";
 
@@ -20,7 +20,9 @@ console.log("user lo", userlo);
 const ProtectedRoutes = ({ conditions = [], redirectPaths = {} }) => {
   const location = useLocation();
   const { isAuthenticated, user, login } = useContext(AuthContext);
-  const isPhoneVerified = user.isPhoneVerified;
+  const isPhoneVerified =
+    user?.isPhoneVerified ||
+    JSON.parse(localStorage.getItem("user"))?.isPhoneVerified;
   const isIdVerified = user.isIdVerified;
   const localAuthenticated = localStorage.getItem("isAuthenticated") === "true";
   const userData = JSON.parse(localStorage.getItem("user"));

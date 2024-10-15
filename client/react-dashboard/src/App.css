@@ -1781,3 +1781,6 @@ select {
 
   margin-top: -0.2rem;
 }
+.cursor-pointer {
+  cursor: pointer;
+}
