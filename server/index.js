@@ -2758,15 +2758,23 @@ app.post("/api/become-agent", async (req, res) => {
                    <br></br>
                    <br></br>
                    <h2>INTERVIEW</h2>
-                   <li><button><a href="https://wa.me/${whatsapp}">Chat</a></button></li>
-                   <li><button><a href="tel:${call}">Call</a></button></li>
+                   <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${whatsapp}">Chat</a>
+                  
+                  
+
+                    <br></br>
+                     
+                   <p> Or call the user ${call} </p>
                     <br></br>
                    <br></br>
                    <h2>RESPONSE</h2>
-                    <li><button><a href="https://wa.me/${whatsapp}">Accept</a></button></li>
-                   <li><button><a href="tel:${call}">Decline</a></button></li>
-                 </ul>
+                     <br></br>
+                    <a style="padding: 10px 20px; background-color: blue; color: white; text-decoration: none; border-radius: 5px; margin-right:4px;" href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=approved" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
+ <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
+  </ul>
                  </p>`;
+
+  //  https://zikconnect-36adf65e1cf3.herokuapp.com
 
   // Email options for the admin
   const mailOptions2 = {
@@ -2779,13 +2787,38 @@ app.post("/api/become-agent", async (req, res) => {
 
   // Send emails and handle errors
   try {
+    // Query to check if the user is already an agent
+    const result = await pool.query(
+      `SELECT * FROM agents WHERE user_id = $1 AND agent_type = $2`,
+      [user, type]
+    );
+
+    // Check if any rows are returned
+    const response = result.rows.length;
+    if (response > 0) {
+      // Send a conflict response if the user is already an agent
+      return res
+        .status(409)
+        .json({ message: `You are already one of our ${type}` });
+    }
+
+    // Ensure mailOptions and mailOptions2 are properly defined
     const info = await transporter.sendMail(mailOptions); // Email to user
     const info2 = await transporter.sendMail(mailOptions2); // Email to admin
+
+    // Log success message with info
     console.log("Emails sent successfully:", info.messageId, info2.messageId);
+
+    // Respond with success
     res.status(200).json({ message: "Emails sent successfully" });
   } catch (error) {
+    // Log error message for debugging
     console.error("Error sending emails:", error);
-    res.status(500).json({ message: "Failed to send emails", error });
+
+    // Respond with a 500 status and detailed error message
+    res
+      .status(500)
+      .json({ message: "Failed to send emails", error: error.message });
   }
 });
 
@@ -3034,6 +3067,65 @@ app.get("/api/respond-to-connect", async (req, res) => {
     );
 
     res.status(200).json({ message: "Response recorded." });
+  } catch (error) {
+    console.error("Error processing request:", error);
+    res.status(500).send({ error: "Failed to process request." });
+  }
+});
+
+app.get("/api/respond-to-agent", async (req, res) => {
+  const {
+    type,
+    located,
+    description,
+    call,
+    whatsapp,
+    email,
+    user,
+    fullName,
+    status,
+  } = req.query;
+
+  // Debug logs
+  console.log(user, status);
+
+  try {
+    // Fetch request time and check expiration
+    if (status === "approved") {
+      await pool.query(
+        `INSERT INTO agents (user_id, agent_type, name, contact, email) VALUES ($1, $2, $3, $4, $5)`,
+        [user, type, fullName, whatsapp, email]
+      );
+
+      const result = await pool.query(
+        `SELECT agent_id FROM agents WHERE user_id = $1 AND agent_type = $2`,
+        [user, type]
+      );
+      const result2 = await pool.query(`SELECT date FROM people WHERE id=$1`, [
+        user,
+      ]);
+
+      // Extract necessary data
+      const agentId = result.rows[0].agent_id;
+      const accountCreatedDate = result2.rows[0].date;
+
+      await pool.query(
+        `INSERT INTO ${type} (name, contact, fk_user_id, location, agent_id, account_created, description) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          fullName,
+          whatsapp,
+          user,
+          located,
+          agentId,
+          accountCreatedDate,
+          description,
+        ]
+      );
+    } else {
+      res.status(400).send({ error: "Status is not approved." });
+      return;
+    }
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).send({ error: "Failed to process request." });

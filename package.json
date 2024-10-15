@@ -40,7 +40,6 @@
     "react-router-dom": "^6.26.0",
     "redis": "^4.7.0",
     "sharp": "^0.33.5",
-    "socket.io": "^4.7.5",
     "twilio": "^5.2.3"
   }
 }
