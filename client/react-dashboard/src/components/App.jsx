@@ -19,11 +19,14 @@ import Login from "../pages/Login";
 import Register from "../pages/register";
 import BecomeAgent from "../pages/BecomeAgent";
 import VerifyPhone from "../pages/VerifyPhone";
+import VerifyEmail from "../pages/VerifyEmail";
 import VerifyId from "../pages/VerifyId";
 import ProtectedRoutes from "./ProtectedRoutes";
 import UploadProperty from "../pages/UploadProperty";
 import UploadLodge from "../pages/UploadLodge";
 import UploadEvent from "../pages/UploadEvent";
+import FundAccount from "../pages/FundAccount";
+import VerifyPayment from "../pages/VerifyPayment";
 
 import Settings from "../pages/Settings";
 function App() {
@@ -40,7 +43,16 @@ function App() {
 
       <Route path="/register" element={<Register />} />
 
-      <Route element={<ProtectedRoutes />}>
+      <Route
+        element={
+          <ProtectedRoutes
+          // conditions={["email"]}
+          // redirectPaths={{
+          //   email: "/verifyemail",
+          // }}
+          />
+        }
+      >
         <Route path="/" element={<Agents />} />
         <Route
           element={
@@ -66,24 +78,35 @@ function App() {
           <Route path="/uploadevent" element={<UploadEvent />} />
         </Route>
 
-        <Route path="/agents" element={<Agents />} />
         <Route path="/verifyphone" element={<VerifyPhone />} />
+        <Route path="/verifyemail" element={<VerifyEmail />} />
         <Route path="/verifyid" element={<VerifyId />} />
-
-        <Route path="/home" element={<Home />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/buysells" element={<BuysellsPage />} />
-        <Route path="/roommates" element={<Roommates />} />
-        <Route path="/courses" element={<Courses />} />
-        <Route path="/repairs" element={<Repairs />} />
-        <Route path="/profiles" element={<Profiles />} />
-        <Route path="/cybercafes" element={<Cybercafes />} />
-        <Route path="/deliveries" element={<Deliveries />} />
-        <Route path="/events" element={<EventsPage />} />
-        <Route path="/riders" element={<Riders />} />
-        <Route path="/lodges" element={<Lodges />} />
-        <Route path="/schoolfees" element={<Schoolfees />} />
-        <Route path="/whatsapptvs" element={<Whatsapptvs />} />
+        <Route
+          element={
+            <ProtectedRoutes
+              conditions={["email"]}
+              redirectPaths={{ email: "/verifyemail" }}
+            />
+          }
+        >
+          <Route path="/agents" element={<Agents />} />
+          <Route path="/fundaccount" element={<FundAccount />} />
+          <Route path="/verifypayment" element={<VerifyPayment />} />
+          <Route path="/home" element={<Home />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/buysells" element={<BuysellsPage />} />
+          <Route path="/roommates" element={<Roommates />} />
+          <Route path="/courses" element={<Courses />} />
+          <Route path="/repairs" element={<Repairs />} />
+          <Route path="/profiles" element={<Profiles />} />
+          <Route path="/cybercafes" element={<Cybercafes />} />
+          <Route path="/deliveries" element={<Deliveries />} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/riders" element={<Riders />} />
+          <Route path="/lodges" element={<Lodges />} />
+          <Route path="/schoolfees" element={<Schoolfees />} />
+          <Route path="/whatsapptvs" element={<Whatsapptvs />} />
+        </Route>
       </Route>
     </Routes>
   );

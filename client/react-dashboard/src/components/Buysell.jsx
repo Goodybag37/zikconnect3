@@ -63,7 +63,8 @@ function YourComponent() {
   const userbread =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId; // Optional chaining to avoid errors if user is null
 
-  const emailbread = user.email;
+  const emailbread =
+    user?.email || JSON.parse(localStorage.getItem("user"))?.email;
   const [located, setLocated] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");

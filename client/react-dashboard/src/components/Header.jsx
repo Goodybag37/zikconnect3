@@ -36,9 +36,11 @@ function Header(props) {
   const [unread, setUnread] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [updateCount, setUpdateCount] = useState(0);
-  const apiUrls = process.env.REACT_APP_API_URL; // Track expiry of messages
+  const apiUrls = process.env.REACT_APP_API_URL;
+  const [profile, setProfile] = useState([]); // Track expiry of messages
   const apiUrl = "http://localhost:4000";
-  const userbread = user.userId;
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
   // const socket = io(apiUrl);
   const handleMessages = async () => {
     setShowMessages(!showMessages);
@@ -123,6 +125,13 @@ function Header(props) {
         `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
       );
 
+      const response2 = await axios.get(
+        `${apiUrl}/api/profile?userbread=${userbread}`
+      );
+
+      const profiles = response2.data;
+      console.log("profile is ", profiles);
+      setProfile(profiles);
       const { messages, unreadCount } = result.data;
 
       console.log("result is", unreadCount);
@@ -382,7 +391,7 @@ function Header(props) {
 
           <p className="profileParagraph">
             <BsFillTelephoneFill />
-            <strong>Phone: </strong> {user.phone}
+            <strong>Phone: </strong> {user.isPhoneVerified}
             <Link className="editPhone" to="/verifyphone">
               <BsEyedropper />
             </Link>
@@ -391,8 +400,9 @@ function Header(props) {
 
           <p className="profileParagraph">
             <BsCashCoin className="cashIcon" />
-            <strong>Account Balance: </strong> {user.account_balance}
-            <Link className="editPhone" to="/agents">
+            <strong>Account Balance: </strong>{" "}
+            {profile.settings_account_balance}
+            <Link className="editPhone" to="/fundaccount">
               <BsFillPlusSquareFill />
             </Link>
           </p>
