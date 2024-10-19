@@ -2,6 +2,8 @@ import express from "express";
 import bodyParser from "body-parser";
 import pg from "pg";
 import fs from "fs";
+import { IPinfoWrapper } from "node-ipinfo";
+
 import compression from "compression";
 // import fileUpload from "express-fileupload";
 import bcrypt from "bcryptjs";
@@ -24,7 +26,7 @@ import { fileURLToPath } from "url";
 import heicConvert from "heic-convert";
 import sharp from "sharp";
 import nodemailer from "nodemailer";
-import http from "http"; // Required to create the server
+import https from "https"; // Required to create the server
 // import { Server } from "socket.io";
 import Bull from "bull";
 import Redis from "redis";
@@ -39,12 +41,83 @@ const app = express();
 //     credentials: true, // If you need to include credentials (like cookies)
 //   },
 // });
-app.use(express.json());
+const ipinfo = new IPinfoWrapper(process.env.IP_INFO_TOKEN);
+
+const blockedAgents = [
+  "HTTrack",
+  "WebZip",
+  "Wget",
+  "wget",
+  "curl",
+  "SiteSnagger",
+  "SiteSucker",
+  "Suction",
+  "BackStreet",
+  "BlackWidow",
+  "WebCopier",
+  "Offline Explorer",
+  "Teleport",
+  "Teleport Pro",
+  "LeechFTP",
+  "WebLeacher",
+  "WebReaper",
+  "Go!Zilla",
+  "SuperBot",
+  "SuperHTTP",
+  "TrueDownloader",
+  "WebStripper",
+  "Web2Disk",
+  "WebWhacker",
+  "EmailSiphon",
+  "EmailWolf",
+  "MJ12bot",
+  "Mass Downloader",
+  "RealDownload",
+  "wget",
+  "Teleport Pro",
+  "Xenu",
+  "AppEngine-Google",
+  "AhrefsBot",
+  "BLEXBot",
+  "DotBot",
+  "Googlebot",
+  "bingbot",
+  "Slurp", // Yahoo
+  "DuckDuckBot", // DuckDuckGo
+  "Baiduspider",
+  "YandexBot",
+  "ia_archiver", // Alexa
+  "SEMrushBot",
+  "Screaming Frog",
+  "MegaIndex",
+  "DotBot",
+  "GrapeshotCrawler",
+  "BUbiNG",
+  "CCBot",
+  "archive.org_bot",
+  "Exabot",
+  "SeznamBot",
+  "MJ12bot",
+  "Applebot",
+  "PetalBot", // Huawei Search Engine
+  "Yandex",
+  "ZoominfoBot",
+];
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
   secretOrKey: "your-secret-key", // Replace with your secret key
 };
+
+app.use((req, res, next) => {
+  const userAgent = req.headers["user-agent"] || "";
+
+  if (blockedAgents.some((agent) => userAgent.includes(agent))) {
+    res.status(403).send("Access Denied");
+  } else {
+    next();
+  }
+});
 
 // io.on("connection", (socket) => {
 //   console.log("A user connected:", socket.id);
@@ -169,6 +242,132 @@ const jwtOptions = {
 //     console.error("Error in notifyNewMessages:", error);
 //   }
 // };
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+
+app.post("/paystack/initialize", cors(), (req, res) => {
+  const { email, amount } = req.body;
+  console.log("request was made here", email, amount, PAYSTACK_SECRET_KEY);
+
+  const params = JSON.stringify({
+    email,
+    amount: amount * 100, // Convert to kobo
+    callback_url: "http://localhost:3000/verifypayment",
+  });
+
+  const options = {
+    hostname: "api.paystack.co",
+    port: 443,
+    path: "/transaction/initialize",
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+      "Content-Type": "application/json",
+    },
+  };
+
+  const paystackReq = https.request(options, (paystackRes) => {
+    let data = "";
+
+    paystackRes.on("data", (chunk) => {
+      data += chunk;
+    });
+
+    paystackRes.on("end", () => {
+      const response = JSON.parse(data);
+      if (response.status) {
+        res.json({
+          success: true,
+          authorization_url: response.data.authorization_url,
+        });
+      } else {
+        res.json({ success: false, message: response.message });
+      }
+    });
+  });
+
+  paystackReq.on("error", (error) => {
+    console.error(error);
+    res
+      .status(500)
+      .send({ success: false, message: "Transaction initialization failed." });
+  });
+
+  paystackReq.write(params);
+  paystackReq.end();
+});
+
+app.get("/paystack/verify/:reference", cors(), (req, res) => {
+  const { reference } = req.params;
+  console.log("reference was made here", reference);
+
+  const options = {
+    hostname: "api.paystack.co",
+    port: 443,
+    path: `/transaction/verify/${reference}`,
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+    },
+  };
+
+  const paystackReq = https.request(options, (paystackRes) => {
+    let data = "";
+
+    paystackRes.on("data", (chunk) => {
+      data += chunk;
+    });
+
+    paystackRes.on("end", async () => {
+      const response = JSON.parse(data);
+      console.log("Response data: ", response); // Log entire response
+
+      if (response.status && response.data.status === "success") {
+        // Payment is verified, update user account balance
+        const { amount, customer } = response.data;
+        const email = customer.email;
+        console.log("amount gotten is ", email);
+        try {
+          // Update the user's account balance
+          await pool.query(
+            `
+        UPDATE people
+        SET 
+          account_balance = account_balance + $1,
+          settings = jsonb_set(
+            settings, -- JSONB column to update
+            '{account_balance}', -- JSONB key path
+            to_jsonb(account_balance + $1), -- Update the JSONB field to reflect the new balance
+            true -- Create the key if it doesn't exist
+          )
+        WHERE email = $2;
+        `,
+            [amount / 100 / 2, email] // Paystack returns amount in kobo, divide by 100 for naira
+          );
+
+          res.json({ success: true, message: "Payment verified successfully" });
+        } catch (error) {
+          console.error("Error updating account balance:", error);
+          res.status(500).json({
+            success: false,
+            message: "Failed to update account balance",
+          });
+        }
+      } else {
+        res.json({ success: false, message: "Payment verification failed" });
+      }
+    });
+  });
+
+  paystackReq.on("error", (error) => {
+    console.error(error);
+    res
+      .status(500)
+      .send({ success: false, message: "Payment verification failed" });
+  });
+
+  paystackReq.end();
+});
 
 let itemStatus = {}; // Store the status of items
 
@@ -601,10 +800,12 @@ app.post("/api/log", cors(), async (req, res, next) => {
   try {
     // Query to get user info from the database
     const result = await pool.query(
-      "SELECT id, email, password, phone, id_card, full_name, account_balance FROM people WHERE email=$1",
+      "SELECT id, email, password, phone, id_card, full_name, account_balance, email_status FROM people WHERE email=$1",
       [email]
     );
     const foundMail = result.rows[0];
+    let status = foundMail.email_status === "verified" ? true : false;
+    console.log(status);
 
     if (foundMail) {
       const hashedPassword = foundMail.password;
@@ -636,7 +837,8 @@ app.post("/api/log", cors(), async (req, res, next) => {
               id_card: foundMail.id_card,
               email: foundMail.email,
               full_name: foundMail.full_name,
-              account_balance: foundMail.account_balance, // Send the user ID from the database
+              account_balance: foundMail.account_balance,
+              isEmailVerified: status, // Send the user ID from the database
             });
           });
         })(req, res, next);
@@ -765,11 +967,70 @@ app.post("/login", async (req, res, next) => {
 //     return res.status(500).json({ message: "Internal Server Error" });
 //   }
 // });
+app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // To support URL-encoded bodies
+
+// const getClientIp = (req) => {
+//   // Log the request headers for debugging
+//   console.log("Request Headers:", req.headers);
+//   const forwarded =
+//     req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+//   return forwarded ? forwarded.split(",")[0] : req.connection.remoteAddress;
+// };
+
+const getClientIp = (req) => {
+  const xForwardedFor = req.headers["x-forwarded-for"];
+  if (xForwardedFor) {
+    return xForwardedFor.split(",")[0].trim(); // Take the first IP from the list
+  }
+  return req.connection.remoteAddress; // Fallback to remote address
+};
+
+const getUserLocation = async (ip) => {
+  try {
+    const response = await axios.get(
+      `https://ipinfo.io/${ip}/json?token=${process.env.IP_INFO_TOKEN}`
+    );
+    const { city, region, country, loc } = response.data;
+    return { city, region, country, loc }; // Return the important location data
+  } catch (error) {
+    console.error("Error fetching location:", error);
+    return null;
+  }
+};
+
+const haversineDistance = (lat1, lon1, lat2, lon2) => {
+  const toRad = (value) => (value * Math.PI) / 180; // Convert degrees to radians
+
+  const R = 6371; // Radius of the Earth in kilometers
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  const distance = R * c; // Distance in kilometers
+  return distance; // Return distance in kilometers
+};
 
 app.post("/api/register", async (req, res) => {
   const { email, password, fullname } = req.body;
 
   try {
+    const ip2 = req.ip;
+    console.log("User IP2:", ip2);
+    const ip = getClientIp(req);
+    console.log("User IP:", ip);
+
+    // Fetch user's location based on the IP address
+    const locationData = await getUserLocation(ip);
+    console.log("User is located at:", locationData);
     // Check if the email already exists in the database
     const result = await pool.query("SELECT email FROM people WHERE email=$1", [
       email,
@@ -814,6 +1075,11 @@ app.post("/api/register", async (req, res) => {
             event: "unavailable",
             lodge: "unavailable",
           },
+          location: {
+            city: locationData?.city || null,
+            latitude: locationData?.loc.split(",")[0] || null,
+            longitude: locationData?.loc.split(",")[1] || null,
+          },
           "Totl Connect Made": 0,
           "Totl Connect Received": 0,
           "Completed Orders": 0,
@@ -825,21 +1091,24 @@ app.post("/api/register", async (req, res) => {
 
     // Query to retrieve the newly inserted user
     const userResult = await pool.query(
-      "SELECT id, email, password, phone, id_card, full_name, account_balance FROM people WHERE email=$1",
+      "SELECT id, email, password, phone, id_card, full_name, account_balance, email_status FROM people WHERE email=$1",
       [email]
     );
     const newUser = userResult.rows[0];
+    console.log("new user is", newUser);
+    let status = newUser.email_status === "verified" ? true : false;
+    console.log(status);
 
     // Registration successful, return user data to frontend
-    return res.status(201).json({
-      message: "Registration successful.",
+    res.status(200).json({
+      message: "Login successful! from backend",
       userId: newUser.id,
-      email: newUser.emaiL,
       phone: newUser.phone,
-      id_card: newUser.email,
+      id_card: newUser.id_card,
+      email: newUser.email,
       full_name: newUser.full_name,
       account_balance: newUser.account_balance,
-      // token: "jwt_token_placeholder", // add JWT token here if needed
+      isEmailVerified: status, // Send the user ID from the database
     });
   } catch (error) {
     console.error("Error during registration:", error);
@@ -2729,7 +2998,7 @@ app.post("/api/become-agent", async (req, res) => {
 
   // Define email content for the user
   const subject = "Pending Approval";
-  const text = `YOU HAVE MADE A REQUEST TO BECOME ONE OF OUR ${type}. WE WILL REVIEW YOUR DOCUMENT WITHIN 24-48hrs.`;
+  const text = `YOU HAVE MADE A REQUEST TO BECOME ONE OF OUR ${type}. WE WILL REVIEW YOUR DOCUMENT WITHIN 24-48hrs`;
   const html = `<h1>ZIKCONNECT</h1>
                 <p>Dear ${fullName}, you have made a request to become one of our ${type}.An interview would be conducted on your whatsapp number by one of our customer agents within 24-48 hours. 
                 <br><strong>BEST WISHES</strong>
@@ -2779,7 +3048,7 @@ app.post("/api/become-agent", async (req, res) => {
   // Email options for the admin
   const mailOptions2 = {
     from: "goodnessezeanyika024@gmail.com", // Sender's address
-    to: "goodnessezeanyika123@gmail.com", // Admin's email
+    to: "okekechinaza921@gmail.com", // Admin's email
     subject: subject2, // Subject line
     text: text2, // Plain text body
     html: html2, // HTML body
@@ -2821,6 +3090,26 @@ app.post("/api/become-agent", async (req, res) => {
       .json({ message: "Failed to send emails", error: error.message });
   }
 });
+// app.post("/api/send-verification-email", cors(), async (req, res) => {
+//   const { email, code } = req.body;
+//   const subject = "Verify Email";
+//   const text = `You created a zikconnect account, please use this code to verify your email ${code}`;
+//   const html = `<h1>ZIKCONNECT</h1>
+//                 <p>Dear user, you have successfullly created an account on Zikconnect. Use this code to verify your email ${code}. Please do not share this code with anyone
+//                 <br><strong>Congrats!!</strong>
+//                 </p>`;
+
+//   // Email options for the user
+//   const mailOptions = {
+//     from: "goodnessezeanyika024@gmail.com", // Sender's address
+//     to: email, // User's email
+//     subject: subject, // Subject line
+//     text: text, // Plain text body
+//     html: html, // HTML body
+//   };
+
+//   const info = await transporter.sendMail(mailOptions);
+// });
 
 app.post("/api/send-connect-email", cors(), async (req, res) => {
   const { agentId, userId, orderId, agentType, agentUserId } = req.body;
@@ -3410,6 +3699,125 @@ app.get("/api/get-used-number", async (req, res) => {
   }
 });
 
+app.post("/api/send-verification-email", async (req, res) => {
+  const emailbread = req.body.emailbread;
+  const userId = req.body.user;
+
+  const result = await pool.query(
+    `SELECT email_status FROM people WHERE id = $1`,
+    [userId]
+  );
+  const response = result.rows[0];
+  if (response.email_status === "verified") {
+    return res.status(400).json({ message: "Email has already been verified" });
+  }
+
+  // Ensure email is provided
+  if (!emailbread) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  // Generate a 6-digit verification code
+  const verificationCode = generateVerificationCode();
+  console.log(verificationCode);
+
+  try {
+    const subject = "Verify Email";
+    const text = `You created a Zikconnect account, please use this code to verify your email: ${verificationCode}`;
+    const html = `<table cellpadding="0" cellspacing="0" width="100%">
+  <tr>
+    <td>
+      <!-- Header with logo -->
+      <table align="center" cellpadding="0" cellspacing="0" width="600">
+        <tr>
+          <td align="center">
+            <img src="https://yourdomain.com/logo.png" alt="Logo" style="display: block; width: 150px;">
+            <h1 style="color:blue; ">ZIKCONNECT</h1>
+          </td>
+        </tr>
+        <!-- Main content -->
+        <tr>
+          <td style="padding: 40px 30px 40px 30px;">
+            <h1 style="font-family: Arial, sans-serif; color:blue">Welcome!</h1>
+            <p style="font-family: Arial, sans-serif;">We're excited to have you on board. here is your verification code <strong style="color: blue">${verificationCode}</strong </p>
+           
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+`;
+
+    // Email options for the user
+    const mailOptions = {
+      from: "goodnessezeanyika024@gmail.com", // Sender's address
+      to: emailbread, // User's email
+      subject: subject, // Subject line
+      text: text, // Plain text body
+      html: html, // HTML body
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent successfully:", info.messageId);
+
+    // Store the verification code in the database
+    await pool.query(
+      `INSERT INTO email_verification (user_id, email, code, status)
+       VALUES ($1, $2, $3, 'pending')
+       ON CONFLICT (email) 
+       DO UPDATE SET code = EXCLUDED.code, status = 'pending', updated_at = CURRENT_TIMESTAMP`,
+      [userId, emailbread, verificationCode]
+    );
+
+    // Respond with success message
+    res.status(200).json({
+      message: "Verification code sent successfully",
+      code: verificationCode, // Optional, you might not want to return this to the client
+    });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({
+      message: "An error occurred while sending the verification code",
+    });
+  }
+});
+
+app.post("/api/verify-email", async (req, res) => {
+  const { emailbread, code, user } = req.body;
+
+  try {
+    // Check if the code is correct
+    const result = await pool.query(
+      "SELECT * FROM email_verification WHERE email = $1 AND code = $2 AND status = 'pending'",
+      [emailbread, code]
+    );
+
+    if (result.rows.length > 0) {
+      // Update the status to 'verified'
+      await pool.query(
+        "UPDATE email_verification SET status = 'verified' WHERE email = $1",
+        [emailbread]
+      );
+      await pool.query(
+        "UPDATE people SET email_status = 'verified' WHERE id = $1",
+        [user]
+      );
+      await pool.query(
+        `DELETE FROM email_verification WHERE status = 'verified'`
+      );
+
+      res.status(200).json({ message: "email verified successfully" });
+    } else {
+      res.status(400).json({ message: "Invalid or expired verification code" });
+    }
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    res.status(500).json({ error: "Failed to verify phone number" });
+  }
+});
+
 app.post("/api/send-verification-code", async (req, res) => {
   const phone = req.body.phone;
   const userId = req.body.user;
@@ -3480,6 +3888,10 @@ app.post("/api/verify-phone", async (req, res) => {
         user,
       ]);
 
+      await pool.query(
+        `DELETE FROM verification_codes WHERE status = 'verified'`
+      );
+
       res.status(200).json({ message: "Phone number verified successfully" });
     } else {
       res.status(400).json({ error: "Invalid or expired verification code" });
@@ -3519,6 +3931,24 @@ app.post("/api/verify-phone", async (req, res) => {
 //     }
 //   } catch (error) {}
 // });
+
+app.get("api/profile-header", async (req, res) => {
+  const { userbread } = req.query;
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM people WHERE user_id = $1 ORDER BY timestamp DESC",
+      [userbread]
+    );
+
+    const response = result.rows;
+
+    res.json({ profile: response });
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
 
 app.get("/api/messages", async (req, res) => {
   const { userbread, reset } = req.query;

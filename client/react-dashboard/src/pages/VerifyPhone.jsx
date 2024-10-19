@@ -24,6 +24,7 @@ function VerifyPhone() {
   const userId =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
   const isPhoneVerified = user.isPhoneVerified;
+  const userData = JSON.parse(localStorage.getItem("user"));
 
   const maxLength = 250;
   const codeLength = 6;
@@ -107,11 +108,12 @@ function VerifyPhone() {
         formData,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
-      const userData = response.data;
+
       login({
         ...userData,
         isPhoneVerified: phone || false,
       });
+
       // Get the redirect path from the URL parameters
       const redirectPath =
         new URLSearchParams(location.search).get("redirect") || "/agents";

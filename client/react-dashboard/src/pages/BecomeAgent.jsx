@@ -103,7 +103,7 @@ function BecomeAgent() {
           </button>
         </div>
       );
-
+      setShowModal(true);
       const redirect = () => {
         // Get the redirect path from the URL parameters
         const redirectPath =
@@ -144,8 +144,14 @@ function BecomeAgent() {
         <div className="logo-login">
           <img src={logo} alt="Logo" className="icon_header logo" />
         </div>
-        <h2 className="login-title"> Become Agent </h2>
+        <h2 className="login-title text-gradient  becomeAgent">
+          {" "}
+          Become Agent{" "}
+        </h2>
         {error && <p className="error-message">{error}</p>}
+
+        <br></br>
+
         <div className="input-group input-email">
           <select
             className="input-select "
@@ -227,7 +233,11 @@ function BecomeAgent() {
             required
           ></textarea>
         </div>
-        <button className="login-button" type="submit" disabled={loading}>
+        <button
+          className="login-button bg-blue-gradient"
+          type="submit"
+          disabled={loading}
+        >
           {loading ? "Submitting..." : "Submit"}
         </button>
       </form>

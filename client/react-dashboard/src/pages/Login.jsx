@@ -57,6 +57,7 @@ const Login = () => {
         account_balance: userData.account_balance,
         isPhoneVerified: userData.phone || false,
         isIdVerified: userData.isIdVerified || true,
+        isEmailVerified: userData.isEmailVerified,
       });
 
       // setUser({
@@ -71,8 +72,7 @@ const Login = () => {
       //   isIDVerified: response.data.isIDVerified, // Assuming this data is returned from the server
       // });
 
-      const redirectPath =
-        new URLSearchParams(location.search).get("redirect") || "/agents";
+      const redirectPath = "/agents";
 
       // Navigate to the original destination or a default page
       navigate(redirectPath);

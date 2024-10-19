@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
     account_balance: null,
     isIdVerified: true,
     isPhoneVerified: false,
+    isEmailVerified: false,
   });
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export const AuthProvider = ({ children }) => {
         account_balance: userData.account_balance,
         isIdVerified: userData.isIdVerified || true,
         isPhoneVerified: userData.isPhoneVerified || false,
+        isEmailVerified: userData.isEmailVerified || false,
       });
     }
   }, []);
@@ -45,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       account_balance: userData.account_balance,
       isIdVerified: userData.isIdVerified || true,
       isPhoneVerified: userData.isPhoneVerified || false,
+      isEmailVerified: userData.isEmailVerified || false,
     });
 
     localStorage.setItem(
@@ -53,6 +56,7 @@ export const AuthProvider = ({ children }) => {
         ...userData,
         isIdVerified: userData.isIdVerified || false,
         isPhoneVerified: userData.isPhoneVerified || false,
+        isEmailVerified: userData.isEmailVerified || false,
       })
     );
     localStorage.setItem("isAuthenticated", true);

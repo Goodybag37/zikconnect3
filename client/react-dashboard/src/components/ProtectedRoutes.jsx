@@ -23,12 +23,16 @@ const ProtectedRoutes = ({ conditions = [], redirectPaths = {} }) => {
   const isPhoneVerified =
     user?.isPhoneVerified ||
     JSON.parse(localStorage.getItem("user"))?.isPhoneVerified;
+  const isEmailVerified =
+    user?.isEmailVerified ||
+    JSON.parse(localStorage.getItem("user"))?.isEmailVerified;
   const isIdVerified = user.isIdVerified;
   const localAuthenticated = localStorage.getItem("isAuthenticated") === "true";
   const userData = JSON.parse(localStorage.getItem("user"));
 
   if (!isAuthenticated) {
     if (localAuthenticated === true) {
+      // Call login once to initialize the user state
       login({
         ...userData,
         id: userData.userId,
@@ -37,10 +41,17 @@ const ProtectedRoutes = ({ conditions = [], redirectPaths = {} }) => {
         account_balance: userData.account_balance,
         isPhoneVerified: userData.phone || false,
         isIdVerified: userData.isIdVerified || true,
+        isEmailVerified: userData.isEmailVerified,
       });
     } else {
+      // Redirect to login if not authenticated
       return <Navigate to={`/login?redirect=${location.pathname}`} />;
     }
+  }
+
+  if (conditions.includes("email") && !isEmailVerified) {
+    console.log("Email is not verified, redirecting to verifyemail.");
+    return <Navigate to={redirectPaths.email || "/verifyemail"} />;
   }
 
   if (conditions.includes("id1") && isIdVerified) {
