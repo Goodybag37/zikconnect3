@@ -19,6 +19,12 @@ function UploadProperty() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
   const maxFileSize = 5 * 1024 * 1024; // Add state for file
+  const [permission, setPermission] = useState(null);
+  const [locationM, setLocationM] = useState({
+    latitude: null,
+    longitude: null,
+    error: null,
+  });
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
   const userbread =
@@ -30,6 +36,41 @@ function UploadProperty() {
   const maxLengthD = 200;
   const maxLengthL = 25;
   const maxLengthP = 15;
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setPermission("granted");
+          setLocationM({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            error: null,
+          });
+        },
+        (error) => {
+          if (error.code === 1) {
+            // Permission denied
+            setPermission("denied");
+          } else {
+            setPermission("error");
+          }
+          setLocationM({
+            latitude: null,
+            longitude: null,
+            error: error.message,
+          });
+        }
+      );
+    } else {
+      setPermission("unsupported");
+      setLocationM({
+        latitude: null,
+        longitude: null,
+        error: "Geolocation is not supported by this browser.",
+      });
+    }
+  }, []);
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -209,10 +250,26 @@ function UploadProperty() {
           )}
         </p>
 
+        {permission === "denied" && (
+          <p style={{ color: "red" }}>
+            Location permission denied. Please allow location access to submit
+            the form.
+          </p>
+        )}
+        {permission === "unsupported" && (
+          <p style={{ color: "red" }}>
+            Geolocation is not supported by your browser.
+          </p>
+        )}
+        {permission === "error" && (
+          <p style={{ color: "red" }}>
+            An error occurred while accessing location: {location.error}
+          </p>
+        )}
         <button
           className="login-button bg-blue-gradient"
           type="submit"
-          disabled={loading}
+          disabled={loading || permission !== "granted"}
         >
           {loading ? "Submitting..." : "Submit"}
         </button>

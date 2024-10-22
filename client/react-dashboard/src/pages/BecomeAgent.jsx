@@ -36,6 +36,12 @@ function BecomeAgent() {
   const [selectedAgent, setSelectedAgent] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState("");
+  const [permission, setPermission] = useState(null);
+  const [locationM, setLocationM] = useState({
+    latitude: null,
+    longitude: null,
+    error: null,
+  });
 
   const maxLength = 250;
   const maxLengthN = 11;
@@ -43,6 +49,41 @@ function BecomeAgent() {
   const handleSelectChange = (event) => {
     setSelectedAgent(event.target.value);
   };
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setPermission("granted");
+          setLocationM({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            error: null,
+          });
+        },
+        (error) => {
+          if (error.code === 1) {
+            // Permission denied
+            setPermission("denied");
+          } else {
+            setPermission("error");
+          }
+          setLocationM({
+            latitude: null,
+            longitude: null,
+            error: error.message,
+          });
+        }
+      );
+    } else {
+      setPermission("unsupported");
+      setLocationM({
+        latitude: null,
+        longitude: null,
+        error: "Geolocation is not supported by this browser.",
+      });
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,6 +104,8 @@ function BecomeAgent() {
       formData.append("email", emailbread);
       formData.append("user", userbread);
       formData.append("fullName", fullName);
+      formData.append("longitude", locationM.longitude);
+      formData.append("latitude", locationM.latitude);
 
       // Send the data
       // const response = await axios.post(
@@ -122,6 +165,7 @@ function BecomeAgent() {
     } catch (error) {
       if (error.response) {
         setError(error.response.data.message);
+        setShowModal(false);
       } else {
         setError("An unexpected error occurred. Please try again.");
       }
@@ -233,10 +277,27 @@ function BecomeAgent() {
             required
           ></textarea>
         </div>
+
+        {permission === "denied" && (
+          <p style={{ color: "red" }}>
+            Location permission denied. Please allow location access to submit
+            the form.
+          </p>
+        )}
+        {permission === "unsupported" && (
+          <p style={{ color: "red" }}>
+            Geolocation is not supported by your browser.
+          </p>
+        )}
+        {permission === "error" && (
+          <p style={{ color: "red" }}>
+            An error occurred while accessing location: {location.error}
+          </p>
+        )}
         <button
           className="login-button bg-blue-gradient"
           type="submit"
-          disabled={loading}
+          disabled={loading || permission !== "granted"}
         >
           {loading ? "Submitting..." : "Submit"}
         </button>

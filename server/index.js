@@ -2988,9 +2988,34 @@ app.get("/api/total-connect", async (req, res) => {
 });
 
 app.post("/api/become-agent", async (req, res) => {
-  const { type, located, description, call, whatsapp, email, user, fullName } =
-    req.body;
+  const {
+    type,
+    located,
+    description,
+    call,
+    whatsapp,
+    email,
+    user,
+    fullName,
+    longitude,
+    latitude,
+  } = req.body;
 
+  const token = uuidv4(); // Generate a unique token
+  await pool.query(
+    "INSERT INTO approval_token (token, user_id) VALUES ($1, $2)",
+    [token, user]
+  );
+
+  const response = await axios.get(
+    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+  );
+
+  const { lat, lon, display_name } = response.data;
+  const locationData = { lat, lon, display_name };
+  const encodedLocationData = encodeURIComponent(
+    JSON.stringify({ locationData })
+  );
   // Check if required fields are present
   if (!type || !fullName || !email || !user || !call || !whatsapp) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -3023,7 +3048,9 @@ app.post("/api/become-agent", async (req, res) => {
                    <li><strong>User:</strong> ${user}</li>
                     <li><strong>Full  Name:</strong> ${fullName}</li>
                    <li><strong>Email:</strong> ${email}</li>
-                   <li><strong>Location:</strong> ${located}</li>
+                   <li><strong>Exact Location:</strong> ${locationData.display_name}</li>
+                
+               
                    <br></br>
                    <br></br>
                    <h2>INTERVIEW</h2>
@@ -3038,7 +3065,7 @@ app.post("/api/become-agent", async (req, res) => {
                    <br></br>
                    <h2>RESPONSE</h2>
                      <br></br>
-                    <a style="padding: 10px 20px; background-color: blue; color: white; text-decoration: none; border-radius: 5px; margin-right:4px;" href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=approved" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
+                    <a style="padding: 10px 20px; background-color: blue; color: white; text-decoration: none; border-radius: 5px; margin-right:4px;" href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&locationData=${encodedLocationData}&status=approved&token=${token}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
  <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
   </ul>
                  </p>`;
@@ -3048,7 +3075,7 @@ app.post("/api/become-agent", async (req, res) => {
   // Email options for the admin
   const mailOptions2 = {
     from: "goodnessezeanyika024@gmail.com", // Sender's address
-    to: "okekechinaza921@gmail.com", // Admin's email
+    to: "goodnessezeanyika012@gmail.com", // Admin's email
     subject: subject2, // Subject line
     text: text2, // Plain text body
     html: html2, // HTML body
@@ -3112,9 +3139,38 @@ app.post("/api/become-agent", async (req, res) => {
 // });
 
 app.post("/api/send-connect-email", cors(), async (req, res) => {
-  const { agentId, userId, orderId, agentType, agentUserId } = req.body;
+  const {
+    agentId,
+    userId,
+    orderId,
+    agentType,
+    agentUserId,
+    latitude,
+    longitude,
+    locationM,
+    type,
+  } = req.body;
   const message = "connect request";
   const agent = agentType + "agents";
+  let locationData = {};
+  console.log("ocation is", locationM);
+
+  if (latitude) {
+    const response = await axios.get(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+    );
+
+    const { lat, lon, display_name } = response.data;
+
+    locationData = { lat, lon, display_name, type };
+  } else {
+    locationData = {
+      lat: "unknown",
+      lon: "unknown",
+      display_name: locationM,
+      type: type,
+    };
+  }
 
   // console.log(userId);
   // console.log(agentId);
@@ -3124,9 +3180,15 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
   try {
     // Query the database to get the agent's email
     await pool.query(
-      "INSERT INTO connect (order_id, user_id, agent_id, request_time, type ) VALUES ($1, $2, $3, $4, $5)",
-      [orderId, userId, agentId, requestTime, agentType]
+      "INSERT INTO connect (order_id, user_id, agent_id, request_time, type, user_location ) VALUES ($1, $2, $3, $4, $5, $6)",
+      [orderId, userId, agentId, requestTime, agentType, locationData]
     );
+    await pool.query(`
+  UPDATE connect
+  SET agent_location = to_jsonb(a.exact_location)
+  FROM agents a
+  WHERE connect.agent_id = a.agent_id
+`);
     await pool.query(
       `UPDATE total_connect SET total_connect = total_connect + 1 WHERE agent_type = $1`,
       [agent]
@@ -3373,48 +3435,65 @@ app.get("/api/respond-to-agent", async (req, res) => {
     user,
     fullName,
     status,
+    token,
   } = req.query;
+
+  const locationData = JSON.parse(decodeURIComponent(req.query.locationData));
 
   // Debug logs
   console.log(user, status);
 
   try {
-    // Fetch request time and check expiration
-    if (status === "approved") {
-      await pool.query(
-        `INSERT INTO agents (user_id, agent_type, name, contact, email) VALUES ($1, $2, $3, $4, $5)`,
-        [user, type, fullName, whatsapp, email]
-      );
+    const tokenData = await pool.query(
+      "SELECT * FROM approval_token WHERE token = $1",
+      [token]
+    );
+    if (tokenData.rows.length > 0) {
+      if (status === "approved") {
+        await pool.query(
+          `INSERT INTO agents (user_id, agent_type, name, contact, email, exact_location) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [user, type, fullName, whatsapp, email, locationData]
+        );
 
-      const result = await pool.query(
-        `SELECT agent_id FROM agents WHERE user_id = $1 AND agent_type = $2`,
-        [user, type]
-      );
-      const result2 = await pool.query(`SELECT date FROM people WHERE id=$1`, [
-        user,
-      ]);
+        const result = await pool.query(
+          `SELECT agent_id FROM agents WHERE user_id = $1 AND agent_type = $2`,
+          [user, type]
+        );
+        const result2 = await pool.query(
+          `SELECT date FROM people WHERE id=$1`,
+          [user]
+        );
 
-      // Extract necessary data
-      const agentId = result.rows[0].agent_id;
-      const accountCreatedDate = result2.rows[0].date;
+        // Extract necessary data
+        const agentId = result.rows[0].agent_id;
+        const accountCreatedDate = result2.rows[0].date;
 
-      await pool.query(
-        `INSERT INTO ${type} (name, contact, fk_user_id, location, agent_id, account_created, description) 
+        await pool.query(
+          `INSERT INTO ${type} (name, contact, fk_user_id, location, agent_id, account_created, description) 
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          fullName,
-          whatsapp,
-          user,
-          located,
-          agentId,
-          accountCreatedDate,
-          description,
-        ]
-      );
+          [
+            fullName,
+            whatsapp,
+            user,
+            located,
+            agentId,
+            accountCreatedDate,
+            description,
+          ]
+        );
+
+        await pool.query("DELETE FROM approval_token WHERE token = $1", [
+          token,
+        ]);
+        res.send("you have successfully added the agent");
+      } else {
+        res.status(400).send({ error: "Status is not approved." });
+        return;
+      }
     } else {
-      res.status(400).send({ error: "Status is not approved." });
-      return;
+      res.send("Invalid or expired token.");
     }
+    // Fetch request time and check expiration
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).send({ error: "Failed to process request." });
