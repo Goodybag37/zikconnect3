@@ -1800,3 +1800,9 @@ select {
 .becomeAgent {
   margin-bottom: -20px;
 }
+.locationInfo {
+  font-size: 12px;
+}
+.locationForm {
+  margin-top: 2rem;
+}
