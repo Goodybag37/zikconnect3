@@ -244,6 +244,7 @@ app.use((req, res, next) => {
 // };
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 
 app.post("/paystack/initialize", cors(), (req, res) => {
   const { email, amount } = req.body;
@@ -583,7 +584,7 @@ cron.schedule("* * * * *", async () => {
            request_time = CURRENT_TIMESTAMP
          WHERE status = 'accepted'
          AND request_time IS NOT NULL
-         AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '30 minutes'
+         AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '0.01 minutes'
          RETURNING *`
     );
     if (result.rows.length > 0) {
@@ -746,6 +747,7 @@ app.get("/api/profile/", async (req, res) => {
         full_name AS people_fullname, 
         email AS PEOPLE_email, 
         people.date AS account_created, 
+       
         roommates.fullname AS roommate_name, 
         lodges.name AS lodge_name, 
         lodges.description AS lodge_description, 
@@ -1593,6 +1595,22 @@ app.post("/api/upload-property", upload.single("file"), async (req, res) => {
     const sellerName = sellerResult.rows[0].full_name || "Unknown";
     const sellerContact = sellerResult.rows[0].phone || "Unknown";
 
+    await pool.query(
+      `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 300
+  WHERE 
+    id = $1;
+  `,
+      [user] // Pass user ID as parameter here
+    );
+
     // Insert into events
     const insertQuery = `
       INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
@@ -1690,6 +1708,22 @@ app.post("/api/upload-event", upload.single("file"), async (req, res) => {
     const sellerResult = await pool.query(sellerQuery, [user]);
     const sellerName = sellerResult.rows[0].full_name || "Unknown";
     const sellerContact = sellerResult.rows[0].phone || "Unknown";
+
+    await pool.query(
+      `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 500)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 500
+  WHERE 
+    id = $1;
+  `,
+      [user] // Pass user ID as parameter here
+    );
 
     // Insert into events
     const insertQuery = `
@@ -2127,6 +2161,60 @@ app.get("/api/courseagentsapi", async (req, res) => {
   }
 });
 
+app.post("/api/patchrating", async (req, res) => {
+  const { agentId, userId, rateType, agentType } = req.body;
+
+  console.log("request is ", req.body);
+
+  try {
+    // Check if user already rated the agent
+    const result = await pool.query(
+      `SELECT * FROM rating WHERE user_id = $1 AND agent_id = $2`,
+      [userId, agentId]
+    );
+
+    if (result.rows.length > 0) {
+      return res.status(500).json("You have already rated this agent");
+    }
+
+    // Insert the rating
+    await pool.query(
+      `INSERT INTO rating (user_id, agent_id, type, agent_type) VALUES ($1, $2, $3, $4)`,
+      [userId, agentId, rateType, agentType]
+    );
+
+    // Safely update the agent's rating
+    const validAgentTypes = [
+      "courseagents",
+      "deliveryagents",
+      "cybercafeagents",
+      "repairagents",
+      "rideragents",
+      "schoolfeeagents",
+      "whatsapptvagents",
+    ]; // Example: Replace with actual table names
+    const validRateTypes = ["good_rating", "bad_rating"]; // Example: Replace with actual column names
+
+    if (
+      validAgentTypes.includes(agentType) &&
+      validRateTypes.includes(rateType)
+    ) {
+      await pool.query(
+        `UPDATE ${agentType} SET ${rateType} = ${rateType} + 1 WHERE agent_id = $1`,
+        [agentId]
+      );
+    } else {
+      return res.status(400).json("Invalid agent type or rate type");
+    }
+
+    // Send success response
+    res.status(200).json("Rating successfully added and agent updated");
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json("An error occurred");
+  }
+});
+
 app.post("/api/patchratingcourse", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
@@ -2164,79 +2252,81 @@ app.get("/api/repairagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-  repairagents.agent_id AS id, 
-  UPPER(repairagents.name) AS name, 
-  repairagents.contact, 
-  repairagents.location, 
-  repairagents.account_created, 
-  repairagents.agent_date AS agent_date, 
-  people.date AS account_creation_date,
-  repairagents.fk_user_id,  
-  repairagents.good_rating, 
-  repairagents.bad_rating, 
-  COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
-  COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'good' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'bad' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text,  'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
-FROM 
-  repairagents
-LEFT JOIN 
-  reviews 
-ON 
-  repairagents.agent_id = reviews.agent_id 
-  AND reviews.agent_type = 'crypto'
-
-  LEFT JOIN 
-                agents 
-            ON 
-                repairagents.agent_id = agents.agent_id  -- Join with the agents table
-
-                LEFT JOIN 
-                people 
-            ON 
-                repairagents.fk_user_id = people.id  -- Join people table to get account creation date
-          
-        
-GROUP BY 
-  repairagents.agent_id,
-  repairagents.name,
-  repairagents.contact,
-  repairagents.location,
-  repairagents.account_created,
-  repairagents.agent_date,
-  repairagents.fk_user_id,
-  agents.date,
-  people.date,
-  repairagents.good_rating,
-  repairagents.bad_rating
-ORDER BY 
-  repairagents.agent_id DESC;
-
-
-      `);
+        repairagents.agent_id AS id, 
+        UPPER(repairagents.name) AS name, 
+        repairagents.contact, 
+        repairagents.location, 
+        repairagents.account_created, 
+        repairagents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        repairagents.fk_user_id,  
+        repairagents.good_rating, 
+        repairagents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        repairagents
+      LEFT JOIN 
+        reviews 
+      ON 
+        repairagents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'repair'
+      LEFT JOIN 
+        agents 
+      ON 
+        repairagents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        repairagents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        repairagents.agent_id,
+        repairagents.name,
+        repairagents.contact,
+        repairagents.location,
+        repairagents.account_created,
+        repairagents.agent_date,
+        repairagents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        repairagents.good_rating,
+        repairagents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        repairagents.agent_id DESC;
+    `);
 
     const repairagents = result.rows;
 
+    // Pagination logic
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 5;
-
     const startIndex = (page - 1) * pageSize;
     const endIndex = page * pageSize;
-    const userId = req.user;
+    const userId = req.user; // Assuming user info comes from authentication middleware
 
     const paginatedrepairagents = repairagents.slice(startIndex, endIndex);
     const totalItems = repairagents.length;
@@ -2252,6 +2342,7 @@ ORDER BY
     });
   } catch (error) {
     console.log(error);
+    res.status(500).json("An error occurred while fetching repair agents.");
   }
 });
 
@@ -2910,7 +3001,7 @@ ORDER BY
 app.post("/api/submitreview", async (req, res) => {
   try {
     const { type, agentType, userid, agentId, review } = req.body;
-    // console.log("Received data:", { type, agentType, userid, agentId, review });
+    console.log("Received data:", { type, agentType, userid, agentId, review });
 
     const checkResult = await pool.query(
       "SELECT type, agent_type, user_id, agent_id, text FROM reviews WHERE user_id=$1 AND agent_id = $2",
@@ -3020,6 +3111,22 @@ app.post("/api/become-agent", async (req, res) => {
   if (!type || !fullName || !email || !user || !call || !whatsapp) {
     return res.status(400).json({ message: "Missing required fields" });
   }
+
+  await pool.query(
+    `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 1000)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 1000
+  WHERE 
+    id = $1;
+  `,
+    [user] // Pass user ID as parameter here
+  );
 
   // Define email content for the user
   const subject = "Pending Approval";
@@ -3138,6 +3245,46 @@ app.post("/api/become-agent", async (req, res) => {
 //   const info = await transporter.sendMail(mailOptions);
 // });
 
+async function getPlaceName(longitude, latitude) {
+  try {
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${MAPBOX_API_TOKEN}`;
+
+    const response = await axios.get(url);
+    const feature = response.data.features[0];
+
+    const placeName =
+      response.data.features[0]?.place_name || "Unknown Location";
+    console.log("Place Name:", placeName);
+    console.log("Place Name:", feature.place_name);
+    console.log("Address:", feature.text);
+    console.log("More Context:", feature.context);
+    return placeName;
+  } catch (error) {
+    console.error("Error fetching geolocation:", error);
+  }
+}
+
+app.get("/api/get-account-balance", cors(), async (req, res) => {
+  const { userId } = req.query;
+  try {
+    const result = await pool.query(
+      `SELECT account_balance FROM people WHERE id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const accountBalance = result.rows[0].account_balance;
+    console.log("account balance is", accountBalance);
+    res.json({ account_balance: accountBalance });
+  } catch (error) {
+    console.error("Error in /api/get-account-balance:", error.message);
+    res.status(500).send("Server Error");
+  }
+});
+
 app.post("/api/send-connect-email", cors(), async (req, res) => {
   const {
     agentId,
@@ -3150,19 +3297,101 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     locationM,
     type,
   } = req.body;
+
+  const result = await pool.query(
+    `SELECT account_balance FROM people WHERE id = $1`,
+    [userId]
+  );
+  const accountBalance = result.rows[0];
+  if (accountBalance < 100) {
+    return res.status(400).json({
+      message:
+        "Your Account Balance is low you need at least N100 to connect with an agent please fund your account and continue",
+    });
+  }
+
+  console.log("agent is", agentId);
   const message = "connect request";
   const agent = agentType + "agents";
   let locationData = {};
+  let distance = null;
+  let duration = null;
   console.log("ocation is", locationM);
 
   if (latitude) {
+    // const response = await getPlaceName(longitude, latitude);
+    // console.log("Returned Place Name:", response);
+
+    // locationData = { latitude, longitude, response, type };
+
+    // const response = await axios.get(
+    //   `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+    // );
+    // const agentLocation = await pool.query(
+    //   `SELECT exact_location FROM agents WHERE agent_id = $1`,
+    //   [agentId]
+    // );
+
+    // // Assuming exact_location is a JSONB object with latitude and longitude fields
+    // const agentLatitude = agentLocation.rows[0].exact_location.locationData.lat;
+    // const agentLongitude =
+    //   agentLocation.rows[0].exact_location.locationData.lon;
+
+    // const { lat, lon, display_name } = response.data;
+    // locationData = { lat, lon, display_name, type };
+    // const start = [lon, lat]; // Example: White House in Washington, DC
+    // const end = [agentLongitude, agentLatitude];
+
     const response = await axios.get(
       `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
     );
 
+    if (
+      !response ||
+      !response.data ||
+      !response.data.lat ||
+      !response.data.lon
+    ) {
+      throw new Error(
+        "Failed to retrieve location data from OpenStreetMap API"
+      );
+    }
+
     const { lat, lon, display_name } = response.data;
 
+    // Query the agent's exact location from the database
+    const agentLocation = await pool.query(
+      `SELECT exact_location FROM agents WHERE agent_id = $1`,
+      [agentId]
+    );
+
+    if (agentLocation.rows.length === 0) {
+      throw new Error("Agent location not found in the database");
+    }
+
+    const agentLatitude =
+      agentLocation.rows[0]?.exact_location?.locationData?.lat ?? 0;
+    const agentLongitude =
+      agentLocation.rows[0]?.exact_location?.locationData?.lon ?? 0;
+
+    if (agentLatitude === 0 || agentLongitude === 0) {
+      throw new Error("Agent latitude or longitude is invalid");
+    }
+
     locationData = { lat, lon, display_name, type };
+
+    const start = [lon, lat]; // Start point from OpenStreetMap response
+    const end = [agentLongitude, agentLatitude]; // End point from database
+
+    if (!start || !end) {
+      throw new Error("Start or end points for location are missing");
+    }
+
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?access_token=${MAPBOX_API_TOKEN}&geometries=geojson`;
+    const response2 = await axios.get(url);
+    const route = response2.data.routes[0];
+    distance = Math.round(route.distance / 1000);
+    duration = Math.round(route.duration / 60);
   } else {
     locationData = {
       lat: "unknown",
@@ -3180,8 +3409,17 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
   try {
     // Query the database to get the agent's email
     await pool.query(
-      "INSERT INTO connect (order_id, user_id, agent_id, request_time, type, user_location ) VALUES ($1, $2, $3, $4, $5, $6)",
-      [orderId, userId, agentId, requestTime, agentType, locationData]
+      "INSERT INTO connect (order_id, user_id, agent_id, request_time, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+      [
+        orderId,
+        userId,
+        agentId,
+        requestTime,
+        agentType,
+        locationData,
+        distance,
+        duration,
+      ]
     );
     await pool.query(`
   UPDATE connect
@@ -3294,6 +3532,15 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
                       <p>Dear Agent, you have a new connect with the orderID ${orderId} from a customer with user ID ${userId}. 
                       Please attend to them politely and offer sincere services as all connects are properly monitored.
                       <p>
+                      <h2> Customer Location</h2>
+                      <p>${locationData.display_name}</P>
+                      <p> Type of location - ${locationData.type}</p>
+                      
+                      <p style = "font-size: 10px;"> <strong>Note !! Automatic locations are more Authentic (though it could be wrong sometimes) than Manual locations as it indicates that 
+                      the customer inputed the location themselves rather than using their automatic gps tracker </strong> </p>
+                      <p> Distance between you two - ${distance}km </p>
+                      <p> Duration - ${duration}minuites</p>
+                      <p style="font-size: 10px;"> Manual Locations do not come with  distance and direction calculations</p>
             <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
 <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
 </p>

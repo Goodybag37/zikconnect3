@@ -1550,7 +1550,8 @@ select {
 .verifyPopup {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
 }
 .sendCode {
   border: none;
@@ -1783,6 +1784,7 @@ select {
 }
 .cashIcon {
   transform: translateY(4px);
+  margin-right: 3px;
 }
 
 .unread {

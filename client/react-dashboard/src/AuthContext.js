@@ -72,6 +72,7 @@ export const AuthProvider = ({ children }) => {
       isPhoneVerified: false,
     });
     localStorage.removeItem("user");
+    localStorage.removeItem("reviewFormVisible");
     localStorage.removeItem("isAuthenticated");
   };
 

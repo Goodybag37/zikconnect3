@@ -7,11 +7,14 @@ import AuthContext from "../AuthContext";
 import Modal from "../components/Modal";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logo } from "../assets"; // Corrected import
+import { BsXLg, BsCashCoin } from "react-icons/bs";
 
 function BecomeAgent() {
   const [type, setType] = useState("");
   const [located, setLocated] = useState("");
   const { isAuthenticated, user, login } = useContext(AuthContext);
+  const apiUrl = "http://localhost:4000";
+  const apiUrls = process.env.REACT_APP_API_URL;
 
   const userPhone =
     user?.phone || JSON.parse(localStorage.getItem("user"))?.phone; // Optional chaining to avoid errors if user is null
@@ -89,6 +92,56 @@ function BecomeAgent() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    try {
+      // Check account balance
+      const balanceResponse = await axios.get(
+        `${apiUrl}/api/get-account-balance?userId=${userbread}`
+      );
+      const accountBalance = balanceResponse.data.account_balance;
+
+      if (accountBalance == null) {
+        console.error("Error: account_balance is undefined.");
+        setError("Unable to retrieve account balance. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      console.log("Account balance is", accountBalance);
+      if (accountBalance < 1000) {
+        const content5 = (
+          <>
+            <div className="verifyPopup">
+              <h2 className="popupHeading inline">Low Balance</h2>
+              <BsXLg
+                className="text-gradient closeModal4"
+                onClick={() => setShowModal(false)}
+              />
+            </div>
+            <p className="popup-paragraph">
+              You need at least 1000 naira to become an agent. Please fund your
+              account and try again.
+            </p>
+            <Link to="/fundaccount">
+              <button className="bg-blue-gradient roommate-button connect-accept-button">
+                <BsCashCoin className="cashIcon" />
+                Fund Account
+              </button>
+            </Link>
+          </>
+        );
+
+        setShowModal(true);
+        setModalContent(content5);
+        setLoading(false);
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching account balance:", error);
+      setError("Failed to fetch account balance. Please try again.");
+      setLoading(false);
+      return;
+    }
 
     // console.log(`Submitting email: ${email}`); // Debugging line
     // console.log(`Submitting password: ${password}`); // Debugging line
