@@ -109,6 +109,7 @@ const jwtOptions = {
   secretOrKey: "your-secret-key", // Replace with your secret key
 };
 
+app.use(express.json());
 app.use((req, res, next) => {
   const userAgent = req.headers["user-agent"] || "";
 
@@ -247,6 +248,7 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 
 app.post("/paystack/initialize", cors(), (req, res) => {
+  console.log("Request body:", req.body);
   const { email, amount } = req.body;
   console.log("request was made here", email, amount, PAYSTACK_SECRET_KEY);
 
@@ -274,9 +276,17 @@ app.post("/paystack/initialize", cors(), (req, res) => {
       data += chunk;
     });
 
-    paystackRes.on("end", () => {
+    paystackRes.on("end", async () => {
       const response = JSON.parse(data);
       if (response.status) {
+        const reference = response.data.reference; // Get the reference
+
+        // Optionally insert the transaction into your database here
+        await pool.query(
+          "INSERT INTO transactions (reference, amount, status, email) VALUES ($1, $2, $3, $4)",
+          [reference, amount * 100, "pending", email]
+        );
+
         res.json({
           success: true,
           authorization_url: response.data.authorization_url,
@@ -298,9 +308,48 @@ app.post("/paystack/initialize", cors(), (req, res) => {
   paystackReq.end();
 });
 
-app.get("/paystack/verify/:reference", cors(), (req, res) => {
+app.get("/api/get-pending-payment", cors(), async (req, res) => {
+  const { email } = req.query; // Extract the email from the query parameters
+  try {
+    const result = await pool.query(
+      `SELECT * FROM transactions WHERE email = $1 AND status = 'pending'`,
+      [email]
+    );
+
+    // Check if any rows were returned
+    if (result.rows.length > 0) {
+      const response = result.rows[0]; // Get the first row
+      res.json({ email: response.email, amount: response.amount }); // Send the response
+    } else {
+      res.json({}); // Send an empty object if no pending payments found
+    }
+  } catch (error) {
+    console.error(error); // Log the error
+    res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching pending payments.",
+    }); // Send error response
+  }
+});
+
+app.get("/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
   console.log("reference was made here", reference);
+
+  const transactionCheck = await pool.query(
+    "SELECT status FROM transactions WHERE reference = $1",
+    [reference]
+  );
+
+  if (
+    transactionCheck.rows.length > 0 &&
+    transactionCheck.rows[0].status === "success"
+  ) {
+    console.log("Transaction already processed:", reference);
+    return res
+      .status(200)
+      .json({ success: true, message: "Transaction already processed." });
+  }
 
   const options = {
     hostname: "api.paystack.co",
@@ -321,53 +370,262 @@ app.get("/paystack/verify/:reference", cors(), (req, res) => {
 
     paystackRes.on("end", async () => {
       const response = JSON.parse(data);
-      console.log("Response data: ", response); // Log entire response
+      console.log("Response data: ", response);
 
       if (response.status && response.data.status === "success") {
-        // Payment is verified, update user account balance
         const { amount, customer } = response.data;
         const email = customer.email;
-        console.log("amount gotten is ", email);
+        console.log("amount gotten is ", email, amount);
+
         try {
+          // Update transaction status in the database
+          await pool.query(
+            "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
+            ["success", reference]
+          );
+
           // Update the user's account balance
           await pool.query(
             `
-        UPDATE people
-        SET 
-          account_balance = account_balance + $1,
-          settings = jsonb_set(
-            settings, -- JSONB column to update
-            '{account_balance}', -- JSONB key path
-            to_jsonb(account_balance + $1), -- Update the JSONB field to reflect the new balance
-            true -- Create the key if it doesn't exist
-          )
-        WHERE email = $2;
-        `,
-            [amount / 100 / 2, email] // Paystack returns amount in kobo, divide by 100 for naira
+            UPDATE people
+            SET 
+              account_balance = account_balance + $1,
+              settings = jsonb_set(
+                settings, 
+                '{account_balance}', 
+                to_jsonb(account_balance + $1), 
+                true 
+              )
+            WHERE email = $2;
+            `,
+            [amount / 100, email]
           );
 
-          res.json({ success: true, message: "Payment verified successfully" });
+          // Send confirmation email
+          const subject = "Payment Successful!";
+          const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${
+                          amount / 100
+                        } connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
+
+          const mailOptions = {
+            from: "admin@zikconnect.com",
+            to: email,
+            subject,
+            html,
+          };
+
+          await transporter.sendMail(mailOptions);
+
+          // Final response after successful updates and email
+          return res.json({
+            success: true,
+            message: "Payment verified successfully",
+          });
         } catch (error) {
           console.error("Error updating account balance:", error);
-          res.status(500).json({
+
+          // Return error response if transaction or balance update fails
+          return res.status(500).json({
             success: false,
             message: "Failed to update account balance",
           });
         }
       } else {
-        res.json({ success: false, message: "Payment verification failed" });
+        // Payment verification failed
+        return res.json({
+          success: false,
+          message: "Payment verification failed",
+        });
       }
     });
   });
 
   paystackReq.on("error", (error) => {
-    console.error(error);
-    res
+    console.error("Paystack request error:", error);
+
+    // Only send one error response for Paystack request failure
+    return res
       .status(500)
-      .send({ success: false, message: "Payment verification failed" });
+      .json({ success: false, message: "Payment verification failed" });
   });
 
   paystackReq.end();
+});
+
+// app.post("/api/paystack-webhook", async (req, res) => {
+//   const { event, data } = req.body;
+
+//   if (event === "charge.success" && data.status === "success") {
+//     const reference = data.reference;
+//     console.log("webhook", reference);
+
+//     try {
+//       const response = await pool.query(
+//         "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2 RETURNING *",
+//         ["success", reference]
+//       );
+
+//       const updatedReference = response.rows[0];
+//       res.sendStatus(200);
+
+//       // Update the user's account balance
+//       await pool.query(
+//         `
+//         UPDATE people
+//         SET
+//           account_balance = account_balance + $1,
+//           settings = jsonb_set(
+//             settings, -- JSONB column to update
+//             '{account_balance}', -- JSONB key path
+//             to_jsonb(account_balance + $1), -- Update the JSONB field to reflect the new balance
+//             true -- Create the key if it doesn't exist
+//           )
+//         WHERE email = $2;
+//         `,
+//         [updatedReference.amount / 100, updatedReference.email] // Paystack returns amount in kobo, divide by 100 for naira
+//       );
+
+//       const subject = "Payment Successfull!! ";
+//       const text = `SUCCESS`;
+//       const html = `<h1 style="color: #15b58e ; margin-left: 20% " >SUCCESS  &#x1F389;</h1>
+//                       <strong><p style = "font-family: Times New Roman ; ">Dear User  you have successfully funded you zikconnect account with <strong style = " color: #15b58e ">${
+//                         updatedReference.amount / 100
+//                       } connects </strong> please use it carefully and avoid abuse on the site, <br />
+//                       We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students.
+//                       This is a platform carefully designed to enhance our student lives so help us achieve our desired goal.
+//                       </p>`;
+
+//       const mailOptions = {
+//         from: "admin@zikconnect.com", // Sender address
+//         // to: email,
+//         // Recipient's email address
+//         to: "edithobiukwu012@gmail.com",
+//         subject: subject, // Subject line
+//         text: text, // Plain text body
+//         html: html, // HTML body
+//       };
+
+//       // Send email
+//       const info = await transporter.sendMail(mailOptions);
+//       // Insert the new user
+
+//       // res.json({ success: true, message: "Payment verified successfully" });
+//     } catch (error) {
+//       console.error("Error updating account balance:", error);
+//       res.status(500).json({
+//         success: false,
+//         message: "Failed to update account balance",
+//       });
+//     }
+
+//     // Update your database to mark this payment as successful
+//     // E.g., find the order by `reference` and update its status to "completed"
+//     try {
+//       await updatePaymentStatus(reference, "success"); // This is your database function
+//       res.sendStatus(200); // Responding with 200 OK acknowledges receipt to Paystack
+//     } catch (error) {
+//       res.sendStatus(500); // If there's a server error, you can handle it here
+//     }
+//   } else {
+//     res.sendStatus(400); // For unrecognized events
+//   }
+// });
+
+app.post("/api/paystack-webhook", async (req, res) => {
+  const { event, data } = req.body;
+
+  if (event === "charge.success" && data.status === "success") {
+    const reference = data.reference;
+    console.log("webhook", reference);
+
+    const transactionCheck = await pool.query(
+      "SELECT status FROM transactions WHERE reference = $1",
+      [reference]
+    );
+
+    if (
+      transactionCheck.rows.length > 0 &&
+      transactionCheck.rows[0].status === "success"
+    ) {
+      console.log("Transaction already processed:", reference);
+      return res
+        .status(200)
+        .json({ success: true, message: "Transaction already processed." });
+    }
+
+    try {
+      // Check if the transaction has already been marked as successful
+      // const transactionCheck = await pool.query(
+      //   "SELECT status FROM transactions WHERE reference = $1",
+      //   [reference]
+      // );
+
+      // if (
+      //   transactionCheck.rows.length > 0 &&
+      //   transactionCheck.rows[0].status === "success"
+      // ) {
+      //   console.log("Transaction already processed:", reference);
+      //   return res.sendStatus(200); // Respond with 200 OK without further processing
+      // }
+
+      // Update transaction status to prevent double processing
+      const response = await pool.query(
+        "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2 RETURNING *",
+        ["success", reference]
+      );
+
+      const updatedReference = response.rows[0];
+
+      // Update the user's account balance
+      await pool.query(
+        `
+        UPDATE people
+        SET
+          account_balance = account_balance + $1,
+          settings = jsonb_set(
+            settings,
+            '{account_balance}',
+            to_jsonb(account_balance + $1),
+            true
+          )
+        WHERE email = $2;
+        `,
+        [updatedReference.amount / 100, updatedReference.email]
+      );
+
+      // Send confirmation email
+      const subject = "Payment Successful!";
+      const text = "SUCCESS";
+      const html = `<h1 style="color: #15b58e; margin-left: 20%">SUCCESS 🎉</h1>
+                    <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${
+                      updatedReference.amount / 100
+                    } connects</strong>. Please use it carefully and avoid abuse on the site.</p>`;
+
+      const mailOptions = {
+        from: "admin@zikconnect.com",
+        to: "edithobiukwu012@gmail.com",
+        subject: subject,
+        text: text,
+        html: html,
+      };
+
+      // Send email
+      await transporter.sendMail(mailOptions);
+
+      // Single 200 OK response to Paystack
+      return res.sendStatus(200);
+    } catch (error) {
+      console.error("Error processing webhook:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process webhook",
+      });
+    }
+  } else {
+    // Respond with 400 for unrecognized events
+    return res.sendStatus(400);
+  }
 });
 
 let itemStatus = {}; // Store the status of items
@@ -388,14 +646,14 @@ const redisClient = Redis.createClient({
 
 myQueue.process(async (job) => {
   console.log("Processing job:", job.data);
-  const { itemId } = job.data;
+  const { agentId } = job.data;
 
   try {
     await pool.query("UPDATE buysell SET status = $1 WHERE id = $2", [
       "available",
-      itemId,
+      agentId,
     ]);
-    console.log("Status updated to available for item:", itemId);
+    console.log("Status updated to available for item:", agentId);
 
     // io.emit("statusUpdate", {
     //   itemId,
@@ -440,13 +698,26 @@ app.use(
 
 app.use(compression());
 
+// let transporter = nodemailer.createTransport({
+//   host: "smtp.gmail.com",
+//   port: 465, // For SSL
+//   secure: true,
+//   auth: {
+//     user: "admin@zikconnect.com",
+//     pass: "nhsy kmqx fxth cevf",
+//   },
+//   // Use IPv4
+//   lookup: (hostname, options, callback) => {
+//     require("dns").lookup(hostname, { family: 4 }, callback);
+//   },
+// });
 let transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "mail.privateemail.com", // SMTP server
   port: 465, // For SSL
-  secure: true,
+  secure: true, // Use SSL
   auth: {
-    user: "goodnessezeanyika024@gmail.com",
-    pass: "nhsy kmqx fxth cevf",
+    user: "admin@zikconnect.com", // Your full email address
+    pass: "Good3767589", // Your email account pas
   },
   // Use IPv4
   lookup: (hostname, options, callback) => {
@@ -1053,7 +1324,30 @@ app.post("/api/register", async (req, res) => {
 
     // Hash the password before storing it
     const hashedPassword = await bcrypt.hash(password, 10);
+    const subject = "Welcome!! ";
+    const text = `Welcome to Zikconnect`;
+    const html = `<h1 style="color: #15b58e ; margin-left: 20% " >WELCOME  &#x1F389;  &#x1F389;</h1>
+                      <strong><p style = "font-family: Times New Roman ; ">Dear ${capitalizedFullName}, <br /> 
+                      We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students.
+                      This is a platform carefully designed to enhance our student lives. After Confirming your email you would be a able 
+                      to perform various functions on the site like paying your fees, renting a lodge, buying and selling properties, order food
+                      get a delivery, and lots more. You can also earn money by becoming one of our agents on the site or uploading items for buyers to purchase
+                      Congrats!! Once again on your journey and feel free to reach out to our agents at <strong> admin@zikconnect.com  </strong>if you have further questions</strong>
+                      
+                      </p>`;
 
+    const mailOptions = {
+      from: "admin@zikconnect.com", // Sender address
+      // to: email,
+      // Recipient's email address
+      to: "edithobiukwu012@gmail.com",
+      subject: subject, // Subject line
+      text: text, // Plain text body
+      html: html, // HTML body
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
     // Insert the new user into the database
     await pool.query(
       `INSERT INTO people (email, password, full_name, settings) 
@@ -3138,7 +3432,7 @@ app.post("/api/become-agent", async (req, res) => {
 
   // Email options for the user
   const mailOptions = {
-    from: "goodnessezeanyika024@gmail.com", // Sender's address
+    from: "admin@zikconnect.com", // Sender's address
     to: email, // User's email
     subject: subject, // Subject line
     text: text, // Plain text body
@@ -3172,8 +3466,10 @@ app.post("/api/become-agent", async (req, res) => {
                    <br></br>
                    <h2>RESPONSE</h2>
                      <br></br>
-                    <a style="padding: 10px 20px; background-color: blue; color: white; text-decoration: none; border-radius: 5px; margin-right:4px;" href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&locationData=${encodedLocationData}&status=approved&token=${token}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
- <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href="https://1632-197-211-59-77.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
+                    <a style="padding: 10px 20px; background-color: blue; color: white; 
+                    text-decoration: none; border-radius: 5px; margin-right:4px;"
+                     href=" https://a8b8-129-205-124-222.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&locationData=${encodedLocationData}&status=approved&token=${token}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
+ <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href=" https://a8b8-129-205-124-222.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
   </ul>
                  </p>`;
 
@@ -3181,7 +3477,7 @@ app.post("/api/become-agent", async (req, res) => {
 
   // Email options for the admin
   const mailOptions2 = {
-    from: "goodnessezeanyika024@gmail.com", // Sender's address
+    from: "admin@zikconnect.com", // Sender's address
     to: "goodnessezeanyika012@gmail.com", // Admin's email
     subject: subject2, // Subject line
     text: text2, // Plain text body
@@ -3235,7 +3531,7 @@ app.post("/api/become-agent", async (req, res) => {
 
 //   // Email options for the user
 //   const mailOptions = {
-//     from: "goodnessezeanyika024@gmail.com", // Sender's address
+//     from: "admin@zikconnect.com", // Sender's address
 //     to: email, // User's email
 //     subject: subject, // Subject line
 //     text: text, // Plain text body
@@ -3263,6 +3559,152 @@ async function getPlaceName(longitude, latitude) {
     console.error("Error fetching geolocation:", error);
   }
 }
+// app.get("/api/get-distance", cors(), async (req, res) => {
+//   const { itemId, latitude, longitude } = req.query;
+
+//   console.log("something near this side", req.query);
+
+//   try {
+//     const response = await axios.get(
+//       `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+//     );
+
+//     if (
+//       !response ||
+//       !response.data ||
+//       !response.data.lat ||
+//       !response.data.lon
+//     ) {
+//       throw new Error(
+//         "Failed to retrieve location data from OpenStreetMap API"
+//       );
+//     }
+
+//     const { lat, lon, display_name } = response.data;
+//     const agentLocation = await pool.query(
+//       `SELECT exact_location FROM buysell WHERE id = $1`,
+//       [itemId]
+//     );
+
+//     if (agentLocation.rows.length === 0) {
+//       throw new Error("Agent location not found in the database");
+//     }
+
+//     const agentLatitude =
+//       agentLocation.rows[0]?.exact_location?.locationData?.lat ?? 0;
+//     const agentLongitude =
+//       agentLocation.rows[0]?.exact_location?.locationData?.lon ?? 0;
+
+//     const agentDisplayName =
+//       agentLocation.rows[0]?.exact_location?.locationData?.display_name ?? null;
+
+//     if (agentLatitude === 0 || agentLongitude === 0) {
+//       throw new Error("Agent latitude or longitude is invalid");
+//     }
+
+//     const locationData = { lat, lon, display_name };
+
+//     const start = [lon, lat]; // Start point from OpenStreetMap response
+//     const end = [agentLongitude, agentLatitude]; // End point from database
+
+//     if (!start || !end) {
+//       throw new Error("Start or end points for location are missing");
+//     }
+
+//     const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?access_token=${MAPBOX_API_TOKEN}&geometries=geojson`;
+//     const response2 = await axios.get(url);
+//     const route = response2.data.routes[0];
+//     const distance = Math.round(route.distance / 1000);
+//     const duration = Math.round(route.duration / 60);
+
+//     res.json({
+//       distance: distance,
+//       duration: duration,
+//       display_name: agentDisplayName,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//   }
+// });
+
+app.get("/api/get-distance", cors(), async (req, res) => {
+  const { itemId, latitude, longitude } = req.query;
+
+  console.log("something near this side", req.query);
+
+  try {
+    let locationData = { lat: null, lon: null, display_name: null };
+
+    // Attempt to fetch location data from Nominatim
+    try {
+      const response = await axios.get(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+      );
+
+      if (response && response.data && response.data.lat && response.data.lon) {
+        locationData = {
+          lat: response.data.lat,
+          lon: response.data.lon,
+          display_name: response.data.display_name,
+        };
+      } else {
+        console.warn("Nominatim returned no valid data");
+      }
+    } catch (error) {
+      console.error("Nominatim API request failed:", error.message);
+      // Optionally return a default response or an empty object
+    }
+
+    const agentLocation = await pool.query(
+      `SELECT exact_location FROM buysell WHERE id = $1`,
+      [itemId]
+    );
+
+    if (agentLocation.rows.length === 0) {
+      throw new Error("Agent location not found in the database");
+    }
+
+    const agentLatitude =
+      agentLocation.rows[0]?.exact_location?.locationData?.lat ?? 0;
+    const agentLongitude =
+      agentLocation.rows[0]?.exact_location?.locationData?.lon ?? 0;
+
+    const agentDisplayName =
+      agentLocation.rows[0]?.exact_location?.locationData?.display_name ?? null;
+
+    if (agentLatitude === 0 || agentLongitude === 0) {
+      throw new Error("Agent latitude or longitude is invalid");
+    }
+
+    const start = [locationData.lon, locationData.lat]; // Start point from OpenStreetMap response
+    const end = [agentLongitude, agentLatitude]; // End point from database
+
+    if (!start || !end) {
+      throw new Error("Start or end points for location are missing");
+    }
+
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?access_token=${MAPBOX_API_TOKEN}&geometries=geojson`;
+    const response2 = await axios.get(url);
+    const route = response2.data.routes[0];
+    const distance = Math.round(route.distance / 1000);
+    const duration = Math.round(route.duration / 60);
+
+    res.json({
+      distance: distance,
+      duration: duration,
+      display_name: agentDisplayName,
+    });
+  } catch (error) {
+    console.error("Error in get-distance route:", error.message);
+    // Respond with an empty object or a default response
+    res.json({
+      distance: null,
+      duration: null,
+      display_name: null,
+      error: "Could not retrieve distance information",
+    });
+  }
+});
 
 app.get("/api/get-account-balance", cors(), async (req, res) => {
   const { userId } = req.query;
@@ -3316,6 +3758,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
   let locationData = {};
   let distance = null;
   let duration = null;
+  let updatedItem = {};
   console.log("ocation is", locationM);
 
   if (latitude) {
@@ -3356,11 +3799,33 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
         "Failed to retrieve location data from OpenStreetMap API"
       );
     }
+    let agentLocation = {};
+
+    if (agentType == "buysell") {
+      // Query the agent's exact location from the database
+
+      const result = await pool.query(
+        "UPDATE buysell SET status = $1 WHERE id = $2 RETURNING *",
+        ["order", agentId]
+      );
+
+      if (result.rowCount > 0) {
+        updatedItem = result.rows[0];
+
+        // Add a job to the queue to change the status after 30 minutes
+        await myQueue.add({ agentId }, { delay: 3 * 10000 });
+      } // 30 minutes delay
+
+      agentLocation = await pool.query(
+        `SELECT exact_location FROM buysell WHERE id = $1`,
+        [agentId]
+      );
+    }
 
     const { lat, lon, display_name } = response.data;
 
     // Query the agent's exact location from the database
-    const agentLocation = await pool.query(
+    agentLocation = await pool.query(
       `SELECT exact_location FROM agents WHERE agent_id = $1`,
       [agentId]
     );
@@ -3512,10 +3977,16 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
         [requestTime]
       );
     }, 10 * 60 * 1000);
-    const result = await pool.query(
+    let result = await pool.query(
       "SELECT email FROM agents WHERE agent_id = $1",
       [agentId]
     );
+
+    if (agentType == "buysell") {
+      result = await pool.query("SELECT email FROM people WHERE id = $1", [
+        agentUserId,
+      ]);
+    }
 
     // Check if any rows were returned
     if (result.rows.length === 0) {
@@ -3526,30 +3997,70 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     const email = result.rows[0].email;
 
     // Prepare email content
-    const subject = "New Connect";
-    const text = `YOU HAVE A NEW CONNECT FROM USER ${userId}`;
-    const html = `<h1>ZIKCONNECT</h1>
-                      <p>Dear Agent, you have a new connect with the orderID ${orderId} from a customer with user ID ${userId}. 
+    let subject = "New Connect";
+    let text = `YOU HAVE A NEW CONNECT FROM USER ${userId}`;
+    let html = `<h1 style="color: #15b58e ; margin-left: 20% " >ZIKCONNECT</h1>
+                      <p style = "font-family: Times New Roman ; ">Dear Agent, you have a new connect with the order ID <strong>${orderId} </strong>  from a customer with user ID ${userId}. 
                       Please attend to them politely and offer sincere services as all connects are properly monitored.
                       <p>
-                      <h2> Customer Location</h2>
-                      <p>${locationData.display_name}</P>
-                      <p> Type of location - ${locationData.type}</p>
-                      
-                      <p style = "font-size: 10px;"> <strong>Note !! Automatic locations are more Authentic (though it could be wrong sometimes) than Manual locations as it indicates that 
-                      the customer inputed the location themselves rather than using their automatic gps tracker </strong> </p>
-                      <p> Distance between you two - ${distance}km </p>
-                      <p> Duration - ${duration}minuites</p>
-                      <p style="font-size: 10px;"> Manual Locations do not come with  distance and direction calculations</p>
-            <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
-<a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
-</p>
+                       <br></br>
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Customer Location</h2>
+                      <ul><li style = "font-family: Times New Roman ; ">${locationData.display_name}</li>
+                      <li style = "font-family: Times New Roman ; "> Type of location - ${locationData.type}</li>
+                       <li style = "font-family: Times New Roman ; "> Distance between you two - ${distance}km </li>
+                      <li style = "font-family: Times New Roman ; "> Duration - ${duration}minuites</li></ul>
+                      <br></br>
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Fraud Prevention </h2>
+                      <li style = "font-size: 10px;"> <strong>Note !! Automatic locations are more Authentic (though it could be wrong sometimes) than Manual locations as it indicates that 
+                      the customer inputed the location themselves rather than using their automatic gps tracker </strong> </li>
+                     
+                      <li style = "font-size: 10px;"> Manual Locations do not come with  distance and direction calculations</li>
+           </p>
                       </p>`;
+
+    //                        <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
+    // <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
+
+    if (agentType == "buysell") {
+      subject = "New Order";
+      text = `YOU HAVE A NEW CONNECT FROM USER ${userId}`;
+      html = `<h1 style="color: #15b58e ; margin-left: 20% " >ZIKCONNECT</h1>
+                      <p style = "font-family: Times New Roman ; ">Dear User, you have a new connect with the order ID <strong>${orderId} </strong>  from a customer with user ID ${userId}. 
+                      Please attend to them politely and offer sincere services as all connects are properly monitored.
+                      <p>
+                       <br></br>
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Order Details</h2>
+                      <strong>
+                      <ul> 
+                      <strong> <li style = "font-family: Times New Roman ; "> Item ID - ${updatedItem.id}</li> </strong>
+                      </strong><li style = "font-family: Times New Roman ; ">Name of Item - ${updatedItem.name}</li> </strong>
+                      <strong> <li style = "font-family: Times New Roman ; "> Price - ${updatedItem.price}</li> </strong>
+                      </ul>
+                       <br></br>
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Customer Location</h2>
+                       <strong><ul><li style = "font-family: Times New Roman ; ">${locationData.display_name}</li> </strong>
+                       <strong><li style = "font-family: Times New Roman ; "> Type of location - ${locationData.type}</li> </strong>
+                       <strong> <li style = "font-family: Times New Roman ; "> Distance between you two - ${distance} km </li> </strong>
+                      <strong> <li style = "font-family: Times New Roman ; "> Duration - ${duration} minuites</li></ul> </strong>
+                      <br></br>
+                     
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Fraud Prevention </h2>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> It is your obligation to deliver the item to the customer before they make payment </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> You can request a video call to confirm the customer identity and location</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> <strong>Note !! Automatic locations are more Authentic (though it could be wrong sometimes) than Manual locations as it indicates that 
+                      the customer inputed the location themselves rather than using their automatic gps tracker </strong> </li>
+                     
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Manual Locations do not come with  distance and direction calculations</li>
+           </p>
+                      </p>`;
+    }
 
     // Define email options
     const mailOptions = {
-      from: "goodnessezeanyika024@gmail.com", // Sender address
-      to: email, // Recipient's email address
+      from: "Zikconnect admin@zikconnect.com", // Sender address
+      // to: email,
+      // Recipient's email address
+      to: "edithobiukwu012@gmail.com",
       subject: subject, // Subject line
       text: text, // Plain text body
       html: html, // HTML body
@@ -3569,7 +4080,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
 
 // Backend endpoint to handle agent's response
 app.post("/api/respond-to-connect", async (req, res) => {
-  const { order_id, user_id, agent_id, status } = req.query;
+  const { order_id, user_id, agentUserId, agent_id, status } = req.query;
 
   // Debug logs
   // console.log(order_id, user_id, agent_id, status);
@@ -3599,6 +4110,110 @@ app.post("/api/respond-to-connect", async (req, res) => {
       "UPDATE connect SET status = $1, request_time = $2 WHERE order_id = $3 AND agent_id = $4 RETURNING *",
       [status, currentTime, order_id, agent_id]
     );
+
+    if (status == "accepted") {
+      const result2 = await pool.query(
+        `SELECT phone FROM people WHERE id = $1`,
+        [user_id]
+      );
+      const result3 = await pool.query(
+        `SELECT contact FROM agents WHERE id = $1`,
+        [agent_id]
+      );
+
+      const userPhone = result2.rows[0];
+      const agentWhatsapp = result3.rows[0];
+
+      const subject = "Connect Accepted";
+      const text = `Your Connect has been accepted`;
+      const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
+                     <p> Dear Esteemed User,</p>
+                     <br> </br><p> Your recent connect made has been accepted by our agent !!&#x1F389.
+                      We are glad to rendering services to you.&#x1F680; The agent would have 30 minutes to deliver your request or  would give valid proof to show that they are delivering your request
+                       <p/> <br> </br>
+                        <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${agentWhatsapp}">Chat With Agent</a>
+                  
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> We care so much about our students safety and welfare </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Please keep proper evidence about your transaction with the agent such as whatsapp chats or recorded calls to help you report the agent if they are fraudulent.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> You can also rate the agent or leave a review on the agents profile after the transaction to help other students know about the agents credibility and efficiency</li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> Do not abuse or use violent languages on our agents as reports copuld lead to termination of your account</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;">All reviews are investigated, therefore do not leave dishonest reviews. Your review should be based on the current order you made and not for past orders or any personal reasons with the agent</li>
+                         <li> We also use sophisticated algorithms to store our agents identity 
+                         and other sensitive details to protect our students therefore quickly report any fraudulent agent to stop them from harming other students. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+                     
+            `;
+
+      // Define email options
+      const mailOptions = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: "edithobiukwu012@gmail.com",
+        subject: subject, // Subject line
+        text: text, // Plain text body
+        html: html, // HTML body
+      };
+
+      const subject2 = "Connect Accepted";
+      const text2 = `Your Connect has been accepted`;
+      const html2 = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
+                     <p> Dear Esteemed Agent,</p>
+                     <br> </br><p> Your accepted the connect!! &#x1F389;
+                      We hope you serve our students with your best performance..&#x1F680; You have 30 minutes to deliver this order or give valid proof to the user to show that you are delivering your request
+                       <p/> <br> </br>
+                        <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${userPhone}">Chat With User</a>
+                        <p> Or call them on this number <strong>${userPhone} </strong> </p>
+                  
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> You have a very sensitive profile. Keep it clean!!. </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Your clients can rate, review and report you, 
+                      and this would be visible for other clients to see on your profile.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Therefore you must treat every order with optimum efficiency 
+                      to keep a positive profile and give you a competing advantage against other agents </li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> When an order comes in, You have 10 minutes to accept or reject the order or it would be automatically
+                        be rejected after the time elapses. rejecting orders will reduce your completion rate
+                        which would give clients an inpression that you are unresponsive therefore stopping them from clicking your ad</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;"> A single report on your account with valid proof of
+                         fraudulent engagement will lead to permernent termination of your account/agent profile.  </li>
+                         <li> We also use sophisticated algorithms to store our agents identity, exact location and other sensitive details to protect our students therefore we can go further to involve security agencies if the scammed victim requests. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+            `;
+
+      // Define email options
+      const mailOptions2 = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: "edithobiukwu012@gmail.com",
+        subject: subject2, // Subject line
+        text: text2, // Plain text body
+        html: html2, // HTML body
+      };
+
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
+      const info2 = await transporter.sendMail(mailOptions2);
+    }
 
     res.status(200).json({ message: "Response recorded." });
   } catch (error) {
@@ -3663,6 +4278,109 @@ app.get("/api/respond-to-connect", async (req, res) => {
       "UPDATE connect SET status = $1 WHERE order_id = $2 AND agent_id = $3 RETURNING *",
       [status, order_id, agent_id]
     );
+    if (status == "accepted") {
+      const result2 = await pool.query(
+        `SELECT phone FROM people WHERE id = $1`,
+        [user_id]
+      );
+      const result3 = await pool.query(
+        `SELECT contact FROM agents WHERE id = $1`,
+        [agent_id]
+      );
+
+      const userPhone = result2.rows[0];
+      const agentWhatsapp = result3.rows[0];
+
+      const subject = "Connect Accepted";
+      const text = `Your Connect has been accepted`;
+      const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
+                     <p> Dear Esteemed User,</p>
+                     <br> </br><p> Your recent connect made has been accepted by our agent !!&#x1F389;
+                      We are glad to rendering services to you.&#x1F680; The agent would have 30 minutes to deliver your request or  would give valid proof to show that they are delivering your request
+                       <p/> <br> </br>
+                        <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${agentWhatsapp}">Chat With Agent</a>
+                  
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> We care so much about our students safety and welfare </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Please keep proper evidence about your transaction with the agent such as whatsapp chats or recorded calls to help you report the agent if they are fraudulent.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> You can also rate the agent or leave a review on the agents profile after the transaction to help other students know about the agents credibility and efficiency</li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> Do not abuse or use violent languages on our agents as reports copuld lead to termination of your account</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;">All reviews are investigated, therefore do not leave dishonest reviews. Your review should be based on the current order you made and not for past orders or any personal reasons with the agent</li>
+                         <li> We also use sophisticated algorithms to store our agents identity 
+                         and other sensitive details to protect our students therefore quickly report any fraudulent agent to stop them from harming other students. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+                     
+            `;
+
+      // Define email options
+      const mailOptions = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: "edithobiukwu012@gmail.com",
+        subject: subject, // Subject line
+        text: text, // Plain text body
+        html: html, // HTML body
+      };
+
+      const subject2 = "Connect Accepted";
+      const text2 = `Your Connect has been accepted`;
+      const html2 = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
+                     <p> Dear Esteemed Agent,</p>
+                     <br> </br><p> Your accepted the connect!! &#x1F389;
+                      We hope you serve our students with your best performance..&#x1F680; You have 30 minutes to deliver this order or give valid proof to the user to show that you are delivering your request
+                       <p/> <br> </br>
+                        <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${userPhone}">Chat With User</a>
+                        <p> Or call them on this number <strong>${userPhone} </strong> </p>
+                  
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> You have a very sensitive profile. Keep it clean!!. </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Your clients can rate, review and report you, 
+                      and this would be visible for other clients to see on your profile.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Therefore you must treat every order with optimum efficiency 
+                      to keep a positive profile and give you a competing advantage against other agents </li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> When an order comes in, You have 10 minutes to accept or reject the order or it would be automatically
+                        be rejected after the time elapses. rejecting orders will reduce your completion rate
+                        which would give clients an inpression that you are unresponsive therefore stopping them from clicking your ad</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;"> A single report on your account with valid proof of
+                         fraudulent engagement will lead to permernent termination of your account/agent profile.  </li>
+                         <li> We also use sophisticated algorithms to store our agents identity, exact location and other sensitive details to protect our students therefore we can go further to involve security agencies if the scammed victim requests. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+            `;
+
+      // Define email options
+      const mailOptions2 = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: "edithobiukwu012@gmail.com",
+        subject: subject2, // Subject line
+        text: text2, // Plain text body
+        html: html2, // HTML body
+      };
+
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
+      const info2 = await transporter.sendMail(mailOptions2);
+    }
 
     res.status(200).json({ message: "Response recorded." });
   } catch (error) {
@@ -3732,7 +4450,87 @@ app.get("/api/respond-to-agent", async (req, res) => {
         await pool.query("DELETE FROM approval_token WHERE token = $1", [
           token,
         ]);
+
+        const subject = "Request Approved";
+        const text = `Your request has been approved `;
+        const html = `
+        <h1 style="color: #15b58e ; margin-left: 20% " >CONGRATS !!! &#x1F389; </h1>
+                     <p> Dear Esteemed User,</p>
+                     <br> </br><p> Your request to become one of our ${type} has been approved !!&#x1F389; We are glad to have you on board as one of our partners helping Zikconnect to render 
+                     services to our beloved students &#x1F60A;. Welcome to the inner circle!!.&#x1F680; <p/> <br> </br>
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> You have a very sensitive profile. Keep it clean!!. </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Your clients can rate, review and report you, 
+                      and this would be visible for other clients to see on your profile.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Therefore you must treat every order with optimum efficiency 
+                      to keep a positive profile and give you a competing advantage against other agents </li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> When an order comes in, You have 10 minutes to accept or reject the order or it would be automatically
+                        be rejected after the time elapses. rejecting orders will reduce your completion rate
+                        which would give clients an inpression that you are unresponsive therefore stopping them from clicking your ad</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;"> A single report on your account with valid proof of
+                         fraudulent engagement will lead to permernent termination of your account/agent profile.  </li>
+                         <li> We also use sophisticated algorithms to store our agents identity, exact location and other sensitive details to protect our students therefore we can go further to involve security agencies if the scammed victim requests. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+                     
+            `;
+
+        // Define email options
+        const mailOptions = {
+          from: "Zikconnect admin@zikconnect.com", // Sender address
+          // to: email,
+          // Recipient's email address
+          to: "edithobiukwu012@gmail.com",
+          subject: subject, // Subject line
+          text: text, // Plain text body
+          html: html, // HTML body
+        };
+
+        // Send email
+        const info = await transporter.sendMail(mailOptions);
         res.send("you have successfully added the agent");
+      } else if (status === "declined") {
+        const subject = "Request Declined";
+        const text = `Your request has been declined `;
+        const html = `
+         <h1 style="color: #15b58e ; margin-left: 20% font-size: 7rem"> ❌ </h1>
+        <h1 style="color: red ; margin-left: 20% " >Declined 😢 </h1>
+                     <p> Dear Esteemed User,</p>
+                     <br> </br><p> Your request to become one of of our ${type} has been declined. Zikconnect takes drastic decisions in ensuring the safety of our students. The reason for our conclusion can not be disclosed
+                     for security reasons, if you feel this was a mistake please contact us on<strong> admin@zikconnect.com</strong> <p/> <br> </br>
+
+
+                     
+
+<br></br>
+
+We are sorry for any inconvenience caused. you still have access to our other services. Goodluck
+                     
+                     
+                     
+            `;
+
+        // Define email options
+        const mailOptions = {
+          from: "Zikconnect admin@zikconnect.com", // Sender address
+          // to: email,
+          // Recipient's email address
+          to: "edithobiukwu012@gmail.com",
+          subject: subject, // Subject line
+          text: text, // Plain text body
+          html: html, // HTML body
+        };
+
+        // Send email
+        const info = await transporter.sendMail(mailOptions);
       } else {
         res.status(400).send({ error: "Status is not approved." });
         return;
@@ -3772,10 +4570,137 @@ app.post("/api/confirm-connect", async (req, res) => {
       `UPDATE connect SET status = 'accepted',  request_time = $2  WHERE order_id = $1 RETURNING *`,
       [orderId, currentTime]
     );
-    await pool.query(
-      `UPDATE messages SET message = 'connect accepted',  timestamp = $2  WHERE id = $1`,
+    const updatedMessage = await pool.query(
+      `UPDATE messages SET message = 'connect accepted',  timestamp = $2  WHERE id = $1 RETURNING sender_phone, user_id, sender_id`,
       [messageId, currentTime]
     );
+    const senderPhone = updatedMessage.rows[0].sender_phone;
+    const userId = updatedMessage.rows[0].user_id;
+    const senderId = updatedMessage.rows[0].sender_id;
+
+    console.log("Sender Phone:", senderPhone);
+    console.log("User ID:", userId);
+    console.log("Sender ID:", senderId);
+
+    const result2 = await pool.query(
+      `SELECT phone, email FROM people WHERE id = $1`,
+      [senderId]
+    );
+
+    console.log("Result 2:", result2.rows);
+    const result3 = await pool.query(
+      `SELECT phone, email  FROM people WHERE id = $1`,
+      [userId]
+    );
+    console.log("Result 3:", result3.rows);
+    const result4 = await pool.query(
+      `SELECT contact FROM agents WHERE user_id = $1`,
+      [userId]
+    );
+    console.log("Result 4:", result4.rows);
+    const email = result2.rows[0].email;
+    const email2 = result3.rows[0].email;
+
+    const agentPhone = result3.rows[0].phone;
+    const agentWhatsapp = result4.rows[0].contact;
+
+    console.log("Email:", email);
+    console.log("Email 2:", email2);
+    console.log("Agent Phone:", agentPhone);
+    console.log("Agent Whatsapp:", agentWhatsapp);
+
+    const subject = "Connect Accepted";
+    const text = `Your Connect has been accepted`;
+    const html = `
+    
+    <h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
+                     <p> Dear Esteemed User,</p>
+                     <br> </br><p> Your recent connect made has been accepted by our agent !!&#x1F389;
+                      We are glad to rendering services to you.&#x1F680; The agent would have 30 minutes to deliver your request or  would give valid proof to show that they are delivering your request
+                       <p/> <br> </br>
+                        <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${agentWhatsapp}">Chat With Agent</a>
+                         <p> Or call them on this number <strong>${agentPhone} </strong> </p>
+                  
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> We care so much about our students safety and welfare </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Please keep proper evidence about your transaction with the agent such as whatsapp chats or recorded calls to help you report the agent if they are fraudulent.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> You can also rate the agent or leave a review on the agents profile after the transaction to help other students know about the agents credibility and efficiency</li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> Do not abuse or use violent languages on our agents as reports copuld lead to termination of your account</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;">All reviews are investigated, therefore do not leave dishonest reviews. Your review should be based on the current order you made and not for past orders or any personal reasons with the agent</li>
+                         <li> We also use sophisticated algorithms to store our agents identity 
+                         and other sensitive details to protect our students therefore quickly report any fraudulent agent to stop them from harming other students. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+                     
+            `;
+
+    // Define email options
+    const mailOptions = {
+      from: "Zikconnect admin@zikconnect.com", // Sender address
+      // to: email,
+      // Recipient's email address
+      to: "edithobiukwu012@gmail.com",
+      subject: subject, // Subject line
+      text: text, // Plain text body
+      html: html, // HTML body
+    };
+
+    const subject2 = "Connect Accepted";
+    const text2 = `Your Connect has been accepted`;
+    const html2 = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
+                     <p> Dear Esteemed Agent,</p>
+                     <br> </br><p> Your accepted the connect!!
+                      We hope you serve our students with your best performance..&#x1F680; You have 30 minutes to deliver this order or give valid proof to the user to show that you are delivering your request
+                       <p/> <br> </br>
+                        <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${senderPhone}">Chat With User</a>
+                        <p> Or call them on this number <strong>${senderPhone} </strong> </p>
+                  
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> You have a very sensitive profile. Keep it clean!!. </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Your clients can rate, review and report you, 
+                      and this would be visible for other clients to see on your profile.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Therefore you must treat every order with optimum efficiency 
+                      to keep a positive profile and give you a competing advantage against other agents </li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> When an order comes in, You have 10 minutes to accept or reject the order or it would be automatically
+                        be rejected after the time elapses. rejecting orders will reduce your completion rate
+                        which would give clients an inpression that you are unresponsive therefore stopping them from clicking your ad</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;"> A single report on your account with valid proof of
+                         fraudulent engagement will lead to permernent termination of your account/agent profile.  </li>
+                         <li> We also use sophisticated algorithms to store our agents identity, exact location and other sensitive details to protect our students therefore we can go further to involve security agencies if the scammed victim requests. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+            `;
+
+    // Define email options
+    const mailOptions2 = {
+      from: "Zikconnect admin@zikconnect.com", // Sender address
+      // to: email,
+      // Recipient's email address
+      to: "edithobiukwu012@gmail.com",
+      subject: subject2, // Subject line
+      text: text2, // Plain text body
+      html: html2, // HTML body
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    const info2 = await transporter.sendMail(mailOptions2);
 
     if (result.rowCount > 0) {
       // console.log("connected");
@@ -4012,7 +4937,7 @@ app.get("/api/get-used-number", async (req, res) => {
 
     const response = result.rows;
 
-    if (response.length > 0) {
+    if (response.length < 0) {
       // If the phone number is found, send it back in the response
       res.json(response);
     } else {
@@ -4049,43 +4974,77 @@ app.post("/api/send-verification-email", async (req, res) => {
 
   try {
     const subject = "Verify Email";
-    const text = `You created a Zikconnect account, please use this code to verify your email: ${verificationCode}`;
-    const html = `<table cellpadding="0" cellspacing="0" width="100%">
-  <tr>
-    <td>
-      <!-- Header with logo -->
-      <table align="center" cellpadding="0" cellspacing="0" width="600">
-        <tr>
-          <td align="center">
-            <img src="https://yourdomain.com/logo.png" alt="Logo" style="display: block; width: 150px;">
-            <h1 style="color:blue; ">ZIKCONNECT</h1>
-          </td>
-        </tr>
-        <!-- Main content -->
-        <tr>
-          <td style="padding: 40px 30px 40px 30px;">
-            <h1 style="font-family: Arial, sans-serif; color:blue">Welcome!</h1>
-            <p style="font-family: Arial, sans-serif;">We're excited to have you on board. here is your verification code <strong style="color: blue">${verificationCode}</strong </p>
-           
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-`;
+    const text = `Welcome to Zikconnect`;
+    const html = `<h1 style="color: #15b58e ; margin-left: 20% " >ZIKCONNECT</h1>
+                      <strong><p style = "font-family: Times New Roman ; ">Welcome!!, </strong> <br /> 
+                      <strong> <p style = "font-family: Times New Roman ;" >We love your tremendous efforts to be on board keep going !!. Below is the code to Verify your email address. this is the final step to successfully creating your account
+                      Please do not share this code with anyone. </p> <strong>
 
-    // Email options for the user
+                      <br> </br>
+                      <br></br>
+
+                     <div style="border: 0.5px solid black; display:flex; align-items: center; margin-bottom: 10px; justify-content: center; padding-left: 7rem; padding-top: 2rem; width: 70%; height: 4rem; font-family: Arial, sans-serif;">
+  <span style="color: #15b58e ; font-size: 40px; font-weight: bold;">
+   ${verificationCode}
+  </span>
+
+</div>
+<p> This code would expire in 30 minutes. Ensure to use it time or you can request for another code from the site </p>
+                      
+                      
+                      </strong>
+                      
+                      </p>`;
+
     const mailOptions = {
-      from: "goodnessezeanyika024@gmail.com", // Sender's address
-      to: emailbread, // User's email
+      from: "admin@zikconnect.com", // Sender address
+      // to: email,
+      // Recipient's email address
+      to: "edithobiukwu012@gmail.com",
       subject: subject, // Subject line
       text: text, // Plain text body
       html: html, // HTML body
     };
 
-    // Send email
     const info = await transporter.sendMail(mailOptions);
+    //     const subject = "Verify Email";
+    //     const text = `You created a Zikconnect account, please use this code to verify your email: ${verificationCode}`;
+    //     const html = `<table cellpadding="0" cellspacing="0" width="100%">
+    //   <tr>
+    //     <td>
+    //       <!-- Header with logo -->
+    //       <table align="center" cellpadding="0" cellspacing="0" width="600">
+    //         <tr>
+    //           <td align="center">
+    //             <img src="https://yourdomain.com/logo.png" alt="Logo" style="display: block; width: 150px;">
+    //             <h1 style="color:blue; ">ZIKCONNECT</h1>
+    //           </td>
+    //         </tr>
+    //         <!-- Main content -->
+    //         <tr>
+    //           <td style="padding: 40px 30px 40px 30px;">
+    //             <h1 style="font-family: Arial, sans-serif; color:blue">Welcome!</h1>
+    //             <p style="font-family: Arial, sans-serif;">We're excited to have you on board. here is your verification code <strong style="color: blue">${verificationCode}</strong </p>
+
+    //           </td>
+    //         </tr>
+    //       </table>
+    //     </td>
+    //   </tr>
+    // </table>
+    // `;
+
+    //     // Email options for the user
+    //     const mailOptions = {
+    //       from: "admin@zikconnect.com", // Sender's address
+    //       to: emailbread, // User's email
+    //       subject: subject, // Subject line
+    //       text: text, // Plain text body
+    //       html: html, // HTML body
+    //     };
+
+    //     // Send email
+    //     const info = await transporter.sendMail(mailOptions);
     console.log("Email sent successfully:", info.messageId);
 
     // Store the verification code in the database
@@ -4130,6 +5089,31 @@ app.post("/api/verify-email", async (req, res) => {
         "UPDATE people SET email_status = 'verified' WHERE id = $1",
         [user]
       );
+      const subject = "Email Verified";
+      const text = `Welcome to Zikconnect`;
+      const html = `<h1 style="color: #15b58e ; margin-left: 20% " >ZIKCONNECT</h1>
+                      <strong><p style = "font-family: Times New Roman ; ">Congrats!!, <br /> 
+                      You have successfully verified your email!!. Your account has been funded with a sum of  2000 Naira to aid you in navigating through our services.
+                       You can now head on to your profile and start connecting with others.
+                      Please do well to note that we take our student security and safety seriously. Any attempt to violate or harm our users on the app
+                      could lead to immediate termination of your account and further actions could be taken such as involving law enforcement agents.
+                      depending on the gravity of violation on our student right and safety. We hope to see you win legally!!
+                        you can reach out to us on <strong>admin@zikconnect.com</strong>if you have further questions</strong>
+                      
+                      </p>`;
+
+      const mailOptions = {
+        from: "admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: "edithobiukwu012@gmail.com",
+        subject: subject, // Subject line
+        text: text, // Plain text body
+        html: html, // HTML body
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+
       await pool.query(
         `DELETE FROM email_verification WHERE status = 'verified'`
       );
@@ -4147,6 +5131,7 @@ app.post("/api/verify-email", async (req, res) => {
 app.post("/api/send-verification-code", async (req, res) => {
   const phone = req.body.phone;
   const userId = req.body.user;
+  const phoneNumber = `+234${phone}`;
 
   if (!phone) {
     return res.status(400).json({ message: "Phone number is required" });
@@ -4157,7 +5142,33 @@ app.post("/api/send-verification-code", async (req, res) => {
 
   console.log(verificationCode);
 
+  // SEND SMS
+
   try {
+    async function sendOTP(phoneNumber) {
+      const apiKey =
+        "TLnIcvLsuEiPFXUsraaxveZFlOpSuKBBSwTtthiOdzmhlgpIWnNIuCyIfzsaOq";
+
+      try {
+        const response = await axios.post(
+          "https://v3.api.termii.com/api/sms/send",
+          {
+            to: phoneNumber,
+            sms: `Your OTP code is 123456 ${verificationCode}`,
+            type: "plain",
+            channel: "genero",
+            sender_id: "zikconnect", // Use 'plain' or 'flash' for SMS types
+            api_key: apiKey,
+          }
+        );
+        console.log("OTP sent successfully:", response.data);
+      } catch (error) {
+        console.error("Error sending OTP:", error);
+      }
+    }
+
+    // Usage
+    sendOTP(phoneNumber);
     // Send the verification code via SMS using Textbelt
     // const response = await axios.post("https://textbelt.com/text", {
     //   phone: phoneNumber,

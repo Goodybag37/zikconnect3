@@ -74,6 +74,16 @@ function Sidebar(props) {
         <li className="sidebar-list-item">
           <CustomLink
             className="card-title"
+            to={"/roommates"}
+            userId={id}
+            email={mail}
+          >
+            <BsFillHouseDoorFill className="icon" /> Roommates
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
             to={"/buysells"}
             userId={id}
             email={mail}
