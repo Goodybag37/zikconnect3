@@ -893,15 +893,14 @@ function YourComponent() {
     console.log("edit submitt", editData.name);
     event.preventDefault();
     try {
+      // Append other data fields to FormData
       const formData = new FormData();
-
+      const type = "buysell";
       // Append other data fields to FormData
       formData.append("name", editData.name);
       formData.append("description", editData.description);
       formData.append("price", editData.price);
       formData.append("location", editData.location);
-
-      console.log("form Submitted", formData);
 
       // Append the file only if a new one is selected
       if (selectedFile) {
@@ -910,12 +909,11 @@ function YourComponent() {
 
       // Send the FormData to the server using a PUT request
       await axios.put(
-        `${apiUrl}/api/edit-upload/${itemId}`,
+        `${apiUrl}/api/edit-upload/${itemId}&type=${type}`,
         formData
 
         // Send FormData instead of JSON
       );
-
       // Refresh data after successful update
       fetchData(pageNumber, searchQuery);
       setFlippedCards(false); // Exit edit mode

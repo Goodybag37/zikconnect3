@@ -5,7 +5,7 @@ import Home from "../pages/Home";
 import Roommates from "../pages/Roommates";
 import BuysellsPage from "../pages/Buysells";
 
-import Courses from "../pages/Courses";
+import Foods from "../pages/Foods";
 import Repairs from "../pages/Repairs";
 import Profiles from "../pages/Profiles";
 import Cybercafes from "../pages/Cybercafes";
@@ -38,6 +38,8 @@ function App() {
   return (
     <Routes>
       {/* Default route to Login */}
+      <Route path="/" element={<Home />} />
+      <Route path="/home" element={<Home />} />
 
       <Route path="/login" element={<Login />} />
 
@@ -53,7 +55,6 @@ function App() {
           />
         }
       >
-        <Route path="/" element={<Agents />} />
         <Route
           element={
             <ProtectedRoutes
@@ -92,11 +93,11 @@ function App() {
           <Route path="/agents" element={<Agents />} />
           <Route path="/fundaccount" element={<FundAccount />} />
           <Route path="/verifypayment" element={<VerifyPayment />} />
-          <Route path="/home" element={<Home />} />
+
           <Route path="/settings" element={<Settings />} />
           <Route path="/buysells" element={<BuysellsPage />} />
           <Route path="/roommates" element={<Roommates />} />
-          <Route path="/courses" element={<Courses />} />
+          <Route path="/foods" element={<Foods />} />
           <Route path="/repairs" element={<Repairs />} />
           <Route path="/profiles" element={<Profiles />} />
           <Route path="/cybercafes" element={<Cybercafes />} />

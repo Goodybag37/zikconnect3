@@ -1,5 +1,6 @@
 import airbnb from "./airbnb.png";
 import bill from "./bill.png";
+import unizik from "./unizik.jpg";
 import bill2 from "./bill2.png";
 import bill4 from "./bill4.png";
 import binance from "./binance.png";
@@ -56,4 +57,5 @@ export {
   people01,
   people02,
   people03,
+  unizik,
 };

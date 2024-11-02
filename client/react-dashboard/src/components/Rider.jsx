@@ -1,4 +1,4 @@
-import React, { useEffect, useContext, useState } from "react";
+import React, { useEffect, useContext, useState, useRef } from "react";
 import axios from "axios";
 import "../App.css";
 import ReactPaginate from "react-paginate";
@@ -10,15 +10,15 @@ import { LazyLoadComponent } from "react-lazy-load-image-component";
 import { BsFillPersonLinesFill } from "react-icons/bs";
 import { BisPhoneCall } from "@meronex/icons/bi/";
 import { LogoWhatsapp } from "@meronex/icons/ios/";
+// import { io } from "socket.io-client";
 import {
   BsPatchCheckFill,
   BsXOctagonFill,
-  BsBrowserEdge,
   BsXLg,
   BsFillPersonFill,
 } from "react-icons/bs";
 import AuthContext from "../AuthContext";
-import Modal from "../components/Modal";
+import Modal from "./Modal";
 import { Link } from "react-router-dom";
 import {
   BsFillArchiveFill,
@@ -26,22 +26,26 @@ import {
   BsFillGrid3X3GapFill,
   BsPeopleFill,
   BsFillBellFill,
+  BsCashCoin,
 } from "react-icons/bs";
-import CountdownTimer from "../components/Countdowntimer";
+import { BsBrowserEdge } from "react-icons/bs";
+import CountdownTimer from "./Countdowntimer";
 
 function YourComponent() {
-  const [rideragents, setrideragents] = useState([]);
+  const [rideragents, setRideragents] = useState([]);
   const [pageNumber, setPageNumber] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [goodRating, setGoodRating] = useState(0);
+  const [goodRating, setGoodRating] = useState({});
+  const [badRating, setBadRating] = useState({});
   const [ratings, setRatings] = useState({});
-  const [badRating, setBadRating] = useState(0);
+  const [reviewFormVisible, setReviewFormVisible] = useState(false);
+
   const [agentId, setAgentId] = useState(0);
   const [hasVoted, setHasVoted] = useState(false);
   const [agentType, setAgentType] = useState();
   const [userId, setUserId] = useState();
-  const [ridergReviews, setridergReviews] = useState();
-  const [riderbReviews, setriderbReviews] = useState();
+  const [ridergReviews, setRidergReviews] = useState();
+  const [riderbReviews, setRiderbReviews] = useState();
   const [showReviewForm, setShowReviewForm] = useState({});
   const [reviewText, setReviewText] = useState({});
   const [reviewTypeSelection, setReviewTypeSelection] = useState({});
@@ -63,6 +67,18 @@ function YourComponent() {
   const [modalContent5, setModalContent5] = useState("");
   const [countdownEndTime, setCountdownEndTime] = useState(null);
   const [canReview, setCanReview] = useState(false);
+  const [connecting, setConnecting] = useState({});
+  const [permission, setPermission] = useState(null);
+  const [locationM, setLocationM] = useState(null);
+  const [type, setType] = useState("Automatic");
+  const locationRef = useRef(null);
+  const reviewRef = useRef(null);
+
+  const [locationA, setLocationA] = useState({
+    latitude: null,
+    longitude: null,
+    error: null,
+  });
 
   const [orderCode, setOrderCode] = useState("");
   const [orderCode2, setOrderCode2] = useState("");
@@ -74,21 +90,22 @@ function YourComponent() {
   const maxLength = 250;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
+
   const userbread =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
+
   // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
   const isPhoneVerified = user.isPhoneVerified;
   const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
-  console.log("user bread", userbread);
 
   const fetchData = async (page) => {
     try {
       const response = await axios.get(
         `${apiUrl}/api/rideragentsapi?page=${page + 1}&pageSize=${usersPerPage}`
       );
-      console.log(response);
+
       const {
         rideragents: newrideragents,
         totalPages: newTotalPages,
@@ -97,46 +114,64 @@ function YourComponent() {
         riderBreviews: riderBreviews,
       } = response.data;
       setUserId(userId);
-      setridergReviews(riderGreviews);
-      setriderbReviews(riderBreviews);
-      setrideragents(newrideragents);
+      setRidergReviews(riderGreviews);
+      setRiderbReviews(riderBreviews);
+      setRideragents(newrideragents);
       setTotalPages(newTotalPages);
       if (newrideragents.length > 0) {
-        setGoodRating(parseInt(newrideragents[0].good_rating, 10));
+        const agentRatings = {};
+        newrideragents.forEach((agent) => {
+          agentRatings[agent.id] = parseInt(agent.good_rating, 10);
+        });
+
+        // Update the goodRating state to contain ratings per agent
+        setGoodRating(agentRatings);
       }
     } catch (error) {
       console.error(error);
     }
   };
 
-  useEffect(() => {
-    console.log("AuthContext ", { isAuthenticated, user });
-  }, [isAuthenticated, user]);
+  const toggleReviewForm2 = (type, ordercode) => {
+    setReviewFormVisible((prevState) => true);
+    localStorage.setItem("reviewFormVisible", true);
+    if (type == "confirm") {
+      confirmConnect(ordercode);
+    } else {
+      rejectConnect();
+    }
+  };
 
   useEffect(() => {
     const fetchPendingConnects = async () => {
       const modalState = localStorage.getItem("showModal");
       const userId = userbread;
+      const isReviewFormVisible =
+        reviewFormVisible || localStorage.getItem("reviewFormVisible");
+
       const type = "rider";
 
       try {
         const response = await axios.get(
           `${apiUrl}/api/check-pending-connects?userId=${userId}&type=${type}`
         );
-        console.log(response.data);
+
         const agent = response.data.agent_id;
         const orderCode = response.data.order_id;
         const countdownTime = response.data.request_time;
         const status = response.data.status;
         const contact = response.data.contact;
         const name = response.data.name;
+        let reviewForm = false;
+
+        const canReviewA = canReview[agent];
+        const selectedReviewType = reviewTypeSelection[agent];
+        const duration =
+          response.data.duration ?? "Manual Location Comes with no durations";
+        const distance =
+          response.data.distance ?? "Manual Location Comes with no distance";
 
         setOrderCode2(orderCode);
-
-        // const { agent_, orderCode, countdownEndTime } = response.data;
-        // console.log(agent);
-        // console.log(orderCode);
-        // console.log(userId);
 
         if (status === "pending") {
           setShowModal(true);
@@ -146,11 +181,7 @@ function YourComponent() {
             new Date(countdownTime).getTime() + 10 * 60 * 1000
           );
 
-          console.log("Original requestTime:", countdownTime);
-          console.log("Calculated endTime:", endTime);
-
           const remainingTime = endTime - new Date();
-          console.log("Remaining time (ms):", remainingTime);
 
           if (endTime) {
             const content = (
@@ -160,8 +191,29 @@ function YourComponent() {
                 </h2>
                 <p className="popup-paragraph">
                   You have a pending connect from agent{agent}. The order will
-                  expire in <CountdownTimer endTime={endTime} />
+                  expire in{" "}
+                  <CountdownTimer
+                    endTime={endTime}
+                    onEnd={() => {
+                      setConnecting((prevState) => ({
+                        ...prevState,
+                        [agent]: "",
+                      }));
+                      setShowModal(false);
+                    }} // Close modal when countdown ends
+                  />
                 </p>
+
+                <Link to="/agents">
+                  <button
+                    // onClick={() => {
+                    //   localStorage.removeItem("reviewFormVisible");
+                    // }}
+                    className="signoutButton profileParagraph text-gradient"
+                  >
+                    Back to Agents
+                  </button>
+                </Link>
               </>
             );
 
@@ -175,11 +227,7 @@ function YourComponent() {
             new Date(countdownTime).getTime() + 10 * 60 * 3000
           );
 
-          console.log("Original requestTime:", countdownTime);
-          console.log("Calculated endTime:", endTime2);
-
           const remainingTime = endTime2 - new Date();
-          console.log("Remaining time (ms):", remainingTime);
 
           if (endTime2) {
             const content2 = (
@@ -193,8 +241,18 @@ function YourComponent() {
                   for a quicker response from them. Please ensure to address
                   them politely as zikconnect takes any form of abuse of agents
                   seriously.
-                  <CountdownTimer endTime={endTime2} />
+                  <CountdownTimer
+                    endTime={endTime2}
+                    onEnd={() => {
+                      setConnecting((prevState) => ({
+                        ...prevState,
+                        [agent]: "",
+                      }));
+                      setShowModal2(false);
+                    }} // Close modal when countdown ends
+                  />
                 </p>
+
                 <div className="chat-call-buttons">
                   <a href={`https://wa.me/${contact}`}>
                     <button className="bg-blue-gradient roommate-button  connect-accept-button-chat">
@@ -214,6 +272,15 @@ function YourComponent() {
                 <p className="popup-paragraph">Order Number: {orderCode}</p>
                 <p className="popup-paragraph">Agent ID: {agent}</p>
                 <p className="popup-paragraph">Agent Full Name: {name}</p>
+                <p className="popup-paragraph">
+                  Distance between you two: {distance}kilometers
+                </p>
+                <p className="popup-paragraph">Duration: {duration}minuites</p>
+                <Link to="/agents">
+                  <button className="signoutButton profileParagraph text-gradient">
+                    Back to Agents
+                  </button>
+                </Link>
               </>
             );
 
@@ -221,7 +288,7 @@ function YourComponent() {
           }
         } else if (status === "completed") {
           setShowModal3(true);
-          console.log(orderCode2);
+
           const endTime3 = new Date(
             new Date(countdownTime).getTime() + 10 * 60 * 500
           );
@@ -238,10 +305,7 @@ function YourComponent() {
                   <div className="chat-call-buttons">
                     <button
                       onClick={() => {
-                        confirmConnect(orderCode);
-
-                        setCanReview((prev) => ({ ...prev, [agent]: true }));
-                        setShowModal3(false);
+                        toggleReviewForm2("confirm", orderCode);
                       }}
                       className="bg-blue-gradient roommate-button  connect-accept-button-chat"
                     >
@@ -250,15 +314,64 @@ function YourComponent() {
                     </button>
                     <button
                       onClick={() => {
-                        rejectConnect();
-                        setCanReview((prev) => ({ ...prev, [agent]: true }));
-                        setShowModal3(false);
+                        toggleReviewForm2("reject", orderCode);
                       }}
                       className="bg-blue-gradient roommate-button connect-accept-button"
                     >
                       <BsXOctagonFill className="connect_icon" />
                       Reject
                     </button>
+
+                    {isReviewFormVisible && (
+                      <div className="review-form">
+                        <br></br>
+                        {/* <h2>Leave a Review</h2> */}
+                        <br></br>
+                        <div className="review-type-selection">
+                          <label
+                            htmlFor={`review-type-${agent}`}
+                            className="select-label"
+                          >
+                            Select Type:
+                            <select
+                              id={`review-type-${agent}`}
+                              className="review-select"
+                              value={selectedReviewType || ""}
+                              onChange={(e) => {
+                                localStorage.setItem(
+                                  "reviewType",
+                                  e.target.value
+                                );
+                                handleReviewTypeChange(agent, e.target.value);
+                              }}
+                            >
+                              <option value="" disabled>
+                                Select...
+                              </option>
+                              <option value="good">Good</option>
+                              <option value="bad">Bad</option>
+                            </select>
+                          </label>
+                        </div>
+                        <textarea
+                          maxLength={maxLength}
+                          className="review-textarea"
+                          ref={reviewRef} // Attach the ref here
+                        ></textarea>
+
+                        <button
+                          className="bg-blue-gradient agent-button submit-review"
+                          onClick={() => {
+                            submitReview(agent);
+                            setShowModal3(false);
+                            setCanReview(false);
+                            localStorage.removeItem("reviewFormVisible");
+                          }}
+                        >
+                          Submit
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <CountdownTimer endTime={endTime3} />
                 </p>
@@ -274,7 +387,7 @@ function YourComponent() {
     };
 
     fetchPendingConnects(); // Call the async function inside useEffect
-  }, []);
+  }, [reviewFormVisible]);
 
   useEffect(() => {
     fetchData(pageNumber);
@@ -313,7 +426,7 @@ function YourComponent() {
 
   const handleGenerateOrderCode = () => {
     const newCode = generateUniqueCode();
-    console.log(newCode);
+
     setOrderCode(newCode);
   };
 
@@ -325,8 +438,8 @@ function YourComponent() {
   };
 
   const confirmConnect = async (orderCode) => {
-    const orderId = orderCode2;
-    console.log(" i have updated", orderId);
+    const orderId = orderCode;
+
     try {
       await axios.post(
         `${apiUrl}/api/complete-connect`,
@@ -348,9 +461,9 @@ function YourComponent() {
   };
 
   const submitReview = async (agentId) => {
-    const review = reviewText[agentId];
-    const type = reviewType[agentId];
-    const userid = localStorage.getItem("user");
+    const review = reviewText[agentId] || reviewRef.current.value;
+    const type = reviewType[agentId] || localStorage.getItem("reviewType");
+    const userid = userbread;
     const agentType = "rider";
 
     if (!review || !type) return;
@@ -367,8 +480,7 @@ function YourComponent() {
         },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
-      console.log(agentId);
-      console.log(userid);
+
       alert("Review submitted successfully!");
       setReviewText((prev) => ({
         ...prev,
@@ -394,13 +506,10 @@ function YourComponent() {
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
 
-      console.log("Server responded", result.data);
-      console.log("Response status is", result.status);
-
       if (result.status === 200 && result.data.length > 0) {
         // Handle the array response
         const response = result.data[0];
-        console.log("Agent profile:", response); // Assuming you want the first item
+
         setModalContent5(
           <div>
             <h3 className="profile-head text-gradient">{response.name}</h3>
@@ -450,7 +559,7 @@ function YourComponent() {
         // If no data found, treat it as an error
         setModalContent5(
           <div>
-            <p>Oops, you are not a rider Agent</p>
+            <p>Oops, you are not a Rider Agent</p>
             <button
               style={{
                 marginTop: "20px",
@@ -477,7 +586,7 @@ function YourComponent() {
         // Specifically handle 404 status when user is not an agent
         setModalContent5(
           <div>
-            <p>Oops, you are not a rider Agent</p>
+            <p>Oops, you are not a Rider Agent</p>
             <button
               className="bg-blue-gradient roommate-button"
               onClick={() => setShowModal5(false)}
@@ -528,32 +637,67 @@ function YourComponent() {
     return !reviewText[agentId] || !reviewType[agentId];
   };
 
-  async function rateAgentPositive(agentId, goodRating) {
-    setAgentId(agentId);
-    setAgentType("rider");
+  async function rateAgentPositive(agentId) {
+    // setAgentId(agentId);
+    const rateType = "good_rating";
+    const agentType = "rideragents";
 
-    const hasVotedForAgent = localStorage.getItem(
-      `voted_${agentId}_${agentType}`
-    );
-    if (hasVotedForAgent) {
-      alert("Sorry!! You have already voted for this agent.");
-      return;
-    }
+    const data = new URLSearchParams();
+    data.append("agentId", agentId);
+    data.append("userId", userbread);
+    data.append("rateType", rateType);
+    data.append("agentType", agentType);
 
     try {
-      const response = await axios.post(
-        `${apiUrl}/api/patchratingrider?agentId=${agentId}&goodRating=${goodRating}`
+      await axios.post(
+        `${apiUrl}/api/patchrating`,
+        data, // Use the encoded data
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
-      const updatedRating = response.data.goodRating;
 
       setGoodRating((prevRatings) => ({
         ...prevRatings,
-        [agentId]: updatedRating,
+        [agentId]: prevRatings[agentId] ? prevRatings[agentId] + 1 : 1, // Increment or set to 1 if it doesn't exist
       }));
-
-      localStorage.setItem(`voted_${agentId}_${agentType}`, true);
     } catch (error) {
-      console.log(error);
+      if (error.response && error.response.status === 500) {
+        alert("Oops, you have already voted for this agent.");
+      } else if (error.response && error.response.status === 400) {
+        alert("Bad request. Please check the data you are sending.");
+      } else {
+      }
+    }
+  }
+
+  async function rateAgentNegative(agentId) {
+    // setAgentId(agentId);
+    const rateType = "bad_rating";
+    const agentType = "rideragents";
+
+    const data = new URLSearchParams();
+    data.append("agentId", agentId);
+    data.append("userId", userbread);
+    data.append("rateType", rateType);
+    data.append("agentType", agentType);
+
+    try {
+      await axios.post(
+        `${apiUrl}/api/patchrating`,
+        data, // Use the encoded data
+        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+
+      setBadRating((prevRatings) => ({
+        ...prevRatings,
+        [agentId]: prevRatings[agentId] ? prevRatings[agentId] + 1 : 1, // Increment or set to 1 if it doesn't exist
+      }));
+    } catch (error) {
+      if (error.response && error.response.status === 500) {
+        alert("Oops, you have already voted for this agent.");
+      } else if (error.response && error.response.status === 400) {
+        alert("Bad request. Please check the data you are sending.");
+      } else {
+      }
     }
   }
 
@@ -562,13 +706,12 @@ function YourComponent() {
       const content4 = (
         <>
           <div className="verifyPopup">
-            <h2 className="popupHeading inline">Verify Phone !! </h2>
+            <h2 className="popupHeading inline">Verify Phone !!</h2>
             <BsXLg
-              className="text-gradient  closeModal4"
+              className="text-gradient closeModal4"
               onClick={() => setShowModal4(false)}
             />
           </div>
-
           <p className="popup-paragraph">
             You need to verify your phone number to be able to connect with our
             agent. This would help them in contacting you after you connect with
@@ -583,13 +726,205 @@ function YourComponent() {
         </>
       );
       setShowModal4(true);
-
       setModalContent4(content4);
-
       return;
-    } else if (countdownEndTime && new Date() < countdownEndTime) {
-      setShowModal(true);
+    }
+    try {
+      const response = await axios.get(
+        `${apiUrl}/api/get-account-balance?userId=${userbread}`
+      );
 
+      const accountBalance = response.data.account_balance;
+
+      if (accountBalance < 100) {
+        const content5 = (
+          <>
+            <div className="verifyPopup">
+              <h2 className="popupHeading inline">Low Balance</h2>
+              <BsXLg
+                className="text-gradient closeModal4"
+                onClick={() => setShowModal4(false)}
+              />
+            </div>
+            <p className="popup-paragraph">
+              You have hit a low account balance. You need at least 100 naira to
+              connect with an agent. Please fund your account to continue.
+            </p>
+            <Link to="/fundaccount">
+              <button className="bg-blue-gradient roommate-button connect-accept-button">
+                <BsCashCoin className="cashIcon" />
+                Fund Account
+              </button>
+            </Link>
+          </>
+        );
+
+        setShowModal4(true);
+        setModalContent4(content5);
+        setConnecting((prevState) => ({
+          ...prevState,
+          [agentId]: "",
+        }));
+        return;
+      }
+    } catch (error) {
+      console.error("Error fetching account balance:", error);
+    }
+
+    // Request location access first
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+
+          // Continue with connection logic AFTER location is granted
+          processConnection(agentId, latitude, longitude);
+
+          setConnecting(true);
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            const latitude = null;
+            const longitude = null;
+            // If location permission is denied, show a modal to inform the user
+            const locationContent = (
+              <>
+                <div className="verifyPopup">
+                  <h2 className="popupHeading inline">
+                    {type == "Automatic"
+                      ? "Location Access Denied"
+                      : "Use Manual Location"}
+                  </h2>
+                  <BsXLg
+                    className="text-gradient closeModal4"
+                    onClick={() => {
+                      // setType("Automatic");
+                      setConnecting((prevState) => ({
+                        ...prevState,
+                        [agentId]: "",
+                      }));
+
+                      setShowModal5(false);
+                    }}
+                  />
+                </div>
+                {type == "Automatic" && (
+                  <div>
+                    <p className="popup-paragraph">
+                      You need to allow location so our agents can serve you
+                      more efficiently. Zikconnect respects our users privacy so
+                      your location would only be used for this order.
+                    </p>
+                    <div className="locationInfo">
+                      <h3 className="text-gradient">On Iphone</h3>
+
+                      <ul>
+                        <li> Clear your browser cache and try again </li>
+                        <p> OR</p>
+                        <li>
+                          Go to Settings {">>"} Privacy & Security {">>"}{" "}
+                          Location Services. {">>"} Safari Websites {">>"}{" "}
+                          Ask/Allow
+                        </li>
+
+                        <p> OR</p>
+                        <li>
+                          Go to Settings {">>"} Safari {">>"} Privacy & Security{" "}
+                          {">>"} Location {">>"} Ask/Allow{" "}
+                        </li>
+                      </ul>
+
+                      <h3 className="text-gradient">On Android</h3>
+                      <ul>
+                        <li> Clear your browser cache and try again </li>
+                        <p> OR</p>
+
+                        <li>
+                          {" "}
+                          Open Chrome {">>"} Tap the 3-dot on the top-right
+                          corner {">>"} Site Settings {">>"} Location {">>"}{" "}
+                          Here, you can see the list of blocked and allowed
+                          sites.
+                        </li>
+                        <br></br>
+                        <li>
+                          {" "}
+                          If the website is blocked, find it in the blocked
+                          list, tap on it, and select Clear & reset to remove
+                          the block.
+                        </li>
+                      </ul>
+                    </div>
+                    <button
+                      className="signoutButton profileParagraph text-gradient"
+                      onClick={() => {
+                        setShowModal5(false);
+                        setType("Manual");
+                        setConnecting((prevState) => ({
+                          ...prevState,
+                          [agentId]: "",
+                        }));
+                      }}
+                    >
+                      Input Location Manually
+                    </button>
+                  </div>
+                )}
+
+                {type == "Manual" && (
+                  <div className="locationForm">
+                    <div className="input-group input-email">
+                      <input
+                        maxLength={maxLength}
+                        type="text"
+                        id="located"
+                        ref={locationRef} // Use ref here instead of value
+                        placeholder="Exact Adress Around Unizik"
+                        // onChange={(e) => setLocationM(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      className="signoutButton profileParagraph text-gradient"
+                      onClick={() => {
+                        const manualLocation = locationRef.current.value;
+                        setShowModal5(false);
+                        // Handle manual location input logic
+                        setLocationA({
+                          latitude: null,
+                          longitude: null,
+                          locationM: manualLocation, // Use the manual input state
+                          error: null,
+                        });
+
+                        processConnection(agentId, null, null, manualLocation);
+                        setConnecting((prevState) => ({
+                          ...prevState,
+                          [agentId]: "",
+                        }));
+                      }}
+                    >
+                      Connect
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+            setShowModal5(true);
+            setModalContent5(locationContent);
+          }
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+    }
+  };
+
+  // Function to process connection logic after location permission is granted
+  const processConnection = async (agentId, latitude, longitude, locationM) => {
+    // Check countdown after location permission is granted
+    if (countdownEndTime && new Date() < countdownEndTime) {
+      // Show the modal for countdown
+      setShowModal(true);
       return;
     }
 
@@ -608,59 +943,62 @@ function YourComponent() {
       return result;
     };
 
-    // Generate the order code and update the state
     const newCode = generateUniqueCode();
-    setOrderCode(newCode); // Update order code state
+    setOrderCode(newCode);
 
-    // Find and set the selected agent
     const selectedAgent = rideragents.find((agent) => agent.id === agentId);
     setSelectedAgent(selectedAgent);
-
     const selected = selectedAgent.contact;
-    // Update selected agent state
-    console.log(selected);
 
-    // Calculate end time for the countdown (10 minutes from now)
     const endTime = new Date(new Date().getTime() + 10 * 60 * 1000);
     localStorage.setItem("countdownEndTime", endTime.toISOString());
 
-    // Ensure the content uses the updated state values
-    setTimeout(() => {
-      const content = (
-        <>
-          <h2 className=" text-gradient popup-heading">Connect Request</h2>
-          <p className="popup-paragraph">
-            You have made a new connect. The agent will have 10 minutes to
-            respond. Please wait for their confirmation.
-          </p>
-          <h4 className="popup-heading">Details</h4>
-          <p className="popup-paragraph">Order Number: {newCode}</p>
-          {selectedAgent && (
-            <>
-              <p className="popup-paragraph">Agent ID: {selectedAgent.id}</p>
-              <p className="popup-paragraph">
-                Agent Full Name: {selectedAgent.name}
-              </p>
-            </>
-          )}
-          <CountdownTimer endTime={endTime} />
-        </>
-      );
+    // setTimeout(() => {
+    const content = (
+      <>
+        <h2 className=" text-gradient popup-heading">Connect Request</h2>
+        <p className="popup-paragraph">
+          You have made a new connect. The agent will have 10 minutes to
+          respond. Please wait for their confirmation.
+        </p>
+        <h4 className="popup-heading">Details</h4>
+        <p className="popup-paragraph">Order Number: {newCode}</p>
+        {selectedAgent && (
+          <>
+            <p className="popup-paragraph">Agent ID: {selectedAgent.agentId}</p>
+            <p className="popup-paragraph">
+              Agent Full Name: {selectedAgent.name}
+            </p>
+          </>
+        )}
+        <CountdownTimer
+          endTime={endTime}
+          onEnd={() => {
+            setConnecting((prevState) => ({
+              ...prevState,
+              [agentId]: "",
+            }));
+            setShowModal(false);
+          }} // Close modal when countdown ends
+        />
 
-      setModalContent(content);
-      setShowModal(true);
-    }, 0); // Ensure the state updates are reflected
+        <Link to="/agents">
+          <button className="signoutButton profileParagraph text-gradient">
+            Back to Agents
+          </button>
+        </Link>
+      </>
+    );
 
-    // setShowChatCall((prev) => ({
-    //   ...prev,
-    //   [agentId]: !prev[agentId]
-    // }));
+    setModalContent(content);
+    setShowModal(true);
+    // }, 0);
 
-    // Send a POST request to backend to trigger an email to the agent
     try {
-      const userId = userbread; // Assuming the user's ID is stored in localStorage or some other state
+      const userId = userbread;
       const agentType = "rider";
       const agentUserId = selectedAgent.fk_user_id;
+
       await axios.post(
         `${apiUrl}/api/send-connect-email`,
         {
@@ -669,40 +1007,17 @@ function YourComponent() {
           orderId: newCode,
           agentType: agentType,
           agentUserId: agentUserId,
+          latitude: latitude ? latitude : null, // Send latitude and longitude
+          longitude: longitude ? longitude : null,
+          locationM: locationM,
+          type: type,
         },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
-      console.log(`Email sent to agent with ID: ${agentId}`);
     } catch (error) {
       console.error("Error sending email:", error);
     }
   };
-
-  async function rateAgentNegative(agentId, badRating) {
-    setAgentId(agentId);
-    setAgentType("rider");
-
-    const hasVotedForAgent = localStorage.getItem(
-      `voted_${agentId}_${agentType}`
-    );
-    if (hasVotedForAgent) {
-      alert("Sorry!! You have already voted for this agent.");
-      return;
-    }
-
-    try {
-      const response = await axios.post(
-        `${apiUrl}/api/patchratingrider?agentId=${agentId}&badRating=${badRating}`
-      );
-      const updatedRating = response.data.badRating;
-
-      setBadRating(updatedRating);
-
-      localStorage.setItem(`voted_${agentId}_${agentType}`, true);
-    } catch (error) {
-      console.log(error);
-    }
-  }
 
   function createCard(agent, showChatCall, handleConnectClick) {
     const isFlipped = flippedCards[agent.id];
@@ -751,13 +1066,22 @@ function YourComponent() {
                   <hr />
                   <br />
                   <br />
-                  contact: {agent.contact}
+                  Total Connect Received : {agent.total_connect_received}
                   <hr />
                   <br />
                   <br />
-                  Location: {agent.location}
+                  Total Completed Orders : {agent.completed_orders}
                   <hr />
+                  <br />
+                  <br />
+                  Average Completed Orders :{" "}
+                  {Math.round(
+                    (agent.completed_orders / agent.total_connect_received) *
+                      100
+                  )}
+                  % Manual Location: {agent.location}
                 </p>
+                <hr />
                 <br />
                 <br />
 
@@ -793,13 +1117,6 @@ function YourComponent() {
                   </div>
                 ))}
 
-                {/*                 
-                <button className='bg-blue-gradient agent-button leave-review-button' onClick={() =>{ 
-                 setOpenPopup((prev) => ({ ...prev, [agent.id]: true }));
-                  toggleReviewForm(agent.id)}}>
-                  <BsFileEarmarkPerson className='card_icon' />
-                  Leave a review
-                </button> */}
                 <button
                   className="bg-blue-gradient agent-button leave-review-button"
                   onClick={() => {
@@ -928,7 +1245,8 @@ function YourComponent() {
                         <p className="profileInfo"> AGENT : {agent.id} </p>
                       </div>
                       <p className="profile-body">
-                        I could drive you any where you want around the school
+                        I am an electrician who can fix your home aplliances
+                        having electrical issues
                       </p>
                     </div>
                   </li>
@@ -939,13 +1257,24 @@ function YourComponent() {
                       <button
                         key={agent.id}
                         className="bg-blue-gradient roommate-button"
-                        onClick={() => handleConnectClick(agent.id)}
+                        onClick={() => {
+                          setConnecting((prevState) => ({
+                            ...prevState,
+                            [agent.id]: "connecting",
+                          }));
+                          handleConnectClick(agent.id);
+                        }}
                         disabled={
-                          countdownEndTime && new Date() < countdownEndTime
+                          (countdownEndTime && new Date() < countdownEndTime) ||
+                          connecting[agent.id] ||
+                          agent.account_balance < 100 ||
+                          agent.fk_user_id == userbread
                         } // Disable button if countdown is active
                       >
                         <BsBrowserEdge className="connect_icon" />
-                        Connect
+                        {connecting[agent.id] === "connecting"
+                          ? "Connecting..."
+                          : "Connect"}
                       </button>
                     )}
 
@@ -990,21 +1319,32 @@ function YourComponent() {
                 <button
                   type="submit"
                   className="rating-button rating-button-good"
-                  onClick={() => rateAgentPositive(agent.id, agent.good_rating)}
+                  onClick={() => rateAgentPositive(agent.id)}
                 >
                   <FaThumbsUp className="text-gradient" />
-                  <p className="text-gradient ">{agent.good_rating}</p>
+                  <p className="text-gradient ">
+                    {goodRating[agent.id] !== undefined
+                      ? goodRating[agent.id]
+                      : agent.good_rating}
+                  </p>
                 </button>
                 <button
                   className="rating-button rating-button-bad"
-                  onClick={() => rateAgentNegative(agent.id, agent.bad_rating)}
+                  onClick={() => rateAgentNegative(agent.id)}
                 >
                   <IoMdThumbsDown />
-                  <p className="">{agent.bad_rating}</p>
+                  <p className="">
+                    {badRating[agent.id] !== undefined
+                      ? badRating[agent.id]
+                      : agent.bad_rating}
+                  </p>
                 </button>
               </div>
             </div>
-            <a href="https://whatsapp.com" className="text-gradient report">
+            <a
+              href="https://whatsapp.com/2349115780014"
+              className="text-gradient report"
+            >
               Report Agent?
             </a>
           </>
@@ -1055,6 +1395,7 @@ function YourComponent() {
           </div>
         )}
       </div>
+
       <Modal
         show={showModal}
         onClose={() => {

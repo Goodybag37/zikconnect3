@@ -91,35 +91,35 @@ const Register = () => {
         <div className="logo-login">
           <img src={logo} alt="Logo" className="icon_header logo" />
         </div>
-        <h2 className="login-title text-gradient">Register</h2>
+        {/* <h2 className="login-title text-gradient">Register</h2> */}
         {error && <p className="error-message">{error}</p>}{" "}
         {/* Display error if exists */}
         <div className="input-group input-email ">
-          <BsFillPersonFill className="input-icon" />
+          {/* <BsFillPersonFill className="input-icon" /> */}
           <input
             type="text"
             id="email"
-            placeholder="Full Name(Firstname Lastname)"
+            placeholder="Full name"
             value={fullname}
             onChange={(e) => setFullname(e.target.value)}
           />
         </div>
-        <div className="input-group input-email">
-          <BsFillPersonFill className="input-icon" />
+        <div className="input-group input-email ">
+          {/* <BsFillPersonFill className="input-icon" /> */}
           <input
             type="email"
             id="email"
-            placeholder="Enter your email"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
         <div className="input-group">
-          <BsLockFill className="input-icon" />
+          {/* <BsLockFill className="input-icon" /> */}
           <input
             type="password"
             id="email"
-            placeholder="Enter your password"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />

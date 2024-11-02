@@ -1024,9 +1024,8 @@ app.get("/api/profile/", async (req, res) => {
         buysell.name AS buysell_name, 
         buysell.description AS buysell_description, 
         buysell.id AS buysell_id, 
-        courseagents.id AS courseagent_id, 
-        courseagents.course AS courseagents_course, 
-        repairagents.id AS cryptoagent_id, 
+        foodagents.id AS foodagent_id, 
+        repairagents.id AS repairagent_id, 
         cybercafeagents.id AS cybercafeagent_id, 
         deliveryagents.id AS deliveryagent_id, 
         rideragents.id AS rideragent_id, 
@@ -1041,7 +1040,7 @@ app.get("/api/profile/", async (req, res) => {
       LEFT JOIN roommates ON people.id = roommates.fk_user_id 
       LEFT JOIN lodges ON people.id = lodges.fk_user_id 
       LEFT JOIN buysell ON people.id = buysell.fk_user_id 
-      LEFT JOIN courseagents ON people.id = courseagents.fk_user_id 
+      LEFT JOIN foodagents ON people.id = foodagents.fk_user_id 
       LEFT JOIN repairagents ON people.id = repairagents.fk_user_id 
       LEFT JOIN cybercafeagents ON people.id = cybercafeagents.fk_user_id 
       LEFT JOIN deliveryagents ON people.id = deliveryagents.fk_user_id 
@@ -1579,7 +1578,7 @@ app.get("/api/lodgeapi", async (req, res) => {
         location, 
         seller_name,
         status 
-      FROM lodges
+      FROM lodge
       WHERE status IN ('available', 'order', 'unavailable')
     `;
 
@@ -1622,6 +1621,52 @@ app.get("/api/buysell/:id", async (req, res) => {
     // Query to get file metadata
     const result = await pool.query(
       "SELECT original_name, unique_name FROM buysell WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length > 0) {
+      const { original_name, unique_name } = result.rows[0];
+
+      if (!unique_name) {
+        // Return a 404 response indicating no image found for the item
+        return res.status(404).send("No image found for this item");
+      }
+
+      // Define the file path
+      const filePath = path.join(__dirname, "uploads", unique_name);
+
+      // Check if the file exists
+      if (fs.existsSync(filePath)) {
+        // Set the appropriate content type based on file extension
+        const ext = path.extname(original_name).toLowerCase();
+        let contentType = "application/octet-stream"; // Default for binary files
+
+        if (ext === ".png") contentType = "image/png";
+        else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+        else if (ext === ".webp") contentType = "image/webp";
+
+        res.setHeader("Content-Type", contentType);
+
+        // Pipe the file to the response
+        fs.createReadStream(filePath).pipe(res);
+      } else {
+        res.status(404).send("File not found");
+      }
+    } else {
+      res.status(404).send("Record not found");
+    }
+  } catch (error) {
+    console.error("Error fetching file:", error);
+    res.status(500).send("Server error");
+  }
+});
+
+app.get("/api/lodge/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    // Query to get file metadata
+    const result = await pool.query(
+      "SELECT original_name, unique_name FROM lodge WHERE id = $1",
       [id]
     );
 
@@ -1907,6 +1952,119 @@ app.post("/api/upload-property", upload.single("file"), async (req, res) => {
     // Insert into events
     const insertQuery = `
       INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `;
+    await pool.query(insertQuery, [
+      name,
+      description,
+      user,
+      price,
+      located,
+      sellerName,
+      sellerContact,
+      originalname,
+      filename,
+      propertyStatus,
+    ]);
+
+    res.send("File uploaded successfully");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("An error occurred");
+  }
+});
+
+app.post("/api/upload-lodge", upload.single("file"), async (req, res) => {
+  try {
+    let { originalname, filename, mimetype } = req.file;
+    const { name, description, user, price, located } = req.body;
+    // const fkUserId = parseInt(fk_user_id, 10);
+
+    const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+    const settingsResult = await pool.query(settingsQuery, [user]);
+    const userSettings = settingsResult.rows[0]?.settings || {};
+
+    // Extract toggle_status.buysell from settings
+    const toggleStatusLodge = userSettings?.toggle_status?.lodge || "available"; // Default to "available" if not found
+
+    // Step 2: Check the toggle status, set property status accordingly
+    let lodgeStatus = "available";
+    if (toggleStatusLodge === "unavailable") {
+      lodgeStatus = "unavailable";
+    }
+
+    if (
+      filename.endsWith(".heic") ||
+      filename.endsWith(".HEIC") ||
+      filename.endsWith(".heif") ||
+      filename.endsWith(".HEIF")
+    ) {
+      const inputPath = req.file.path;
+      const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+
+      // Convert HEIC to JPEG
+      const buffer = fs.readFileSync(inputPath);
+      const outputBuffer = await heicConvert({
+        buffer,
+        format: "JPEG",
+        quality: 1, // 1 is maximum quality
+      });
+
+      // Save the converted JPEG
+      fs.writeFileSync(outputPath, outputBuffer);
+
+      // Update filename and mimetype
+      filename = path.basename(outputPath);
+      req.file.mimetype = "image/jpeg";
+
+      // Delete the original HEIC file
+      fs.unlinkSync(inputPath);
+    } else {
+      // Optimize other formats with Sharp
+      const inputPath = req.file.path;
+      const outputPath = path.join(
+        "uploads/",
+        Date.now() + path.extname(req.file.originalname)
+      );
+
+      // Compress and optimize the image
+      await sharp(inputPath)
+        .resize({ width: 800, withoutEnlargement: true })
+        .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
+        .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
+        .toFile(outputPath);
+
+      // Update filename
+      filename = path.basename(outputPath);
+
+      // Delete the original file
+      fs.unlinkSync(inputPath);
+    }
+    // Fetch seller details
+    const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+    const sellerResult = await pool.query(sellerQuery, [user]);
+    const sellerName = sellerResult.rows[0].full_name || "Unknown";
+    const sellerContact = sellerResult.rows[0].phone || "Unknown";
+
+    await pool.query(
+      `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 300
+  WHERE 
+    id = $1;
+  `,
+      [user] // Pass user ID as parameter here
+    );
+
+    // Insert into events
+    const insertQuery = `
+      INSERT INTO lodge (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `;
     await pool.query(insertQuery, [
@@ -2223,12 +2381,16 @@ app.post(
 );
 
 app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
-  const { id } = req.params;
+  const { id, type } = req.params;
   // console.log("id", id);
   const { name, description, price, location } = req.body;
+  const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
+  if (!validTypes.includes(type)) {
+    return res.status(400).send({ error: "Invalid type parameter" });
+  }
 
   // console.log("body of data", req.body);
-  const existingData = await pool.query("SELECT * FROM buysell WHERE id = $1", [
+  const existingData = await pool.query(`SELECT * FROM ${type} WHERE id = $1`, [
     id,
   ]);
 
@@ -2293,7 +2455,7 @@ app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
 
       // Insert into buysells
       const insertQuery = `
-      UPDATE  buysell SET name = $1, description =$2, price = $3, location =$4, original_name = $5, unique_name = $6 WHERE id = $7
+      UPDATE  ${type} SET name = $1, description =$2, price = $3, location =$4, original_name = $5, unique_name = $6 WHERE id = $7
     `;
       await pool.query(insertQuery, [
         name,
@@ -2310,7 +2472,7 @@ app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
       res.send("File uploaded successfully");
     } else {
       const insertQuery = `
-      UPDATE  buysell SET name = $1, description =$2, price = $3, location =$4  WHERE id = $5
+      UPDATE  ${type} SET name = $1, description =$2, price = $3, location =$4  WHERE id = $5
     `;
       await pool.query(insertQuery, [name, description, price, location, id]);
       res.send("File uploaded successfully");
@@ -2377,7 +2539,7 @@ app.post("/api/update-status/:type", async (req, res) => {
   const { type } = req.params;
 
   try {
-    const validTypes = ["buysell", "event", "lodge"]; // Add valid table names
+    const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
     if (!validTypes.includes(type)) {
       return res.status(400).send({ error: "Invalid type parameter" });
     }
@@ -2425,32 +2587,101 @@ app.post("/api/preference-toggleask", async (req, res) => {
   }
 });
 
-app.get("/api/courseagentsapi", async (req, res) => {
+app.get("/api/foodagentsapi", async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT id, UPPER(name) AS name, course, contact, good_rating, bad_rating,  fk_user_id, contact FROM courseagents ORDER BY id DESC"
-    );
-    const courseagents = result.rows;
+    const result = await pool.query(`
+      SELECT 
+        foodagents.agent_id AS id, 
+        UPPER(foodagents.name) AS name, 
+        foodagents.contact, 
+        foodagents.location, 
+        foodagents.account_created, 
+        foodagents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        foodagents.fk_user_id,  
+        foodagents.good_rating, 
+        foodagents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        foodagents
+      LEFT JOIN 
+        reviews 
+      ON 
+        foodagents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'food'
+      LEFT JOIN 
+        agents 
+      ON 
+        foodagents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        foodagents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        foodagents.agent_id,
+        foodagents.name,
+        foodagents.contact,
+        foodagents.location,
+        foodagents.account_created,
+        foodagents.agent_date,
+        foodagents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        foodagents.good_rating,
+        foodagents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        foodagents.agent_id DESC;
+    `);
 
+    const foodagents = result.rows;
+
+    // Pagination logic
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 5;
-
     const startIndex = (page - 1) * pageSize;
     const endIndex = page * pageSize;
+    const userId = req.user; // Assuming user info comes from authentication middleware
 
-    const paginatedCourseagents = courseagents.slice(startIndex, endIndex);
-    const totalItems = courseagents.length;
+    const paginatedfoodagents = foodagents.slice(startIndex, endIndex);
+    const totalItems = foodagents.length;
     const totalPages = Math.ceil(totalItems / pageSize);
 
     res.json({
+      userId,
       page,
       pageSize,
       totalItems,
       totalPages,
-      courseagents: paginatedCourseagents,
+      foodagents: paginatedfoodagents,
     });
   } catch (error) {
     console.log(error);
+    res.status(500).json("An error occurred while fetching food agents.");
   }
 });
 
@@ -2478,7 +2709,7 @@ app.post("/api/patchrating", async (req, res) => {
 
     // Safely update the agent's rating
     const validAgentTypes = [
-      "courseagents",
+      "foodagents",
       "deliveryagents",
       "cybercafeagents",
       "repairagents",
@@ -2508,7 +2739,7 @@ app.post("/api/patchrating", async (req, res) => {
   }
 });
 
-app.post("/api/patchratingcourse", async (req, res) => {
+app.post("/api/patchratingfood", async (req, res) => {
   const agentId = req.query.agentId;
   const goodRating = parseInt(req.query.goodRating);
   const badRating = parseInt(req.query.badRating);
@@ -2517,7 +2748,7 @@ app.post("/api/patchratingcourse", async (req, res) => {
     if (!isNaN(goodRating)) {
       const newGoodRating = goodRating + 1;
       const result = await pool.query(
-        "UPDATE courseagents SET good_rating = $1 WHERE id = $2",
+        "UPDATE foodagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
       // console.log(
@@ -2527,7 +2758,7 @@ app.post("/api/patchratingcourse", async (req, res) => {
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
       const result = await pool.query(
-        "UPDATE courseagents SET bad_rating = $1 WHERE id = $2",
+        "UPDATE foodagents SET bad_rating = $1 WHERE id = $2",
         [newBadRating, agentId]
       );
       // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
@@ -4010,7 +4241,11 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
       [agentId]
     );
 
-    if (agentType == "buysell") {
+    if (
+      agentType == "buysell" ||
+      agentType == "event" ||
+      agentType == "lodge"
+    ) {
       result = await pool.query("SELECT email FROM people WHERE id = $1", [
         agentUserId,
       ]);
@@ -4049,11 +4284,15 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     //                        <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
     // <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
 
-    if (agentType == "buysell") {
+    if (
+      agentType == "buysell" ||
+      agentType == "event" ||
+      agentType == "lodge"
+    ) {
       subject = "New Order";
       text = `YOU HAVE A NEW CONNECT FROM USER ${userId}`;
       html = `<h1 style="color: #15b58e ; margin-left: 20% " >ZIKCONNECT</h1>
-                      <p style = "font-family: Times New Roman ; ">Dear User, you have a new connect with the order ID <strong>${orderId} </strong>  from a customer with user ID ${userId}. 
+                      <p style = "font-family: Times New Roman ; ">Dear Seller, you have a new connect with the order ID <strong>${orderId} </strong>  from a customer with user ID ${userId}. 
                       Please attend to them politely and offer sincere services as all connects are properly monitored.
                       <p>
                        <br></br>
@@ -5399,35 +5638,6 @@ app.get("/api/agentprofile", async (req, res) => {
     console.log(error);
     console.error("Error fetching agent profile:", error);
     res.status(500).json({ message: "Internal Server Error" });
-  }
-});
-
-app.get("/api/lodgeapi", async (req, res) => {
-  try {
-    const result = await pool.query(
-      "SELECT id, UPPER(name) AS name, location,  description,  fk_user_id, contact  FROM lodge ORDER BY id DESC"
-    );
-    const lodges = result.rows;
-
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 5;
-
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = page * pageSize;
-
-    const paginatedLodges = lodges.slice(startIndex, endIndex);
-    const totalItems = lodges.length;
-    const totalPages = Math.ceil(totalItems / pageSize);
-
-    res.json({
-      page,
-      pageSize,
-      totalItems,
-      totalPages,
-      lodges: paginatedLodges,
-    });
-  } catch (error) {
-    console.log(error);
   }
 });
 
