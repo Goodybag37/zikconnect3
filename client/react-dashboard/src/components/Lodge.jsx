@@ -33,7 +33,7 @@ import {
   BsArchiveFill,
 } from "react-icons/bs";
 
-// const socket = io("${apiUrl}/api");
+// const socket = io("${apiUrls}/api");
 
 function YourComponent() {
   const [lodges, setlodges] = useState([]);
@@ -135,7 +135,7 @@ function YourComponent() {
 
   const fetchData = async (page, searchQuery) => {
     try {
-      const response = await axios.get(`${apiUrl}/api/lodgeapi`, {
+      const response = await axios.get(`${apiUrls}/api/lodgeapi`, {
         params: {
           page: page + 1,
           pageSize: usersPerPage,
@@ -165,7 +165,7 @@ function YourComponent() {
 
         // Send a POST request to update the status in the database
         await axios.post(
-          `${apiUrl}/api/preference-toggleask/`,
+          `${apiUrls}/api/preference-toggleask/`,
           {
             userId: userbread,
             // or any other identifier if needed
@@ -185,7 +185,7 @@ function YourComponent() {
   const fetchSettingStatus = async (userId) => {
     try {
       // Ensure the API endpoint is correct and accessible
-      const response = await axios.get(`${apiUrl}/api/get-status/${userId}`);
+      const response = await axios.get(`${apiUrls}/api/get-status/${userId}`);
 
       // Make sure the data structure matches
       const settings = response.data;
@@ -230,7 +230,7 @@ function YourComponent() {
 
       // Send a POST request to update the status in the database
       await axios.post(
-        `${apiUrl}/api/update-status/${type}`,
+        `${apiUrls}/api/update-status/${type}`,
         {
           status: newStatus,
           userId: userbread,
@@ -284,7 +284,7 @@ function YourComponent() {
 
     try {
       const response = await axios.get(
-        `${apiUrl}/api/get-account-balance?userId=${userbread}`
+        `${apiUrls}/api/get-account-balance?userId=${userbread}`
       );
 
       const accountBalance = response.data.account_balance;
@@ -326,7 +326,7 @@ function YourComponent() {
     }
 
     const response = await axios.get(
-      `${apiUrl}/api/connect-lodge?itemId=${itemId}`
+      `${apiUrls}/api/connect-lodge?itemId=${itemId}`
     );
 
     const connectStatus = response.data.status;
@@ -369,7 +369,7 @@ function YourComponent() {
       if (locationM === undefined || locationM === null) {
         try {
           const response = await axios.get(
-            `${apiUrl}/api/get-distance?itemId=${agentId}&latitude=${latitude}&longitude=${longitude}`
+            `${apiUrls}/api/get-distance?itemId=${agentId}&latitude=${latitude}&longitude=${longitude}`
           );
           distance = response.data.distance;
           duration = response.data.duration;
@@ -517,7 +517,7 @@ function YourComponent() {
         const agentUserId = selectedAgent.fk_user_id;
 
         await axios.post(
-          `${apiUrl}/api/send-connect-email`,
+          `${apiUrls}/api/send-connect-email`,
           {
             agentId: itemId,
             userId: userId,
@@ -704,7 +704,7 @@ function YourComponent() {
 
     //   // Send connection request to backend
     //   await axios.post(
-    //     `${apiUrl}/api/connectlodge`,
+    //     `${apiUrls}/api/connectlodge`,
     //     { itemId },
     //     { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     //   );
@@ -728,7 +728,7 @@ function YourComponent() {
 
   const handleShowPicture = async (itemId) => {
     try {
-      const response = await axios.get(`${apiUrl}/api/lodge/${itemId}`, {
+      const response = await axios.get(`${apiUrls}/api/lodge/${itemId}`, {
         responseType: "blob", // Important: Fetch the image as a Blob
         validateStatus: (status) => status < 500,
       });
@@ -843,7 +843,7 @@ function YourComponent() {
     );
 
     try {
-      await axios.post(`${apiUrl}/api/delete-upload/${itemToDelete}`, {
+      await axios.post(`${apiUrls}/api/delete-upload/${itemToDelete}`, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
     } catch (error) {
@@ -875,7 +875,7 @@ function YourComponent() {
 
       // Send the FormData to the server using a PUT request
       await axios.put(
-        `${apiUrl}/api/edit-upload/${itemId}&type=${type}`,
+        `${apiUrls}/api/edit-upload/${itemId}&type=${type}`,
         formData
 
         // Send FormData instead of JSON
@@ -1182,7 +1182,7 @@ function YourComponent() {
         <Link to="/uploadproperty">
           <button className="agent-button">
             <BsFileEarmarkPerson className="card_icon" />
-            Upload Property
+            Upload Lodge
           </button>
         </Link>
 

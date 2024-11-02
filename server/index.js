@@ -120,141 +120,21 @@ app.use((req, res, next) => {
   }
 });
 
-// io.on("connection", (socket) => {
-//   console.log("A user connected:", socket.id);
-
-//   // Emit message to client
-//   socket.emit("message", "hello");
-
-//   socket.on("joinRoom", (userId) => {
-//     socket.join(userId);
-//     console.log(`User with ID ${userId} joined room ${userId}`);
-//   });
-
-//   socket.on("disconnect", () => {
-//     console.log("User disconnected:", socket.id);
-//   });
-// });
-
-// const notifyNewMessages = async (userId) => {
-//   try {
-//     // Fetch the new messages for the user
-//     const result = await pool.query(
-//       "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
-//       [userId]
-//     );
-
-//     // Get unread message count for the user
-//     const unreadResult = await pool.query(
-//       `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
-//       [userId, "unread"]
-//     );
-//     const unreadCount = unreadResult.rows[0].unread_count;
-
-//     // Emit the new messages to the user in their room
-//     io.to(userId).emit("newMessages", {
-//       messages: result.rows,
-//       unreadCount: unreadCount,
-//     });
-
-//     console.log(`Notifying user ${userId} about new message`);
-//   } catch (error) {
-//     console.error("Error in messageCreated:", error);
-//   }
-// };
-
-// const userSockets = {};
-
-// io.on("connection", (socket) => {
-//   console.log("A user connected:", socket.id);
-
-//   // When the user joins a room based on their userId
-//   socket.on("joinRoom", async (userId) => {
-//     userSockets[userId] = socket;
-//     socket.join(userId); // Join room with userId
-//     socket.userId = userId; // Store userId in socket for later reference// Join the room with the userId
-//     console.log(`User with ID ${userId} joined room ${userId}`);
-
-//     // Notify the user of any unread messages when they join
-//     await notifyNewMessages(userId);
-//   });
-
-//   // When a new message is created, notify the user
-//   socket.on("newMessageCreated", async (messageData) => {
-//     const { userId } = messageData; // Assuming the message data includes userId
-//     console.log(`New message created for user ${userId}`);
-
-//     // Call the notify function to notify the user of new messages
-//     await notifyNewMessages(userId);
-//   });
-
-//   // Listen for disconnection
-//   socket.on("disconnect", () => {
-//     console.log("User disconnected:", socket.id);
-//     // Optionally: Clean up or manage user-related data on disconnect
-//   });
-// });
-
-// // io.on("connection", (socket) => {
-// //   console.log("A user connected:", socket.id);
-
-// //   // Register user and join room
-// //   socket.on("register", (userId) => {
-// //     userSockets[userId] = socket;
-// //     socket.join(userId); // Join room with userId
-// //     socket.userId = userId; // Store userId in socket for later reference
-// //   });
-
-// //   socket.on("disconnect", () => {
-// //     // Clean up when the user disconnects
-// //     delete userSockets[socket.userId];
-// //   });
-// // });
-
-// // The notifyNewMessages function that sends new message notifications
-// const notifyNewMessages = async (userId) => {
-//   try {
-//     // Fetch the new messages for the user
-//     const result = await pool.query(
-//       "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
-//       [userId]
-//     );
-
-//     console.log("result is", result.rows[0]);
-
-//     // Get unread message count for the user
-
-//     const unreadResult = await pool.query(
-//       `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
-//       [userId, "unread"]
-//     );
-//     const unreadCount = unreadResult.rows[0].unread_count;
-
-//     // Emit the new messages to the user in their room
-//     io.to(userId).emit("newMessages", {
-//       messages: result.rows[0],
-//       unreadCount: unreadCount,
-//     });
-
-//     console.log(
-//       `Notifying user ${userId} about new messages ${result.rows[0]}`
-//     );
-//   } catch (error) {
-//     console.error("Error in notifyNewMessages:", error);
-//   }
-// };
-
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 
+const baseUrl =
+  process.env.NODE_ENV === "production"
+    ? "http://http://13.60.206.210"
+    : "http://localhost:4000"; // Change this to your React app's URL in production
+
 app.post("/paystack/initialize", cors(), (req, res) => {
-  console.log("Request body:", req.body);
   const { email, amount } = req.body;
 
   const params = JSON.stringify({
     email,
     amount: amount * 100, // Convert to kobo
-    callback_url: "http://localhost:3000/verifypayment",
+    callback_url: `${baseUrl}/verifypayment`,
   });
 
   const options = {
@@ -333,7 +213,6 @@ app.get("/api/get-pending-payment", cors(), async (req, res) => {
 
 app.get("/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
-  console.log("reference was made here", reference);
 
   const transactionCheck = await pool.query(
     "SELECT status FROM transactions WHERE reference = $1",
@@ -344,7 +223,6 @@ app.get("/paystack/verify/:reference", cors(), async (req, res) => {
     transactionCheck.rows.length > 0 &&
     transactionCheck.rows[0].status === "success"
   ) {
-    console.log("Transaction already processed:", reference);
     return res
       .status(200)
       .json({ success: true, message: "Transaction already processed." });
@@ -369,12 +247,10 @@ app.get("/paystack/verify/:reference", cors(), async (req, res) => {
 
     paystackRes.on("end", async () => {
       const response = JSON.parse(data);
-      console.log("Response data: ", response);
 
       if (response.status && response.data.status === "success") {
         const { amount, customer } = response.data;
         const email = customer.email;
-        console.log("amount gotten is ", email, amount);
 
         try {
           // Update transaction status in the database
@@ -452,91 +328,11 @@ app.get("/paystack/verify/:reference", cors(), async (req, res) => {
   paystackReq.end();
 });
 
-// app.post("/api/paystack-webhook", async (req, res) => {
-//   const { event, data } = req.body;
-
-//   if (event === "charge.success" && data.status === "success") {
-//     const reference = data.reference;
-//     console.log("webhook", reference);
-
-//     try {
-//       const response = await pool.query(
-//         "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2 RETURNING *",
-//         ["success", reference]
-//       );
-
-//       const updatedReference = response.rows[0];
-//       res.sendStatus(200);
-
-//       // Update the user's account balance
-//       await pool.query(
-//         `
-//         UPDATE people
-//         SET
-//           account_balance = account_balance + $1,
-//           settings = jsonb_set(
-//             settings, -- JSONB column to update
-//             '{account_balance}', -- JSONB key path
-//             to_jsonb(account_balance + $1), -- Update the JSONB field to reflect the new balance
-//             true -- Create the key if it doesn't exist
-//           )
-//         WHERE email = $2;
-//         `,
-//         [updatedReference.amount / 100, updatedReference.email] // Paystack returns amount in kobo, divide by 100 for naira
-//       );
-
-//       const subject = "Payment Successfull!! ";
-//       const text = `SUCCESS`;
-//       const html = `<h1 style="color: #15b58e ; margin-left: 20% " >SUCCESS  &#x1F389;</h1>
-//                       <strong><p style = "font-family: Times New Roman ; ">Dear User  you have successfully funded you zikconnect account with <strong style = " color: #15b58e ">${
-//                         updatedReference.amount / 100
-//                       } connects </strong> please use it carefully and avoid abuse on the site, <br />
-//                       We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students.
-//                       This is a platform carefully designed to enhance our student lives so help us achieve our desired goal.
-//                       </p>`;
-
-//       const mailOptions = {
-//         from: "admin@zikconnect.com", // Sender address
-//         // to: email,
-//         // Recipient's email address
-//         to: "edithobiukwu012@gmail.com",
-//         subject: subject, // Subject line
-//         text: text, // Plain text body
-//         html: html, // HTML body
-//       };
-
-//       // Send email
-//       const info = await transporter.sendMail(mailOptions);
-//       // Insert the new user
-
-//       // res.json({ success: true, message: "Payment verified successfully" });
-//     } catch (error) {
-//       console.error("Error updating account balance:", error);
-//       res.status(500).json({
-//         success: false,
-//         message: "Failed to update account balance",
-//       });
-//     }
-
-//     // Update your database to mark this payment as successful
-//     // E.g., find the order by `reference` and update its status to "completed"
-//     try {
-//       await updatePaymentStatus(reference, "success"); // This is your database function
-//       res.sendStatus(200); // Responding with 200 OK acknowledges receipt to Paystack
-//     } catch (error) {
-//       res.sendStatus(500); // If there's a server error, you can handle it here
-//     }
-//   } else {
-//     res.sendStatus(400); // For unrecognized events
-//   }
-// });
-
 app.post("/api/paystack-webhook", async (req, res) => {
   const { event, data } = req.body;
 
   if (event === "charge.success" && data.status === "success") {
     const reference = data.reference;
-    console.log("webhook", reference);
 
     const transactionCheck = await pool.query(
       "SELECT status FROM transactions WHERE reference = $1",
@@ -547,28 +343,12 @@ app.post("/api/paystack-webhook", async (req, res) => {
       transactionCheck.rows.length > 0 &&
       transactionCheck.rows[0].status === "success"
     ) {
-      console.log("Transaction already processed:", reference);
       return res
         .status(200)
         .json({ success: true, message: "Transaction already processed." });
     }
 
     try {
-      // Check if the transaction has already been marked as successful
-      // const transactionCheck = await pool.query(
-      //   "SELECT status FROM transactions WHERE reference = $1",
-      //   [reference]
-      // );
-
-      // if (
-      //   transactionCheck.rows.length > 0 &&
-      //   transactionCheck.rows[0].status === "success"
-      // ) {
-      //   console.log("Transaction already processed:", reference);
-      //   return res.sendStatus(200); // Respond with 200 OK without further processing
-      // }
-
-      // Update transaction status to prevent double processing
       const response = await pool.query(
         "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2 RETURNING *",
         ["success", reference]
@@ -644,7 +424,6 @@ const redisClient = Redis.createClient({
 });
 
 myQueue.process(async (job) => {
-  console.log("Processing job:", job.data);
   const { agentId } = job.data;
 
   try {
@@ -652,43 +431,15 @@ myQueue.process(async (job) => {
       "available",
       agentId,
     ]);
-    console.log("Status updated to available for item:", agentId);
-
-    // io.emit("statusUpdate", {
-    //   itemId,
-    //   status: "available",
-    // });
   } catch (error) {
     console.error("Error updating status in delayed job:", error);
   }
 });
 
-// io.on("connection", (socket) => {
-//   console.log("a user connected");
-
-//   // When the connect button is clicked, update the status and notify other clients
-//   socket.on("connectItem", (itemId) => {
-//     itemStatus[itemId] = "in order";
-
-//     // Broadcast the update to all clients
-//     io.emit("statusUpdate", { itemId, status: "in order" });
-//   });
-
-//   socket.on("disconnect", () => {
-//     console.log("user disconnected");
-//   });
-// });
-
-// app.use(
-//   cors({
-//     origin: "https://zikconnect-36adf65e1cf3.herokuapp.com", // Replace with your actual frontend URL
-//   })
-// );
-
 app.use(
   cors({
     origin: [
-      "http://localhost:3000", // React local frontend
+      `${baseUrl}`, // React local frontend
       "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
     ],
     credentials: true,
@@ -769,7 +520,7 @@ passport.use(
     {
       clientID: process.env.CLIENT_ID,
       clientSecret: process.env.CLIENT_SECRET,
-      callbackURL: "http://localhost:3000/agents",
+      callbackURL: `${baseUrl}/agents`,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -788,7 +539,7 @@ app.get(
   function (req, res) {
     // Successful authentication, redirect to the app with token.
     const token = req.user.token; // Assuming you attach token to the user object
-    res.redirect(`http://localhost:3000?token=${token}`);
+    res.redirect(` ${baseUrl}?token=${token}`);
   }
 );
 
@@ -832,14 +583,6 @@ cron.schedule("* * * * *", async () => {
       DELETE FROM connect
       WHERE request_time < NOW() - INTERVAL '10 minutes' AND status = 'pending'
     `);
-
-    // Get settings from all people
-    // const result = await pool.query(`SELECT id, settings FROM people  `);
-
-    // if (result.rows.length === 0) {
-    //   console.log("No people found to update.");
-    //   return;
-    // }
   } catch (error) {
     console.error("Error processing cron job:", error);
   }
@@ -858,32 +601,11 @@ cron.schedule("* * * * *", async () => {
          RETURNING *`
     );
     if (result.rows.length > 0) {
-      console.log("Updated connect statuses to completed:", result.rows);
     }
   } catch (error) {
     console.error("Error updating connect statuses:", error);
   }
 });
-
-// cron.schedule('* * * * *', async () => {
-//   try {
-
-//     const result = await pool.query(
-//       `UPDATE connect
-//       SET status = 'closed',
-//          request_time = CURRENT_TIMESTAMP
-//        WHERE status = 'completed'
-//        AND request_time IS NOT NULL
-//        AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '5 minutes'
-//        RETURNING *`
-//     );
-//     if (result.rows.length > 0) {
-//       console.log('Updated connect statuses to completed:', result.rows);
-//     }
-//   } catch (error) {
-//     console.error('Error updating connect statuses:', error);
-//   }
-// });
 
 passport.use(
   new JwtStrategy(jwtOptions, async (jwtPayload, done) => {
@@ -1076,7 +798,6 @@ app.post("/api/log", cors(), async (req, res, next) => {
     );
     const foundMail = result.rows[0];
     let status = foundMail.email_status === "verified" ? true : false;
-    console.log(status);
 
     if (foundMail) {
       const hashedPassword = foundMail.password;
@@ -1169,85 +890,8 @@ app.post("/login", async (req, res, next) => {
   }
 });
 
-// app.post("/api/register", async (req, res) => {
-//   const { email, password, fullname } = req.body;
-
-//   try {
-//     // Check if the email already exists in the database
-//     const result = await pool.query("SELECT email FROM people WHERE email=$1", [
-//       email,
-//     ]);
-//     const existingUser = result.rows[0];
-
-//     if (existingUser) {
-//       // User already exists
-//       return res
-//         .status(400)
-//         .json({ message: "Email already registered. Please log in." });
-//     }
-
-//     const capitalizedFullName = fullname
-//       .split(" ") // Split by space
-//       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) // Capitalize the first letter of each word
-//       .join(" "); // Join the words back together
-
-//     // Hash the password before storing it
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     // Insert the new user into the database
-//     // await pool.query(
-//     //   "INSERT INTO people (email, password, full_name) VALUES ($1, $2,)",
-//     //   [email, hashedPassword, capitalizedFullName]
-//     // );
-
-//     await pool.query(
-//       `INSERT INTO people (email, password, full_name, settings)
-//    VALUES ($1, $2, $3, $4)`,
-//       [
-//         email,
-//         hashedPassword,
-//         capitalizedFullName,
-//         JSON.stringify({
-//           theme: "dark",
-//           connects: {
-//             buysell: 0,
-//           },
-//           preferences: {
-//             delete_ask: "yes",
-//             toggle_ask: "No",
-//           },
-//           notifications: true,
-//           toggle_status: {
-//             buysell: "unavailable",
-//           },
-//           "Totl Connect Made": 0,
-//           "Totl Connect Received": 0,
-//           "Completed Orders": 0,
-//           "Avg Completed Orders": 0,
-//           account_balance: 2000,
-//         }),
-//       ]
-//     );
-
-//     // Registration successful
-//     return res
-//       .status(201)
-//       .json({ message: "Registration successful. You can now log in." });
-//   } catch (error) {
-//     console.error("Error during registration:", error);
-//     return res.status(500).json({ message: "Internal Server Error" });
-//   }
-// });
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // To support URL-encoded bodies
-
-// const getClientIp = (req) => {
-//   // Log the request headers for debugging
-//   console.log("Request Headers:", req.headers);
-//   const forwarded =
-//     req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-//   return forwarded ? forwarded.split(",")[0] : req.connection.remoteAddress;
-// };
 
 const getClientIp = (req) => {
   const xForwardedFor = req.headers["x-forwarded-for"];
@@ -1295,13 +939,12 @@ app.post("/api/register", async (req, res) => {
 
   try {
     const ip2 = req.ip;
-    console.log("User IP2:", ip2);
+
     const ip = getClientIp(req);
-    console.log("User IP:", ip);
 
     // Fetch user's location based on the IP address
     const locationData = await getUserLocation(ip);
-    console.log("User is located at:", locationData);
+
     // Check if the email already exists in the database
     const result = await pool.query("SELECT email FROM people WHERE email=$1", [
       email,
@@ -1389,9 +1032,8 @@ app.post("/api/register", async (req, res) => {
       [email]
     );
     const newUser = userResult.rows[0];
-    console.log("new user is", newUser);
+
     let status = newUser.email_status === "verified" ? true : false;
-    console.log(status);
 
     // Registration successful, return user data to frontend
     res.status(200).json({
@@ -2274,10 +1916,6 @@ app.post(
           const outputFilename = `${Date.now()}-${uuidv4()}.jpeg`;
           const outputPath = path.join("uploads/", outputFilename);
 
-          // console.log(
-          //   `Converting HEIC/HEIF file to JPEG: ${filePath} -> ${outputPath}`
-          // );
-
           // Convert HEIC/HEIF to JPEG
           const buffer = fs.readFileSync(filePath);
           const outputBuffer = await heicConvert({
@@ -2687,8 +2325,6 @@ app.get("/api/foodagentsapi", async (req, res) => {
 
 app.post("/api/patchrating", async (req, res) => {
   const { agentId, userId, rateType, agentType } = req.body;
-
-  console.log("request is ", req.body);
 
   try {
     // Check if user already rated the agent
@@ -3141,9 +2777,7 @@ app.post("/api/patchratingdelivery", async (req, res) => {
         "UPDATE deliveryagents SET good_rating = $1 WHERE id = $2",
         [newGoodRating, agentId]
       );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
+
       res.sendStatus(200);
     } else if (!isNaN(badRating)) {
       const newBadRating = badRating + 1;
@@ -3525,7 +3159,6 @@ ORDER BY
 app.post("/api/submitreview", async (req, res) => {
   try {
     const { type, agentType, userid, agentId, review } = req.body;
-    console.log("Received data:", { type, agentType, userid, agentId, review });
 
     const checkResult = await pool.query(
       "SELECT type, agent_type, user_id, agent_id, text FROM reviews WHERE user_id=$1 AND agent_id = $2",
@@ -3750,26 +3383,6 @@ app.post("/api/become-agent", async (req, res) => {
       .json({ message: "Failed to send emails", error: error.message });
   }
 });
-// app.post("/api/send-verification-email", cors(), async (req, res) => {
-//   const { email, code } = req.body;
-//   const subject = "Verify Email";
-//   const text = `You created a zikconnect account, please use this code to verify your email ${code}`;
-//   const html = `<h1>ZIKCONNECT</h1>
-//                 <p>Dear user, you have successfullly created an account on Zikconnect. Use this code to verify your email ${code}. Please do not share this code with anyone
-//                 <br><strong>Congrats!!</strong>
-//                 </p>`;
-
-//   // Email options for the user
-//   const mailOptions = {
-//     from: "admin@zikconnect.com", // Sender's address
-//     to: email, // User's email
-//     subject: subject, // Subject line
-//     text: text, // Plain text body
-//     html: html, // HTML body
-//   };
-
-//   const info = await transporter.sendMail(mailOptions);
-// });
 
 async function getPlaceName(longitude, latitude) {
   try {
@@ -3789,78 +3402,9 @@ async function getPlaceName(longitude, latitude) {
     console.error("Error fetching geolocation:", error);
   }
 }
-// app.get("/api/get-distance", cors(), async (req, res) => {
-//   const { itemId, latitude, longitude } = req.query;
-
-//   console.log("something near this side", req.query);
-
-//   try {
-//     const response = await axios.get(
-//       `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-//     );
-
-//     if (
-//       !response ||
-//       !response.data ||
-//       !response.data.lat ||
-//       !response.data.lon
-//     ) {
-//       throw new Error(
-//         "Failed to retrieve location data from OpenStreetMap API"
-//       );
-//     }
-
-//     const { lat, lon, display_name } = response.data;
-//     const agentLocation = await pool.query(
-//       `SELECT exact_location FROM buysell WHERE id = $1`,
-//       [itemId]
-//     );
-
-//     if (agentLocation.rows.length === 0) {
-//       throw new Error("Agent location not found in the database");
-//     }
-
-//     const agentLatitude =
-//       agentLocation.rows[0]?.exact_location?.locationData?.lat ?? 0;
-//     const agentLongitude =
-//       agentLocation.rows[0]?.exact_location?.locationData?.lon ?? 0;
-
-//     const agentDisplayName =
-//       agentLocation.rows[0]?.exact_location?.locationData?.display_name ?? null;
-
-//     if (agentLatitude === 0 || agentLongitude === 0) {
-//       throw new Error("Agent latitude or longitude is invalid");
-//     }
-
-//     const locationData = { lat, lon, display_name };
-
-//     const start = [lon, lat]; // Start point from OpenStreetMap response
-//     const end = [agentLongitude, agentLatitude]; // End point from database
-
-//     if (!start || !end) {
-//       throw new Error("Start or end points for location are missing");
-//     }
-
-//     const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?access_token=${MAPBOX_API_TOKEN}&geometries=geojson`;
-//     const response2 = await axios.get(url);
-//     const route = response2.data.routes[0];
-//     const distance = Math.round(route.distance / 1000);
-//     const duration = Math.round(route.duration / 60);
-
-//     res.json({
-//       distance: distance,
-//       duration: duration,
-//       display_name: agentDisplayName,
-//     });
-//   } catch (error) {
-//     console.error(error);
-//   }
-// });
 
 app.get("/api/get-distance", cors(), async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
-
-  console.log("something near this side", req.query);
 
   try {
     let locationData = { lat: null, lon: null, display_name: null };
@@ -3949,7 +3493,7 @@ app.get("/api/get-account-balance", cors(), async (req, res) => {
     }
 
     const accountBalance = result.rows[0].account_balance;
-    console.log("account balance is", accountBalance);
+
     res.json({ account_balance: accountBalance });
   } catch (error) {
     console.error("Error in /api/get-account-balance:", error.message);
@@ -3982,39 +3526,14 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     });
   }
 
-  console.log("agent is", agentId);
   const message = "connect request";
   const agent = agentType + "agents";
   let locationData = {};
   let distance = null;
   let duration = null;
   let updatedItem = {};
-  console.log("ocation is", locationM);
 
   if (latitude) {
-    // const response = await getPlaceName(longitude, latitude);
-    // console.log("Returned Place Name:", response);
-
-    // locationData = { latitude, longitude, response, type };
-
-    // const response = await axios.get(
-    //   `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-    // );
-    // const agentLocation = await pool.query(
-    //   `SELECT exact_location FROM agents WHERE agent_id = $1`,
-    //   [agentId]
-    // );
-
-    // // Assuming exact_location is a JSONB object with latitude and longitude fields
-    // const agentLatitude = agentLocation.rows[0].exact_location.locationData.lat;
-    // const agentLongitude =
-    //   agentLocation.rows[0].exact_location.locationData.lon;
-
-    // const { lat, lon, display_name } = response.data;
-    // locationData = { lat, lon, display_name, type };
-    // const start = [lon, lat]; // Example: White House in Washington, DC
-    // const end = [agentLongitude, agentLatitude];
-
     const response = await axios.get(
       `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
     );
@@ -4096,9 +3615,6 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     };
   }
 
-  // console.log(userId);
-  // console.log(agentId);
-  // console.log(orderId);
   const requestTime = new Date(); // Current time
 
   try {
@@ -4221,10 +3737,6 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
     );
 
     const updatedMessage = updatedMessageResponse.rows[0]; // This will include phone and full name
-
-    //  fully updated message
-    // console.log(updatedMessage);
-    // io.emit("newMessage", updatedMessage); // Emit the fully updated message
 
     setTimeout(async () => {
       await pool.query(
@@ -4491,7 +4003,6 @@ app.post("/api/respond-to-connect", async (req, res) => {
 
 app.get("/api/check-pending-connects", async (req, res) => {
   const { userId, type } = req.query;
-  console.log("user is", userId);
 
   // console.log(userId);
   if (!userId) {
@@ -4673,7 +4184,6 @@ app.get("/api/respond-to-agent", async (req, res) => {
   const locationData = JSON.parse(decodeURIComponent(req.query.locationData));
 
   // Debug logs
-  console.log(user, status);
 
   try {
     const tokenData = await pool.query(
@@ -4814,7 +4324,7 @@ We are sorry for any inconvenience caused. you still have access to our other se
 
 app.post("/api/confirm-connect", async (req, res) => {
   const { messageId, orderId } = req.body; // Correctly extracting order_id from the request body
-  // console.log(orderId);
+
   try {
     const resultT = await pool.query(
       "SELECT request_time FROM connect WHERE order_id = $1",
@@ -4845,36 +4355,26 @@ app.post("/api/confirm-connect", async (req, res) => {
     const userId = updatedMessage.rows[0].user_id;
     const senderId = updatedMessage.rows[0].sender_id;
 
-    console.log("Sender Phone:", senderPhone);
-    console.log("User ID:", userId);
-    console.log("Sender ID:", senderId);
-
     const result2 = await pool.query(
       `SELECT phone, email FROM people WHERE id = $1`,
       [senderId]
     );
 
-    console.log("Result 2:", result2.rows);
     const result3 = await pool.query(
       `SELECT phone, email  FROM people WHERE id = $1`,
       [userId]
     );
-    console.log("Result 3:", result3.rows);
+
     const result4 = await pool.query(
       `SELECT contact FROM agents WHERE user_id = $1`,
       [userId]
     );
-    console.log("Result 4:", result4.rows);
+
     const email = result2.rows[0].email;
     const email2 = result3.rows[0].email;
 
     const agentPhone = result3.rows[0].phone;
     const agentWhatsapp = result4.rows[0].contact;
-
-    console.log("Email:", email);
-    console.log("Email 2:", email2);
-    console.log("Agent Phone:", agentPhone);
-    console.log("Agent Whatsapp:", agentWhatsapp);
 
     const subject = "Connect Accepted";
     const text = `Your Connect has been accepted`;
@@ -5176,7 +4676,6 @@ app.get("/api/connect-buysell", async (req, res) => {
     // Extract and send only the status value
     const status = result.rows[0].status;
     res.json({ status });
-    console.log("Response for connect is:", { status });
   } catch (error) {
     console.error("Error retrieving data:", error);
     res.status(500).json({ message: "Server error" });
@@ -5228,7 +4727,6 @@ app.post("/api/send-verification-email", async (req, res) => {
 
   // Generate a 6-digit verification code
   const verificationCode = generateVerificationCode();
-  console.log(verificationCode);
 
   try {
     const subject = "Verify Email";
@@ -5265,45 +4763,6 @@ app.post("/api/send-verification-email", async (req, res) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    //     const subject = "Verify Email";
-    //     const text = `You created a Zikconnect account, please use this code to verify your email: ${verificationCode}`;
-    //     const html = `<table cellpadding="0" cellspacing="0" width="100%">
-    //   <tr>
-    //     <td>
-    //       <!-- Header with logo -->
-    //       <table align="center" cellpadding="0" cellspacing="0" width="600">
-    //         <tr>
-    //           <td align="center">
-    //             <img src="https://yourdomain.com/logo.png" alt="Logo" style="display: block; width: 150px;">
-    //             <h1 style="color:blue; ">ZIKCONNECT</h1>
-    //           </td>
-    //         </tr>
-    //         <!-- Main content -->
-    //         <tr>
-    //           <td style="padding: 40px 30px 40px 30px;">
-    //             <h1 style="font-family: Arial, sans-serif; color:blue">Welcome!</h1>
-    //             <p style="font-family: Arial, sans-serif;">We're excited to have you on board. here is your verification code <strong style="color: blue">${verificationCode}</strong </p>
-
-    //           </td>
-    //         </tr>
-    //       </table>
-    //     </td>
-    //   </tr>
-    // </table>
-    // `;
-
-    //     // Email options for the user
-    //     const mailOptions = {
-    //       from: "admin@zikconnect.com", // Sender's address
-    //       to: emailbread, // User's email
-    //       subject: subject, // Subject line
-    //       text: text, // Plain text body
-    //       html: html, // HTML body
-    //     };
-
-    //     // Send email
-    //     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully:", info.messageId);
 
     // Store the verification code in the database
     await pool.query(
@@ -5398,8 +4857,6 @@ app.post("/api/send-verification-code", async (req, res) => {
   // Generate a 6-digit verification code
   const verificationCode = generateVerificationCode();
 
-  console.log(verificationCode);
-
   // SEND SMS
 
   try {
@@ -5419,7 +4876,6 @@ app.post("/api/send-verification-code", async (req, res) => {
             api_key: apiKey,
           }
         );
-        console.log("OTP sent successfully:", response.data);
       } catch (error) {
         console.error("Error sending OTP:", error);
       }
@@ -5427,12 +4883,6 @@ app.post("/api/send-verification-code", async (req, res) => {
 
     // Usage
     sendOTP(phoneNumber);
-    // Send the verification code via SMS using Textbelt
-    // const response = await axios.post("https://textbelt.com/text", {
-    //   phone: phoneNumber,
-    //   message: `Your verification code is: ${verificationCode}`,
-    //   key: "textbelt", // Replace with your Textbelt API key
-    // });
 
     if (verificationCode) {
       // Successfully sent the SMS, return a success message
@@ -5497,36 +4947,6 @@ app.post("/api/verify-phone", async (req, res) => {
   }
 });
 
-// app.get("/api/messages", async (req, res) => {
-//   const { userbread } = req.query;
-
-//   try {
-//     const result = await pool.query(
-//       "SELECT    FROM messages WHERE user_id = $1 ORDER BY timestamp DESC ",
-//       [userbread]
-//     );
-
-//     const status = "unread";
-
-//     const result2 = await pool.query(
-//       `SELECT status from  messages where user_id = $1 AND status =$2`,
-//       [userbread, status]
-//     );
-
-//     const response = result.rows;
-//     const unread = result2.rows;
-//     const length = unread.length;
-//     console.log("length is", length);
-
-//     if (response.length > 0) {
-//       res.json(response,);
-//     } else {
-//       // If no message  is not found, send an empty array
-//       res.json([]);
-//     }
-//   } catch (error) {}
-// });
-
 app.get("api/profile-header", async (req, res) => {
   const { userbread } = req.query;
 
@@ -5582,36 +5002,6 @@ app.get("/api/messages", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
-// try {
-//   // Query to get all messages for the user
-//   const result = await pool.query(
-//     "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
-//     [userbread]
-//   );
-
-//   // Get unread messages count for the user
-//   const status = "unread";
-//   const result2 = await pool.query(
-//     `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
-//     [userbread, status]
-//   );
-
-//   const response = result.rows; // All messages for the user
-//   const unreadCount = result2.rows[0].unread_count; // Unread messages count
-
-//   // If there are messages, return them along with unread count
-//   if (response.length > 0) {
-//     res.json({ messages: response, unreadCount: unreadCount });
-//   } else {
-//     // If no messages are found, return an empty array
-//     res.json({ messages: [], unreadCount: unreadCount });
-//   }
-// } catch (error) {
-//   console.error("Error fetching messages:", error);
-//   res.status(500).send("Internal Server Error");
-//   // }
-// });
 
 app.get("/api/agentprofile", async (req, res) => {
   const { userId, type } = req.query;

@@ -120,7 +120,7 @@ function UploadProperty() {
     try {
       // Check account balance
       const balanceResponse = await axios.get(
-        `${apiUrl}/api/get-account-balance?userId=${userbread}`
+        `${apiUrls}/api/get-account-balance?userId=${userbread}`
       );
       const accountBalance = balanceResponse.data.account_balance;
 
@@ -221,7 +221,7 @@ function UploadProperty() {
         <div className="logo-login">
           <img src={logo} alt="Logo" className="icon_header logo" />
         </div>
-        <h2 className="login-title text-gradient">Upload Property</h2>
+        {/* <h2 className="login-title text-gradient">Upload Property</h2> */}
         {error && <p className="error-message">{error}</p>}
 
         <div className="input-group input-email">

@@ -28,7 +28,7 @@ function VerifyPhone() {
 
   const maxLength = 250;
   const codeLength = 6;
-  const apiUrls = process.env.REACT_APP_API_URL || "http://localhost:4000";
+  const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
 
   const resendDelay = 60; // Delay in seconds before allowing to resend code
@@ -57,7 +57,7 @@ function VerifyPhone() {
       formData.append("user", userId);
 
       // Send a GET request to check if the phone number has already been used
-      const used = await axios.get(`${apiUrl}/api/get-used-number`, {
+      const used = await axios.get(`${apiUrls}/api/get-used-number`, {
         params: { phoneUsed: phone }, // Pass the phone number as a query parameter
       });
 
@@ -75,7 +75,7 @@ function VerifyPhone() {
       }
 
       const response = await axios.post(
-        `${apiUrl}/api/send-verification-code`,
+        `${apiUrls}/api/send-verification-code`,
         formData,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -104,7 +104,7 @@ function VerifyPhone() {
       formData.append("user", userId);
 
       const response = await axios.post(
-        `${apiUrl}/api/verify-phone`,
+        `${apiUrls}/api/verify-phone`,
         formData,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -145,7 +145,7 @@ function VerifyPhone() {
 
       // Send the data
       const response = await axios.post(
-        `${apiUrl}/api/verify-phone`,
+        `${apiUrls}/api/verify-phone`,
         formData,
         {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },

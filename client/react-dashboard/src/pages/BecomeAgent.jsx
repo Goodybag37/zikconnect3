@@ -96,7 +96,7 @@ function BecomeAgent() {
     try {
       // Check account balance
       const balanceResponse = await axios.get(
-        `${apiUrl}/api/get-account-balance?userId=${userbread}`
+        `${apiUrls}/api/get-account-balance?userId=${userbread}`
       );
       const accountBalance = balanceResponse.data.account_balance;
 

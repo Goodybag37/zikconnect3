@@ -41,7 +41,7 @@ const Register = () => {
       formData.append("fullname", fullname);
 
       // Send the data
-      const response = await axios.post(`${apiUrl}/api/register`, formData, {
+      const response = await axios.post(`${apiUrls}/api/register`, formData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
 
