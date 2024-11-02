@@ -9,6 +9,7 @@ import { LazyLoadComponent } from "react-lazy-load-image-component";
 import Modal from "../components/Modal";
 import AuthContext from "../AuthContext";
 import Popup from "./Popup";
+import { LogoWhatsapp } from "@meronex/icons/ios/";
 
 import {
   BsZoomIn,
@@ -146,12 +147,9 @@ function YourComponent() {
       const { buysells: newBuysells, totalPages: newTotalPages } =
         response.data;
       setbuysells(newBuysells);
-      const initialStatus = {};
-      newBuysells.forEach((item) => {
-        initialStatus[item.id] = item.status;
-      });
-      await fetchSettingStatus(userbread);
-      setButtonStatus(initialStatus);
+
+      await fetchSettingStatus(userbread); // Only if fetchSettingStatus is async
+
       setTotalPages(newTotalPages);
       setUserIn(userbread);
     } catch (error) {
@@ -337,6 +335,38 @@ function YourComponent() {
       // Optionally show an error message to the user here
     }
 
+    const response = await axios.get(
+      `${apiUrl}/api/connect-buysell?itemId=${itemId}`
+    );
+
+    const connectStatus = response.data.status;
+
+    if (connectStatus == "order") {
+      const content5 = (
+        <>
+          <div className="verifyPopup">
+            <h2 className="popupHeading inline">In Order...</h2>
+            <BsXLg
+              className="text-gradient closeModal4"
+              onClick={() => setShowModal(false)}
+            />
+          </div>
+          <p className="popup-paragraph">
+            Ooops!! sorry this item is already in order with a user, please
+            select another item.
+          </p>
+        </>
+      );
+
+      setShowModal(true);
+      setModalContent(content5);
+      setConnecting((prevState) => ({
+        ...prevState,
+        [itemId]: "",
+      }));
+      return;
+    }
+
     const processConnection = async (
       agentId,
       latitude,
@@ -437,6 +467,20 @@ function YourComponent() {
                     "Manual locations cant calculate duration"}
                 </p>
                 <br></br>
+                <div className="chat-call-buttons">
+                  <a href={`https://wa.me/${selectedAgent.contact}`}>
+                    <button className="bg-blue-gradient roommate-button  connect-accept-button-chat-buysell">
+                      <LogoWhatsapp className="connect_icon" />
+                      Chat
+                    </button>
+                  </a>
+                  <a href={`tel:${selectedAgent.contact}`}>
+                    <button className="bg-blue-gradient roommate-button connect-accept-button">
+                      <BisPhoneCall className="connect_icon" />
+                      Call
+                    </button>
+                  </a>
+                </div>
 
                 <h3 className="text-gradient">Fraud Prevention !!</h3>
 
@@ -562,10 +606,10 @@ function YourComponent() {
                         ...prevState,
                         [itemId]: "",
                       }));
-                      setButtonStatus((prevState) => ({
-                        ...prevState,
-                        [itemId]: "available",
-                      }));
+                      // setButtonStatus((prevState) => ({
+                      //   ...prevState,
+                      //   [itemId]: "available",
+                      // }));
                       setShowModal(false);
                     }}
                   />
@@ -1049,14 +1093,15 @@ function YourComponent() {
                   <button
                     className="bg-blue-gradient roommateButtonConnect"
                     disabled={
-                      buttonStatus[buysell.id] === "in order" ||
+                      buttonStatus[buysell.status] === "order" ||
                       // selectedAgent ||
                       buysell.fk_user_id === userIn
                     }
                     onClick={() => handleConnectClick(buysell.id)}
                   >
                     <BsBrowserEdge className="connect_icon" />
-                    {buttonStatus[buysell.id] === "order"
+
+                    {buysell.status == "order"
                       ? "In Order..."
                       : connecting[buysell.id]
                       ? "Connecting..."
@@ -1099,7 +1144,7 @@ function YourComponent() {
 
   const filteredBuysells = buysells.filter((buysell) => {
     if (viewMode === "general") {
-      return buysell.status === "available";
+      return buysell.status === "available" || "order";
     }
     return true; // Show all items in profile view
   });

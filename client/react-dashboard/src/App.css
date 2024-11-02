@@ -1471,6 +1471,12 @@ select {
   margin-bottom: 1em;
 }
 
+.connect-accept-button-chat-buysell {
+  margin-top: 2rem;
+  margin-left: 10rem;
+  margin-bottom: 1rem;
+}
+
 .connect-accept-button-chat {
   margin-top: 2rem;
 }
@@ -1807,4 +1813,34 @@ select {
 }
 .locationForm {
   margin-top: 2rem;
+}
+
+.custom-select select {
+  appearance: none; /* Remove default arrow */
+  -moz-appearance: none; /* Firefox */
+  -webkit-appearance: none; /* Safari */
+  background-color: transparent;
+  color: white;
+  border: 1px solid #cccccc; /* Style the border as needed */
+  padding: 8px;
+  width: 80px; /* Adjust width as needed */
+  cursor: pointer;
+  height: 27px;
+  border-radius: 40px;
+  font-size: 10px;
+}
+
+.custom-select {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-select::after {
+  content: "▼"; /* Unicode arrow character */
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none; /* Arrow doesn't interfere with clicking */
+  color: #d86a16; /* Color of the arrow */
 }

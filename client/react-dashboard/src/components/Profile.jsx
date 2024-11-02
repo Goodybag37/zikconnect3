@@ -192,6 +192,7 @@ function YourComponent() {
   const [askToggle, setAskToggle] = useState(true);
   const [profile, setProfile] = useState({});
   const [selectedComponent, setSelectedComponent] = useState("Profile");
+  const [connectType, setConnectType] = useState("received");
 
   const [showMessages, setShowMessages] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -254,6 +255,10 @@ function YourComponent() {
       default:
         return <Profile />; // Default to "Profile" if no valid selection
     }
+  };
+
+  const handleConnectTypeChange = async (event) => {
+    setConnectType(event.target.value);
   };
 
   const handleMessages = async () => {
@@ -643,28 +648,53 @@ function YourComponent() {
                 onClick={() => handleFlip(messages.id)}
               />
 
-              <p>
-                <strong> ID: </strong>
-                {messages.id}
-                <hr />
-                <br />
-                <strong> AGENT TYPE:</strong> {messages.type}
-                <hr />
-                <br />
-                <strong> CUSTOMER NAME: </strong> {messages.sender_fullname}
-                <hr />
-                <br />
-                <strong> CUSTOMER ID: </strong> {messages.sender_id}
-                <hr />
-                <br />
-                <strong> ORDER CODE : </strong> {messages.order_code}
-                <hr />
-                <br />
-                <a className="reportUser" href="#">
-                  Report User?
-                </a>
-                <hr />
-              </p>
+              {connectType === "received" ? (
+                <p>
+                  <strong> Message ID: </strong>
+                  {messages.id}
+                  <hr />
+                  <br />
+                  <strong> AGENT TYPE:</strong> {messages.type}
+                  <hr />
+                  <br />
+                  <strong> CUSTOMER NAME: </strong> {messages.sender_fullname}
+                  <hr />
+                  <br />
+                  <strong> CUSTOMER ID: </strong> {messages.sender_id}
+                  <hr />
+                  <br />
+                  <strong> ORDER CODE : </strong> {messages.order_code}
+                  <hr />
+                  <br />
+                  <a className="reportUser" href="#">
+                    Report User?
+                  </a>
+                  <hr />
+                </p>
+              ) : (
+                <p>
+                  <strong> Message ID: </strong>
+                  {messages.id}
+                  <hr />
+                  <br />
+                  <strong> AGENT TYPE:</strong> {messages.type}
+                  <hr />
+                  <br />
+                  <strong> AGENT NAME: </strong> {messages.agent_fullname}
+                  <hr />
+                  <br />
+                  <strong> AGENT ID: </strong> {messages.user_id}
+                  <hr />
+                  <br />
+                  <strong> ORDER CODE : </strong> {messages.order_code}
+                  <hr />
+                  <br />
+                  <a className="reportUser" href="#">
+                    Report Agent?
+                  </a>
+                  <hr />
+                </p>
+              )}
             </div>
           ) : (
             <div key={messages.id}>
@@ -683,9 +713,17 @@ function YourComponent() {
                       <BsPeopleFill className="connectProfile" />
                     </div>
                   </li>
-                  <li className="roommateList">
-                    BY : {messages.sender_fullname}
-                  </li>
+                  {connectType === "received" ? (
+                    <li className="roommateList">
+                      {" "}
+                      BY : {messages.sender_fullname}{" "}
+                    </li>
+                  ) : (
+                    <li className="roommateList">
+                      {" "}
+                      To : {messages.agent_fullname}{" "}
+                    </li>
+                  )}
                   <hr />
                   <li className="roommateList">ON : {messages.timestamp}</li>
                   <hr />
@@ -726,9 +764,19 @@ function YourComponent() {
                       <BsPeopleFill className="connectProfile" />
                     </div>
                   </li>
-                  <li className="roommateList">
-                    BY : {messages.sender_fullname}
-                  </li>
+
+                  {connectType === "received" ? (
+                    <li className="roommateList">
+                      {" "}
+                      BY : {messages.sender_fullname}{" "}
+                    </li>
+                  ) : (
+                    <li className="roommateList">
+                      {" "}
+                      To : {messages.agent_fullname}{" "}
+                    </li>
+                  )}
+
                   <hr />
                   <li className="roommateList">ON : {messages.timestamp}</li>
                   <hr />
@@ -736,26 +784,58 @@ function YourComponent() {
                     TYPE : {capitalizeFirstLetter(messages.type)}
                   </li>
                   <li className="chat-call-buttons">
-                    <button
-                      onClick={() =>
-                        confirmConnect(messages.id, messages.order_code)
-                      }
-                      className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                      disabled={isExpired || isAccepted}
-                    >
-                      <BsPatchCheckFill className="connect_icon" />
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleDeleteClick(messages.id);
-                        // deleteConnect(messages.id);
-                      }}
-                      className="bg-blue-gradient roommate-button connect-accept-button"
-                    >
-                      <BsXOctagonFill className="connect_icon" />
-                      {isExpired ? "Delete" : "Reject"}
-                    </button>
+                    {connectType === "received" ? (
+                      <div>
+                        <button
+                          onClick={() =>
+                            confirmConnect(messages.id, messages.order_code)
+                          }
+                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                          disabled={isExpired || isAccepted}
+                        >
+                          <BsPatchCheckFill className="connect_icon" />
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDeleteClick(messages.id);
+                            // deleteConnect(messages.id);
+                          }}
+                          className="bg-blue-gradient roommate-button connect-accept-button"
+                        >
+                          <BsXOctagonFill className="connect_icon" />
+                          {isExpired ? "Delete" : "Reject"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <button
+                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                          disabled={isExpired2 || !isExpired}
+                        >
+                          <BsPatchCheckFill className="connect_icon" />
+                          Call
+                        </button>
+                        <button
+                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                          disabled={isExpired2 || !isExpired}
+                        >
+                          <BsXOctagonFill className="connect_icon" />
+                          Chat
+                        </button>
+                        <button
+                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                          disabled={!isExpired2 || !isExpired}
+                          onClick={() => {
+                            handleDeleteClick(messages.id);
+                            // deleteConnect(messages.id);
+                          }}
+                        >
+                          <BsXOctagonFill className="connect_icon" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </li>
                   <p className="text-gradient">
                     <CountdownTimer endTime={expiryTime} />
@@ -776,7 +856,19 @@ function YourComponent() {
     return true; // Show all items in profile view
   });
 
-  const displayMessages = messages.map(createCard);
+  const displayMessages2 = messages.map(createCard);
+  // Assuming userbread and selectedOption are defined in your component's state
+  const displayMessages = messages
+    .filter((message) => {
+      // Check if a certain option is selected, e.g., "received"
+      if (connectType === "received") {
+        return message.sender_id !== userbread;
+      } else if (connectType === "made") {
+        return message.sender_id == userbread;
+      }
+      return true; // Include all messages if other options are selected
+    })
+    .map(createCard); // Now map over the filtered messages
 
   function createProfile(profile) {
     return (
@@ -835,12 +927,19 @@ function YourComponent() {
           </button>
         )}
 
+        <div className="custom-select">
+          <select onChange={handleConnectTypeChange}>
+            <option value="received">Received</option>
+            <option value="made">Made</option>
+          </select>
+        </div>
+
         <h3 className="text-gradient">CONNECTS</h3>
       </div>
 
       {messages.length === 0 ? (
         <div className="noItems ">
-          <p>Oops!! No Connects displayed 🥹</p>
+          <p>Oops!! No connects {connectType}</p>
         </div>
       ) : (
         <LazyLoadComponent>
