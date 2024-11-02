@@ -71,7 +71,7 @@ function Sidebar(props) {
             <BsFillHouseDoorFill className="icon" /> Lodges
           </CustomLink>
         </li>
-        <li className="sidebar-list-item">
+        {/* <li className="sidebar-list-item">
           <CustomLink
             className="card-title"
             to={"/roommates"}
@@ -80,7 +80,7 @@ function Sidebar(props) {
           >
             <BsFillHouseDoorFill className="icon" /> Roommates
           </CustomLink>
-        </li>
+        </li> */}
         <li className="sidebar-list-item">
           <CustomLink
             className="card-title"

@@ -215,10 +215,10 @@ select {
   align-items: center;
   justify-content: center;
 
-  margin-top: -1.3rem;
+  margin-top: 1.3rem;
   margin-bottom: -1.5rem;
   transform: translateX(3rem);
-  transform: translateY(-7rem);
+  transform: translateY(-2.5rem);
 }
 .sidebar-list {
   padding: 0;
@@ -815,14 +815,15 @@ select {
 }
 
 ::placeholder {
-  color: #cdcdd7;
+  color: #0b0a0a;
+  opacity: 0.5;
 }
 .input-group {
   border: 1px solid var(--color-border);
   border-radius: 20px;
   display: flex;
   width: 100%;
-  height: 4rem;
+  height: 5rem;
 }
 
 .inputGroupFund {
@@ -830,8 +831,9 @@ select {
 }
 
 .input-group {
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   text-align: left;
+  height: 4rem;
 }
 
 .inputGroupFile {
@@ -879,10 +881,10 @@ select {
 .pictureEdit {
   margin-top: 2rem;
 }
-
+/* 
 #email {
   padding-left: 23px;
-}
+} */
 
 .inputGroup {
   border: 1px solid var(--color-border);
@@ -1179,6 +1181,27 @@ select {
   width: fit-content;
   border: none;
 }
+.getStartedButton {
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 900;
+  margin-right: 10px;
+  height: 3rem;
+  width: 15rem;
+  font-size: large;
+}
+
+.loginButton {
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 900;
+  margin-right: 10px;
+  height: 3rem;
+  width: 6rem;
+  font-size: large;
+  background-color: #ff6d00;
+}
+
 .roommateButtonConnect {
   border-radius: 10px;
   background-color: #ff6d00;
@@ -1271,8 +1294,9 @@ select {
   padding: 40px 60px;
   border-radius: 8px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-  width: 300px;
+  width: 250px;
   text-align: center;
+  margin-left: -0.4rem;
 }
 
 .login-title {
@@ -1302,7 +1326,7 @@ select {
 
 .input-group input {
   width: 100%;
-  height: 40px;
+  height: 50px;
   margin-bottom: 10px;
   padding: 10px;
   border: 1px solid #ddd;
@@ -1843,4 +1867,53 @@ select {
   transform: translateY(-50%);
   pointer-events: none; /* Arrow doesn't interfere with clicking */
   color: #d86a16; /* Color of the arrow */
+}
+
+/* Basic styling for the form group */
+.form-group {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+/* Style for the input field */
+.form-group input {
+  width: 100%;
+  padding: 12px 8px;
+  font-size: 16px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  outline: none;
+}
+
+/* Hide the placeholder text initially */
+.form-group input::placeholder {
+  color: transparent;
+}
+
+/* Position and style the label */
+.form-group label {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  background-color: #fff; /* Matches the background to look like it's part of the border */
+  padding: 0 5px;
+  color: #999;
+  font-size: 16px;
+  pointer-events: none;
+  transition: 0.3s ease;
+}
+
+/* When the input is focused or has text, move the label up */
+.form-group input:focus + label,
+.form-group input:not(:placeholder-shown) + label {
+  top: -10px;
+  left: 8px;
+  font-size: 12px;
+  color: #333; /* Adjust color on focus */
+}
+
+/* Styling when the input is focused */
+.form-group input:focus {
+  border-color: #66afe9;
 }

@@ -1,17 +1,17 @@
-import people01 from '../assets/people01.png';
-import people02 from '../assets/people02.png';
-import people03 from '../assets/people03.png';
-import facebook from '../assets/facebook.svg';
-import instagram from '../assets/instagram.svg';
-import linkedin from '../assets/linkedin.svg';
-import twitter from '../assets/twitter.svg';
-import airbnb from '../assets/airbnb.png';
-import binance from '../assets/binance.png';
-import coinbase from '../assets/coinbase.png';
-import dropbox from '../assets/dropbox.png';
-import send from '../assets/Send.svg';
-import shield from '../assets/Shield.svg';
-import star from '../assets/Star.svg';
+import people01 from "../assets/people01.png";
+import people02 from "../assets/people02.png";
+import people03 from "../assets/people03.png";
+import facebook from "../assets/facebook.svg";
+import instagram from "../assets/instagram.svg";
+import linkedin from "../assets/linkedin.svg";
+import twitter from "../assets/twitter.svg";
+import airbnb from "../assets/airbnb.png";
+import binance from "../assets/binance.png";
+import coinbase from "../assets/coinbase.png";
+import dropbox from "../assets/dropbox.png";
+import send from "../assets/Send.svg";
+import shield from "../assets/Shield.svg";
+import star from "../assets/Star.svg";
 export const navLinks = [
   {
     id: "home",
@@ -25,7 +25,7 @@ export const navLinks = [
     id: "services",
     title: "Services",
   },
-  
+
   {
     id: "agents",
     title: "Agents",
@@ -52,52 +52,49 @@ export const features = [
     icon: send,
     title: "No Charges",
     content:
-      "We do not charge students to access any of our agents or services.",
+      "We give students free connects to access all our services on registeration.",
   },
 ];
 
 export const feedback = [
   {
     id: "feedback-1",
-    content:
-      "Money is only a tool. It will take you wherever you wish, but it will not replace you as the driver.",
-    name: "Herman Jensen",
-    title: "Founder & Leader",
-    img: people01,
+    content: "Very fast and responsive website. The owner go Harvard",
+    name: "Johnson Omolaya",
+    title: "Student",
+    // img: people01,
   },
   {
     id: "feedback-2",
-    content:
-      "Money makes your life easier. If you're lucky to have it, you're lucky.",
-    name: "Steve Mark",
-    title: "Founder & Leader",
-    img: people02,
+    content: "Thank You Zikconnect im able to market my brand",
+    name: "Ikechukwu Munachi",
+    title: "Agent",
+    // img: people02,
   },
   {
     id: "feedback-3",
-    content:
-      "It is usually people in the money business, finance, and international trade that are really rich.",
-    name: "Kenn Gallagher",
-    title: "Founder & Leader",
-    img: people03,
+    content: "I need More of this",
+    name: "Kingsley Afolabi",
+    title: "Student",
+    // img: people03,
   },
 ];
 
 export const stats = [
   {
     id: "stats-1",
-    title: "User Active",
+    title: "Users",
     value: "3800+",
   },
   {
     id: "stats-2",
-    title: "Trusted by Company",
+    title: "Agents",
     value: "230+",
   },
   {
     id: "stats-3",
     title: "Transaction",
-    value: "10M+",
+    value: "5k+",
   },
 ];
 
@@ -106,24 +103,24 @@ export const footerLinks = [
     title: "Useful Links",
     links: [
       {
-        name: "Content",
-        link: "https://www.hoobank.com/content/",
+        name: "Agents",
+        link: "https://www.zikconnect.com/agents/",
       },
       {
-        name: "How it Works",
-        link: "https://www.hoobank.com/how-it-works/",
+        name: "Delivery",
+        link: "https://www.zikconnect.com/deliveries/",
       },
       {
-        name: "Create",
-        link: "https://www.hoobank.com/create/",
+        name: "Cybercafe",
+        link: "https://www.zikconnect.com/cybercafes/",
       },
       {
-        name: "Explore",
-        link: "https://www.hoobank.com/explore/",
+        name: "Whatsapp Tvs",
+        link: "https://www.zikconnect.com/whatsapptvs/",
       },
       {
-        name: "Terms & Services",
-        link: "https://www.hoobank.com/terms-and-services/",
+        name: "Food",
+        link: "https://www.zikconnect.com/foods/",
       },
     ],
   },
@@ -132,23 +129,23 @@ export const footerLinks = [
     links: [
       {
         name: "Help Center",
-        link: "https://www.hoobank.com/help-center/",
+        link: "admin@zikconnect.com",
       },
       {
-        name: "Partners",
-        link: "https://www.hoobank.com/partners/",
+        name: "Contact",
+        link: "https://www.zikconnect.com/delivery/",
       },
       {
         name: "Suggestions",
-        link: "https://www.hoobank.com/suggestions/",
+        link: "https://www.zikconnect.com/",
       },
       {
-        name: "Blog",
-        link: "https://www.hoobank.com/blog/",
+        name: "FAQ",
+        link: "https://www.zikconnect.com",
       },
       {
         name: "Newsletters",
-        link: "https://www.hoobank.com/newsletters/",
+        link: "https://www.zikconnect.com",
       },
     ],
   },
@@ -157,11 +154,11 @@ export const footerLinks = [
     links: [
       {
         name: "Our Partner",
-        link: "https://www.hoobank.com/our-partner/",
+        link: "https://www.zikconnect.com",
       },
       {
         name: "Become a Partner",
-        link: "https://www.hoobank.com/become-a-partner/",
+        link: "https://www.zikconnect.com",
       },
     ],
   },

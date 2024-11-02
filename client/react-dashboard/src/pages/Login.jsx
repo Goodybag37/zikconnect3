@@ -100,15 +100,15 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container bg-black-gradient">
+    <div className="login-container bg-black-gradient ">
       <form className="login-form" onSubmit={handleSubmit}>
         <div className="logo-login">
           <img src={logo} alt="Logo" className="icon_header logo" />
         </div>
-        <h2 className="login-title text-gradient">Login</h2>
+        {/* <h2 className="login-title text-gradient">Login</h2> */}
         {error && <p className="error-message">{error}</p>}
-        <div className="input-group input-email">
-          <BsFillPersonFill className="input-icon" />
+        <div className="input-group input-email ">
+          {/* <BsFillPersonFill className="input-icon" /> */}
           <input
             type="email"
             id="email"
@@ -119,7 +119,7 @@ const Login = () => {
           />
         </div>
         <div className="input-group">
-          <BsLockFill className="input-icon" />
+          {/* <BsLockFill className="input-icon" /> */}
           <input
             type="password"
             id="password"
@@ -129,6 +129,7 @@ const Login = () => {
             required
           />
         </div>
+
         <button
           className="login-button bg-blue-gradient"
           type="submit"
@@ -137,7 +138,7 @@ const Login = () => {
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        <h1 className="or-text">OR</h1>
+        {/* <h1 className="or-text">OR</h1>
 
         <button
           type="button"
@@ -145,7 +146,7 @@ const Login = () => {
           className="google-login-button"
         >
           Login with Google
-        </button>
+        </button> */}
 
         <p>
           Don’t have an account?{" "}

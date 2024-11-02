@@ -40,7 +40,7 @@ import {
 
 function Agent(props) {
   const [totalAgents, setTotalAgents] = useState({
-    courseagents: 0,
+    foodagents: 0,
     repairagents: 0,
     cybercafeagents: 0,
     deliveryagents: 0,
@@ -220,26 +220,23 @@ function Agent(props) {
         </div>
         <div
           className="card cursor-pointer"
-          onClick={() => navigateTo("/courses")}
+          onClick={() => navigateTo("/foods")}
         >
           <div className="card-inner">
             <h3 className="agent-icon text-gradient">
               <BsBookHalf className="card_icon" />
               <CustomLink
                 className="card-title"
-                to={"/courses"}
+                to={"/foods"}
                 userId={userId}
                 email={email}
               >
-                Buy a Course
+                Buy Food
               </CustomLink>
             </h3>
           </div>
-          <p>
-            Learn a course from any of our trusted agents and kick off your
-            career.{" "}
-          </p>
-          <h4 className="text-gradient">{totalAgents.courseagents} connects</h4>
+          <p>Order food from any food agent closest to you </p>
+          <h4 className="text-gradient">{totalAgents.foodagents} connects</h4>
         </div>
         <div
           className="card cursor-pointer"

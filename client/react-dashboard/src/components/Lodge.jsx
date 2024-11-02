@@ -1,17 +1,15 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useRef } from "react";
 import axios from "axios";
 import "../App.css";
 import ReactPaginate from "react-paginate";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/blur.css";
+import { BisPhoneCall } from "@meronex/icons/bi/";
 import { LazyLoadComponent } from "react-lazy-load-image-component";
 import Modal from "../components/Modal";
 import AuthContext from "../AuthContext";
 import Popup from "./Popup";
-import { BsArrowLeftCircle, BsArrowRightCircle } from "react-icons/bs";
-
-import { Carousel } from "react-responsive-carousel";
-import "react-responsive-carousel/lib/styles/carousel.min.css"; // Import the carousel CSS
+import { LogoWhatsapp } from "@meronex/icons/ios/";
 
 import {
   BsZoomIn,
@@ -31,6 +29,7 @@ import {
   BsEyedropper,
   BsFillBellFill,
   BsXLg,
+  BsCashCoin,
   BsArchiveFill,
 } from "react-icons/bs";
 
@@ -41,6 +40,7 @@ function YourComponent() {
   const [pageNumber, setPageNumber] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [connecting, setConnecting] = useState({});
   const [flippedCards, setFlippedCards] = useState({});
   const [itemId, setItemId] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,9 +52,6 @@ function YourComponent() {
   const [userIn, setUserIn] = useState("");
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isPopupVisible2, setIsPopupVisible2] = useState(false);
-  const [modalImages, setModalImages] = useState([]); // Store the array of images
-  const [currentIndex, setCurrentIndex] = useState(0); // Track the current image index
-
   const [editMode, setEditMode] = useState(false); // State to manage edit mode
   const [editData, setEditData] = useState({
     name: "",
@@ -62,14 +59,24 @@ function YourComponent() {
     price: "",
     location: "",
   });
-
+  const locationRef = useRef(null);
+  const [locationA, setLocationA] = useState({
+    latitude: null,
+    longitude: null,
+    error: null,
+  });
+  const [orderCode, setOrderCode] = useState("");
   const usersPerPage = 10;
   const pagesVisited = pageNumber * usersPerPage;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
+
   const userbread =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId; // Optional chaining to avoid errors if user is null
-  const emailbread = user.email;
+
+  const emailbread =
+    user?.email || JSON.parse(localStorage.getItem("user"))?.email;
+  const isPhoneVerified = user.isPhoneVerified;
   const [located, setLocated] = useState("");
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -84,9 +91,8 @@ function YourComponent() {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [toggled, setToggled] = useState(true);
   const [viewMode, setViewMode] = useState("general");
-  const [askToggle, setAskToggle] = useState(true);
-  const [image, setImage] = useState([]); // "general" or "profile"
-
+  const [askToggle, setAskToggle] = useState(true); // "general" or "profile"
+  const [type, setType] = useState("Automatic");
   const maxLength = 250;
   const maxLengthN = 20;
   const maxLengthD = 200;
@@ -137,15 +143,12 @@ function YourComponent() {
           viewMode: viewMode, // Pass the search query to the backend
         },
       });
-      console.log(response);
-      const { lodges: newlodges, totalPages: newTotalPages } = response.data;
-      setlodges(newlodges);
-      const initialStatus = {};
-      newlodges.forEach((item) => {
-        initialStatus[item.id] = item.status;
-      });
-      await fetchSettingStatus(userbread);
-      setButtonStatus(initialStatus);
+
+      const { lodges: newLodges, totalPages: newTotalPages } = response.data;
+      setlodges(newLodges);
+
+      await fetchSettingStatus(userbread); // Only if fetchSettingStatus is async
+
       setTotalPages(newTotalPages);
       setUserIn(userbread);
     } catch (error) {
@@ -176,7 +179,6 @@ function YourComponent() {
       }
     } else {
       // Code to execute when the checkbox is unchecked
-      console.log("Checkbox unchecked");
     }
   };
 
@@ -189,7 +191,6 @@ function YourComponent() {
       const settings = response.data;
 
       // Debug: Check what `settings` contains
-      console.log("Fetched settings:", settings);
 
       // Access the toggle_status object safely
       if (settings && settings.toggle_status && settings.toggle_status.lodge) {
@@ -201,8 +202,6 @@ function YourComponent() {
         } else {
           setAskToggle(false);
         }
-
-        console.log("you tried getting status", toggleStatus);
 
         // Update state based on the toggle status
         if (toggleStatus === "available") {
@@ -248,24 +247,471 @@ function YourComponent() {
   };
 
   const handleConnectClick = async (itemId) => {
-    try {
-      // Optimistically update the button for the current user
-      setButtonStatus((prevState) => ({
+    setConnecting((prevState) => ({
+      ...prevState,
+      [itemId]: "connecting",
+    }));
+    if (!isPhoneVerified) {
+      const content4 = (
+        <>
+          <div className="verifyPopup">
+            <h2 className="popupHeading inline">Verify Phone !!</h2>
+            <BsXLg
+              className="text-gradient closeModal4"
+              onClick={() => setShowModal(false)}
+            />
+          </div>
+          <p className="popup-paragraph">
+            You need to verify your phone number to connect with the seller.
+            This helps them contact you after you connect.
+          </p>
+          <Link to="/verifyphone">
+            <button className="bg-blue-gradient roommate-button connect-accept-button">
+              <BisPhoneCall className="connect_icon" />
+              Verify Now
+            </button>
+          </Link>
+        </>
+      );
+      setShowModal(true);
+      setModalContent(content4);
+      setConnecting((prevState) => ({
         ...prevState,
-        [itemId]: "in order",
+        [itemId]: "",
       }));
+      return;
+    }
 
-      // Send the connect request to the backend
-      await axios.post(
-        `${apiUrl}/api/connectbuysell`,
-        { itemId },
-        { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    try {
+      const response = await axios.get(
+        `${apiUrl}/api/get-account-balance?userId=${userbread}`
       );
 
-      // The backend will broadcast the update to all connected users
+      const accountBalance = response.data.account_balance;
+
+      if (accountBalance < 100) {
+        const content5 = (
+          <>
+            <div className="verifyPopup">
+              <h2 className="popupHeading inline">Low Balance</h2>
+              <BsXLg
+                className="text-gradient closeModal4"
+                onClick={() => setShowModal(false)}
+              />
+            </div>
+            <p className="popup-paragraph">
+              You have hit a low account balance. You need at least 100 naira to
+              connect with an agent. Please fund your account to continue.
+            </p>
+            <Link to="/fundaccount">
+              <button className="bg-blue-gradient roommate-button connect-accept-button">
+                <BsCashCoin className="cashIcon" />
+                Fund Account
+              </button>
+            </Link>
+          </>
+        );
+
+        setShowModal(true);
+        setModalContent(content5);
+        setConnecting((prevState) => ({
+          ...prevState,
+          [itemId]: "",
+        }));
+        return;
+      }
     } catch (error) {
-      console.error("Error connecting:", error);
+      console.error("Error fetching account balance:", error);
+      // Optionally show an error message to the user here
     }
+
+    const response = await axios.get(
+      `${apiUrl}/api/connect-lodge?itemId=${itemId}`
+    );
+
+    const connectStatus = response.data.status;
+
+    if (connectStatus == "order") {
+      const content5 = (
+        <>
+          <div className="verifyPopup">
+            <h2 className="popupHeading inline">In Order...</h2>
+            <BsXLg
+              className="text-gradient closeModal4"
+              onClick={() => setShowModal(false)}
+            />
+          </div>
+          <p className="popup-paragraph">
+            Ooops!! sorry this item is already in order with a user, please
+            select another item.
+          </p>
+        </>
+      );
+
+      setShowModal(true);
+      setModalContent(content5);
+      setConnecting((prevState) => ({
+        ...prevState,
+        [itemId]: "",
+      }));
+      return;
+    }
+
+    const processConnection = async (
+      agentId,
+      latitude,
+      longitude,
+      locationM
+    ) => {
+      let distance = null;
+      let duration = null;
+      let display_name = null;
+      if (locationM === undefined || locationM === null) {
+        try {
+          const response = await axios.get(
+            `${apiUrl}/api/get-distance?itemId=${agentId}&latitude=${latitude}&longitude=${longitude}`
+          );
+          distance = response.data.distance;
+          duration = response.data.duration;
+          display_name = response.data.display_name;
+        } catch (error) {}
+      }
+
+      setShowModal(true);
+
+      const generateUniqueCode = () => {
+        const characters =
+          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let result = "";
+        const charactersLength = characters.length;
+
+        for (let i = 0; i < 32; i++) {
+          result += characters.charAt(
+            Math.floor(Math.random() * charactersLength)
+          );
+        }
+
+        return result;
+      };
+
+      const newCode = generateUniqueCode();
+      setOrderCode(newCode);
+
+      const selectedAgent = lodges.find((agent) => agent.id === itemId);
+      // setSelectedAgent(selectedAgent);
+      const selected = selectedAgent.contact;
+
+      // const endTime = new Date(new Date().getTime() + 10 * 60 * 1000);
+      // localStorage.setItem("countdownEndTime", endTime.toISOString());
+
+      // setTimeout(() => {
+      const content = (
+        <>
+          <div className="locationInfo">
+            <h2 className=" text-gradient popup-heading">New Order</h2>
+            <p className="popup-paragraph">
+              You have placed an order for this item. the details of your order
+              are listed below
+            </p>
+            <h4 className="popup-heading">Details</h4>
+            <p className="locationInfo">Order Number: {newCode}</p>
+
+            {selectedAgent && (
+              <>
+                <p className="locationInfo">Item ID: {itemId}</p>
+                <p className="locationInfo">
+                  Seller Full Name: {selectedAgent.seller_name}
+                </p>
+                <p className="locationInfo">
+                  Seller ID: {selectedAgent.fk_user_id}
+                </p>
+                <p className="locationInfo">
+                  Item Summary: {selectedAgent.name}/
+                  {selectedAgent.formatted_price}/{selectedAgent.location}
+                </p>
+                <h3 className="text-gradient"> Gps Tracker </h3>
+                <p className="locationInfo">Seller Location : {display_name}</p>
+                <p className="locationInfo">
+                  Distance beween you two:{" "}
+                  {distance + " kilometers" ||
+                    "Manual locations cant calculate distance"}
+                </p>
+                <p className="locationInfo">
+                  Duration:{" "}
+                  {duration + "  minutes" ||
+                    "Manual locations cant calculate duration"}
+                </p>
+                <br></br>
+                <div className="chat-call-buttons">
+                  <a href={`https://wa.me/${selectedAgent.contact}`}>
+                    <button className="bg-blue-gradient roommate-button  connect-accept-button-chat-buysell">
+                      <LogoWhatsapp className="connect_icon" />
+                      Chat
+                    </button>
+                  </a>
+                  <a href={`tel:${selectedAgent.contact}`}>
+                    <button className="bg-blue-gradient roommate-button connect-accept-button">
+                      <BisPhoneCall className="connect_icon" />
+                      Call
+                    </button>
+                  </a>
+                </div>
+
+                <h3 className="text-gradient">Fraud Prevention !!</h3>
+
+                <ol>
+                  <li>
+                    The seller is responsible for bringing the item to you
+                    before you pay{" "}
+                  </li>
+                  <br></br>
+                  <li>Do not pay for the item without physical inspection</li>
+                  <br></br>
+                  <li>
+                    Request For a whatsapp video call if you need more enquiry
+                    about the item or seller identity
+                  </li>
+                  <br></br>
+                  <li>
+                    Make payment to an account bearing the same full name as the
+                    seller, this would provide us enough proof to investigate
+                    the transaction if issues arise.
+                  </li>
+                </ol>
+              </>
+            )}
+            {/* <CountdownTimer
+            endTime={endTime}
+            onEnd={() => {
+              setConnecting((prevState) => ({
+                ...prevState,
+                [agentId]: "",
+              }));
+              setShowModal(false);
+            }} // Close modal when countdown ends
+          /> */}
+
+            <button
+              onClick={() => {
+                setConnecting((prevState) => ({
+                  ...prevState,
+                  [itemId]: "",
+                }));
+                setShowModal(false);
+              }}
+              className="signoutButton profileParagraph text-gradient"
+            >
+              Back to Agents
+            </button>
+          </div>
+        </>
+      );
+
+      setModalContent(content);
+      setShowModal(true);
+      // }, 0);
+
+      try {
+        const userId = userbread;
+        const agentType = "lodge";
+        const agentUserId = selectedAgent.fk_user_id;
+
+        await axios.post(
+          `${apiUrl}/api/send-connect-email`,
+          {
+            agentId: itemId,
+            userId: userId,
+            orderId: newCode,
+            agentType: agentType,
+            agentUserId: agentUserId,
+            latitude: latitude ? latitude : null, // Send latitude and longitude
+            longitude: longitude ? longitude : null,
+            locationM: locationM,
+            type: type,
+          },
+          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        );
+      } catch (error) {
+        console.error("Error sending email:", error);
+      }
+    };
+
+    const locationDetails = JSON.parse(localStorage.getItem("locationDetails"));
+
+    if (locationDetails) {
+      const latitude = locationDetails.latitude;
+      const longitude = locationDetails.longitude;
+
+      processConnection(itemId, latitude, longitude);
+
+      return;
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+
+          // Process connection with the granted location
+          processConnection(itemId, latitude, longitude);
+          localStorage.setItem(
+            "locationDetails",
+            JSON.stringify({ latitude: latitude, longitude: longitude })
+          );
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            // Logic for denied location access
+            const locationContent = (
+              <>
+                <div className="verifyPopup">
+                  <h2 className="popupHeading inline">
+                    {type === "Automatic"
+                      ? "Location Access Denied"
+                      : "Manual Location"}
+                  </h2>
+                  <BsXLg
+                    className="text-gradient closeModal4"
+                    onClick={() => {
+                      setConnecting((prevState) => ({
+                        ...prevState,
+                        [itemId]: "",
+                      }));
+                      // setButtonStatus((prevState) => ({
+                      //   ...prevState,
+                      //   [itemId]: "available",
+                      // }));
+                      setShowModal(false);
+                    }}
+                  />
+                </div>
+                {type == "Automatic" && (
+                  <div>
+                    <p className="popup-paragraph">
+                      You need to allow location so our agents can serve you
+                      more efficiently. Zikconnect respects our users privacy so
+                      your location would only be used for this order.
+                    </p>
+                    <div className="locationInfo">
+                      <h3 className="text-gradient">On Iphone</h3>
+
+                      <ul>
+                        <li> Clear your browser cache and try again </li>
+                        <p> OR</p>
+                        <li>
+                          Go to Settings {">>"} Privacy & Security {">>"}{" "}
+                          Location Services. {">>"} Safari Websites {">>"}{" "}
+                          Ask/Allow
+                        </li>
+
+                        <p> OR</p>
+                        <li>
+                          Go to Settings {">>"} Safari {">>"} Privacy & Security{" "}
+                          {">>"} Location {">>"} Ask/Allow{" "}
+                        </li>
+                      </ul>
+
+                      <h3 className="text-gradient">On Android</h3>
+                      <ul>
+                        <li> Clear your browser cache and try again </li>
+                        <p> OR</p>
+
+                        <li>
+                          {" "}
+                          Open Chrome {">>"} Tap the 3-dot on the top-right
+                          corner {">>"} Site Settings {">>"} Location {">>"}{" "}
+                          Here, you can see the list of blocked and allowed
+                          sites.
+                        </li>
+                        <br></br>
+                        <li>
+                          {" "}
+                          If the website is blocked, find it in the blocked
+                          list, tap on it, and select Clear & reset to remove
+                          the block.
+                        </li>
+                      </ul>
+                    </div>
+                    <button
+                      className="signoutButton profileParagraph text-gradient"
+                      onClick={() => {
+                        setShowModal(false);
+                        setType("Manual");
+                        setConnecting((prevState) => ({
+                          ...prevState,
+                          [itemId]: "",
+                        }));
+                      }}
+                    >
+                      Input Location Manually
+                    </button>
+                  </div>
+                )}{" "}
+                {type == "Manual" && (
+                  <div className="locationForm">
+                    <div className="input-group input-email">
+                      <input
+                        maxLength={maxLength}
+                        type="text"
+                        id="located"
+                        ref={locationRef} // Use ref here instead of value
+                        placeholder="Exact Adress Around Unizik"
+                        // onChange={(e) => setLocationM(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      className="signoutButton profileParagraph text-gradient"
+                      onClick={() => {
+                        const manualLocation = locationRef.current.value;
+                        setShowModal(false);
+                        // Handle manual location input logic
+                        setLocationA({
+                          latitude: null,
+                          longitude: null,
+                          locationM: manualLocation, // Use the manual input state
+                          error: null,
+                        });
+
+                        processConnection(itemId, null, null, manualLocation);
+                        setConnecting((prevState) => ({
+                          ...prevState,
+                          [itemId]: "",
+                        }));
+                      }}
+                    >
+                      Connect
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+            setShowModal(true);
+            setModalContent(locationContent);
+          }
+          return;
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by your browser.");
+    }
+
+    // try {
+    //   // Update button status
+    //   setButtonStatus((prevState) => ({
+    //     ...prevState,
+    //     [itemId]: "in order",
+    //   }));
+
+    //   // Send connection request to backend
+    //   await axios.post(
+    //     `${apiUrl}/api/connectlodge`,
+    //     { itemId },
+    //     { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    //   );
+    // } catch (error) {
+    //   console.error("Error connecting:", error);
+    //   // Optionally show error feedback to the user here
+    // }
   };
 
   const handleSearchSubmit = (event) => {
@@ -283,12 +729,12 @@ function YourComponent() {
   const handleShowPicture = async (itemId) => {
     try {
       const response = await axios.get(`${apiUrl}/api/lodge/${itemId}`, {
+        responseType: "blob", // Important: Fetch the image as a Blob
         validateStatus: (status) => status < 500,
       });
 
-      const { images } = response.data;
-
-      if (!images || images.length === 0) {
+      if (response.status === 404) {
+        // Check if the Blob is empty, indicating no image was found
         setModalContent(
           <div>
             <p>No image found for this item.</p>
@@ -302,107 +748,52 @@ function YourComponent() {
                 borderRadius: "5px",
                 cursor: "pointer",
               }}
-              onClick={() => setShowModal(false)}
+              onClick={() => setShowModal(false)} // Close the modal when clicked
             >
               Close
             </button>
           </div>
         );
       } else {
-        // Set modal content once with the carousel component
-        setModalContent(<ImageCarousel images={images} />);
+        // If the image exists, display it
+        const imageUrl = URL.createObjectURL(response.data);
+
+        setModalContent(
+          <div style={{ position: "relative" }}>
+            <img
+              src={imageUrl}
+              alt="Item"
+              style={{
+                width: "100%",
+                height: "auto",
+                maxWidth: "100%",
+                objectFit: "contain",
+              }}
+            />
+            <button
+              style={{
+                position: "absolute",
+                top: "10px",
+                right: "10px",
+                background: "#ff0000",
+                color: "#fff",
+                border: "none",
+                padding: "10px",
+                borderRadius: "5px",
+                cursor: "pointer",
+              }}
+              onClick={() => setShowModal(false)} // Close the modal when clicked
+            >
+              Close
+            </button>
+          </div>
+        );
       }
 
-      setShowModal(true);
+      setShowModal(true); // Show the modal with the image
     } catch (error) {
-      console.error("Error fetching images:", error);
+      console.error("Error fetching image:", error);
     }
-  };
-
-  // Carousel component to cycle through images
-  const ImageCarousel = ({ images }) => {
-    const [currentIndex, setCurrentIndex] = useState(0);
-
-    const handleNext = () => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-    };
-
-    const handlePrev = () => {
-      setCurrentIndex((prevIndex) =>
-        prevIndex === 0 ? images.length - 1 : prevIndex - 1
-      );
-    };
-
-    return (
-      <div style={{ position: "relative" }}>
-        <img
-          src={images[currentIndex]} // No need for createObjectURL since these are URLs
-          alt="Item"
-          style={{
-            width: "100%",
-            height: "auto",
-            maxWidth: "100%",
-            objectFit: "contain",
-          }}
-        />
-
-        {/* Left (Previous) Button */}
-        <button
-          onClick={handlePrev}
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "10px",
-            transform: "translateY(-50%)",
-            background: "#000",
-            color: "#fff",
-            border: "none",
-            padding: "10px",
-            borderRadius: "50%",
-            cursor: "pointer",
-          }}
-        >
-          &#9664; {/* Left arrow */}
-        </button>
-
-        {/* Right (Next) Button */}
-        <button
-          onClick={handleNext}
-          style={{
-            position: "absolute",
-            top: "50%",
-            right: "10px",
-            transform: "translateY(-50%)",
-            background: "#000",
-            color: "#fff",
-            border: "none",
-            padding: "10px",
-            borderRadius: "50%",
-            cursor: "pointer",
-          }}
-        >
-          &#9654; {/* Right arrow */}
-        </button>
-
-        {/* Close Button */}
-        <button
-          style={{
-            position: "absolute",
-            top: "10px",
-            right: "10px",
-            background: "#ff0000",
-            color: "#fff",
-            border: "none",
-            padding: "10px",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}
-          onClick={() => setShowModal(false)} // Close the modal when clicked
-        >
-          Close
-        </button>
-      </div>
-    );
   };
 
   const all = () => {
@@ -436,7 +827,6 @@ function YourComponent() {
     setIsPopupVisible(true);
   };
   const handleEditClick = (lodge) => {
-    console.log("lodge", lodge);
     setEditData({
       name: lodge.name,
       description: lodge.description,
@@ -444,14 +834,12 @@ function YourComponent() {
       location: lodge.location,
     });
     setItemId(lodge.id);
-
-    console.log("editdata", editData);
   };
 
   const handleDeleteItem = async () => {
     setIsPopupVisible(false);
-    setlodges((prevlodges) =>
-      prevlodges.filter((lodge) => lodge.id !== itemToDelete)
+    setlodges((prevLodges) =>
+      prevLodges.filter((lodge) => lodge.id !== itemToDelete)
     );
 
     try {
@@ -470,18 +858,15 @@ function YourComponent() {
   };
 
   const handleEditSubmit = async (event) => {
-    console.log("edit submit", editData.name);
     event.preventDefault();
     try {
       const formData = new FormData();
-
+      const type = "lodge";
       // Append other data fields to FormData
       formData.append("name", editData.name);
       formData.append("description", editData.description);
       formData.append("price", editData.price);
       formData.append("location", editData.location);
-
-      console.log("form Submitted", formData);
 
       // Append the file only if a new one is selected
       if (selectedFile) {
@@ -490,7 +875,7 @@ function YourComponent() {
 
       // Send the FormData to the server using a PUT request
       await axios.put(
-        `${apiUrl}/api/edit-upload/${itemId}`,
+        `${apiUrl}/api/edit-upload/${itemId}&type=${type}`,
         formData
 
         // Send FormData instead of JSON
@@ -631,34 +1016,55 @@ function YourComponent() {
                 <li>
                   <div className="profilePicRoommate">
                     <div className="profileHeaderR bg-blue-gradient">
-                      <p className="profileInfo">{lodge.name}</p>
+                      <p className="profileInfo">
+                        {lodge.status == "order" ? "In order.." : lodge.name}
+                      </p>
                     </div>
                     <p className="profile-body">
-                      {lodge.description} <br />
+                      {lodge.status == "order"
+                        ? "In order.."
+                        : lodge.description}{" "}
+                      <br />
                       <hr />
-                      Price: {lodge.formatted_price}
+                      Price:{" "}
+                      {lodge.status == "order"
+                        ? "In order.."
+                        : lodge.formatted_price}
                     </p>
                   </div>
                 </li>
 
-                <li className="roommateList">At : {lodge.location} </li>
+                <li className="roommateList">
+                  At : {lodge.status == "order" ? "In order.." : lodge.location}{" "}
+                </li>
                 <hr />
-                <li className="roommateList">On : {lodge.formatted_date}</li>
+                <li className="roommateList">
+                  On :{" "}
+                  {lodge.status == "order"
+                    ? "In order.."
+                    : lodge.formatted_date}
+                </li>
                 <hr />
-                <li className="roommateList">By : {lodge.seller_name}</li>
+                <li className="roommateList">
+                  By :{" "}
+                  {lodge.status == "order" ? "In order.." : lodge.seller_name}
+                </li>
                 <li className="roommate-list">
                   <button
                     className="bg-blue-gradient roommateButtonConnect"
                     disabled={
-                      buttonStatus[lodge.id] === "in order" ||
-                      selectedAgent ||
+                      buttonStatus[lodge.status] === "order" ||
+                      // selectedAgent ||
                       lodge.fk_user_id === userIn
                     }
                     onClick={() => handleConnectClick(lodge.id)}
                   >
                     <BsBrowserEdge className="connect_icon" />
-                    {buttonStatus[lodge.id] === "order"
+
+                    {lodge.status == "order"
                       ? "In Order..."
+                      : connecting[lodge.id]
+                      ? "Connecting..."
                       : "Connect"}
                   </button>
 
@@ -696,20 +1102,20 @@ function YourComponent() {
     );
   }
 
-  const filteredlodges = lodges.filter((lodge) => {
+  const filteredLodges = lodges.filter((lodge) => {
     if (viewMode === "general") {
-      return lodge.status === "available";
+      return lodge.status === "available" || "order";
     }
     return true; // Show all items in profile view
   });
 
-  const displayUsers = filteredlodges
+  const displayUsers = filteredLodges
     .filter((lodge) =>
       selectedAgent ? lodge.fk_user_id === selectedAgent : true
     )
     .map(createCard);
 
-  const displayUsers2 = filteredlodges.map(createCard);
+  const displayUsers2 = filteredLodges.map(createCard);
 
   return (
     <main className="main-container">
@@ -762,7 +1168,7 @@ function YourComponent() {
         </p>
       </div>
 
-      {filteredlodges.length === 0 ? (
+      {filteredLodges.length === 0 ? (
         <div className="noItems ">
           <p>Oops!! No properties displayed 🥹</p>
         </div>
@@ -773,10 +1179,10 @@ function YourComponent() {
       )}
 
       <div className="agent-footer">
-        <Link to="/uploadlodge">
+        <Link to="/uploadproperty">
           <button className="agent-button">
             <BsFileEarmarkPerson className="card_icon" />
-            Upload Lodge
+            Upload Property
           </button>
         </Link>
 
