@@ -1,112 +1,3 @@
-// import React, { useEffect, useState } from "react";
-// import axios from "axios";
-// import "../App.css";
-// import { LazyLoadImage } from "react-lazy-load-image-component";
-// import "react-lazy-load-image-component/src/effects/blur.css";
-// import { LazyLoadComponent } from "react-lazy-load-image-component";
-// import {
-//   BsFillArchiveFill,
-//   BsFileEarmarkPerson,
-//   BsFillGrid3X3GapFill,
-//   BsPeopleFill,
-//   BsFillBellFill,
-// } from "react-icons/bs";
-
-// function YourComponent() {
-//   const [profile, setProfile] = useState([]);
-//   const [pageNumber, setPageNumber] = useState(0);
-//   const [totalPages, setTotalPages] = useState(0);
-
-//   const usersPerPage = 10;
-//   const pagesVisited = pageNumber * usersPerPage;
-
-//   const fetchData = async (page) => {
-//     try {
-//       const response = await axios.get(`http://localhost:4000/profileapi`);
-//     } catch (error) {
-//       console.error(error);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchData(response);
-//   }, []);
-
-//   function createCard(user) {
-//     return (
-//       <div className="card-lodge">
-//         <div className="card-inner">
-//           <div key={user.id}>
-//             <ul className="roommate-list-head">
-//               <li>
-//                 <div className="profilePic">
-//                   <div className="profileHeader">
-//                     <p className="profileInfo">Full name : {user.name}</p>
-//                     <p className="profileInfo"> User: {user.id} </p>
-//                   </div>
-//                 </div>
-//               </li>
-//               <li className="roommate-list">Name: {user.name}</li>
-//               <li className="roommate-list">Contact: {user.contact}</li>
-//               <li className="roommate-list">
-//                 <a href={`https://wa.me/${user.contact}`}>
-//                   <button className="roommate-button">
-//                     <BsPeopleFill className="connect_icon" />
-//                     Chat Agent
-//                   </button>
-//                 </a>
-//               </li>
-//             </ul>
-//           </div>
-//           <BsFillArchiveFill className="card_icon" />
-//         </div>
-//         <h1>0</h1>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <main className="main-container">
-//       <div className="main-title">
-//         <h1 className="agent-title"> PROFILE</h1>
-//       </div>
-//       <LazyLoadComponent>
-//         <div className="main-cards-roommates">
-//           {profile.length > 0 ? (
-//             profile.map(createCard)
-//           ) : (
-//             <p>No agents available</p>
-//           )}
-//         </div>
-//       </LazyLoadComponent>
-
-//       <div className="agent-footer">
-//         <button className="agent-button">
-//           <BsFileEarmarkPerson className="card_icon" />
-//           Become an agent
-//         </button>
-//         {totalPages > 0 && (
-//           <div className="pagination-container">
-//             <ReactPaginate
-//               previousLabel={"Previous"}
-//               nextLabel={"Next"}
-//               pageCount={totalPages}
-//               onPageChange={handlePageChange}
-//               containerClassName={"paginationBttns"}
-//               previousLinkClassName={"previousBttn"}
-//               nextLinkClassName={"nextBttn"}
-//               disabledClassName={"paginationDisabled"}
-//               activeClassNAme={"paginationActive"}
-//             />
-//           </div>
-//         )}
-//       </div>
-//     </main>
-//   );
-// }
-
-// export default YourComponent;
-
 import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import "../App.css";
@@ -141,7 +32,7 @@ import {
   BsArchiveFill,
 } from "react-icons/bs";
 
-// const socket = io("${apiUrl}/api");
+// const socket = io("${apiUrls}/api");
 
 function YourComponent() {
   const [buysells, setbuysells] = useState([]);
@@ -265,7 +156,7 @@ function YourComponent() {
     setShowMessages(!showMessages);
     try {
       const result = await axios.get(
-        `${apiUrl}/api/messages?userbread=${userbread}`
+        `${apiUrls}/api/messages?userbread=${userbread}`
       );
       const response = result.data;
       setMessages(response);
@@ -285,7 +176,7 @@ function YourComponent() {
 
   const fetchData2 = async (page, searchQuery) => {
     try {
-      const response = await axios.get(`${apiUrl}/api/profile`, {
+      const response = await axios.get(`${apiUrls}/api/profile`, {
         params: {
           page: page + 1,
           pageSize: usersPerPage,
@@ -313,14 +204,14 @@ function YourComponent() {
   const fetchData = async (page) => {
     try {
       const response = await axios.get(
-        `${apiUrl}/api/profile?userbread=${userbread}`
+        `${apiUrls}/api/profile?userbread=${userbread}`
       );
       const profiles = response.data;
 
       setProfile(profiles);
 
       const response2 = await axios.get(
-        `${apiUrl}/api/messages?userbread=${userbread}`
+        `${apiUrls}/api/messages?userbread=${userbread}`
       );
       const { messages, unreadCount } = response2.data;
       setMessages(messages);
@@ -354,7 +245,7 @@ function YourComponent() {
 
         // Send a POST request to update the status in the database
         await axios.post(
-          `${apiUrl}/api/preference-toggleask/`,
+          `${apiUrls}/api/preference-toggleask/`,
           {
             userId: userbread,
             // or any other identifier if needed
@@ -383,7 +274,7 @@ function YourComponent() {
   const fetchSettingStatus = async (userId) => {
     try {
       // Ensure the API endpoint is correct and accessible
-      const response = await axios.get(`${apiUrl}/api/get-status/${userId}`);
+      const response = await axios.get(`${apiUrls}/api/get-status/${userId}`);
 
       // Make sure the data structure matches
       const settings = response.data;
@@ -435,7 +326,7 @@ function YourComponent() {
 
       // Send a POST request to update the status in the database
       await axios.post(
-        `${apiUrl}/api/update-status/${type}`,
+        `${apiUrls}/api/update-status/${type}`,
         {
           status: newStatus,
           userId: userbread,
@@ -498,7 +389,7 @@ function YourComponent() {
 
     try {
       const response = await axios.post(
-        `${apiUrl}/api/delete-connect`,
+        `${apiUrls}/api/delete-connect`,
         {
           itemToDelete: itemToDelete,
         },
@@ -529,7 +420,7 @@ function YourComponent() {
   const confirmConnect = async (messageId, orderId) => {
     try {
       await axios.post(
-        `${apiUrl}/api/confirm-connect`,
+        `${apiUrls}/api/confirm-connect`,
         {
           messageId,
           orderId,
@@ -550,7 +441,7 @@ function YourComponent() {
   const rejectConnect = async (messageId, orderId) => {
     try {
       await axios.post(
-        `${apiUrl}/api/reject-connect`,
+        `${apiUrls}/api/reject-connect`,
         {
           messageId,
           orderId,
@@ -569,7 +460,7 @@ function YourComponent() {
   const deleteConnect = async (messageId) => {
     try {
       const response = await axios.post(
-        `${apiUrl}/api/delete-connect`,
+        `${apiUrls}/api/delete-connect`,
         {
           messageId,
         },
@@ -613,7 +504,7 @@ function YourComponent() {
 
       // Send the FormData to the server using a PUT request
       await axios.put(
-        `${apiUrl}/api/edit-upload/${itemId}`,
+        `${apiUrls}/api/edit-upload/${itemId}`,
         formData
 
         // Send FormData instead of JSON

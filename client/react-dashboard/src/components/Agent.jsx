@@ -48,6 +48,7 @@ function Agent(props) {
     whatsapptvagents: 0,
     schoolfeeagents: 0,
   });
+  const apiUrls = process.env.REACT_APP_API_URL;
 
   const apiUrl = "http://localhost:4000";
 
@@ -55,7 +56,7 @@ function Agent(props) {
   useEffect(() => {
     const fetchTotals = async () => {
       try {
-        const response = await axios.get(`${apiUrl}/api/total-connect/`);
+        const response = await axios.get(`${apiUrls}/api/total-connect/`);
         const data = response.data;
 
         // Create a new object to hold total values

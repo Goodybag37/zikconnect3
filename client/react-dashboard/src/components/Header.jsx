@@ -41,12 +41,12 @@ function Header(props) {
   const apiUrl = "http://localhost:4000";
   const userbread =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
-  // const socket = io(apiUrl);
+  // const socket = io(apiUrls);
   const handleMessages = async () => {
     setShowMessages(!showMessages);
     try {
       const result = await axios.get(
-        `${apiUrl}/api/messages?userbread=${userbread}&reset=true`
+        `${apiUrls}/api/messages?userbread=${userbread}&reset=true`
       );
       const { messages, unreadCount } = result.data;
 
@@ -70,7 +70,7 @@ function Header(props) {
   // const fetchData = async () => {
   //   try {
   //     const result = await axios.get(
-  //       `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+  //       `${apiUrls}/api/messages?userbread=${userbread}&reset=false`
   //     );
 
   //     const { messages, unreadCount } = result.data;
@@ -94,7 +94,7 @@ function Header(props) {
   // const fetchData = async () => {
   //   try {
   //     const result = await axios.get(
-  //       `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+  //       `${apiUrls}/api/messages?userbread=${userbread}&reset=false`
   //     );
 
   //     const { messages, unreadCount } = result.data;
@@ -122,11 +122,11 @@ function Header(props) {
   const fetchData = async () => {
     try {
       const result = await axios.get(
-        `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+        `${apiUrls}/api/messages?userbread=${userbread}&reset=false`
       );
 
       const response2 = await axios.get(
-        `${apiUrl}/api/profile?userbread=${userbread}`
+        `${apiUrls}/api/profile?userbread=${userbread}`
       );
 
       const profiles = response2.data;
@@ -173,7 +173,7 @@ function Header(props) {
   // }, []); // Dependencies array
 
   // useEffect(() => {
-  //   const socket = io(apiUrl); // Connect to the WebSocket server
+  //   const socket = io(apiUrls); // Connect to the WebSocket server
   //   socket.on("connect", () => {
   //     console.log("Connected to WebSocket server with ID:", socket.id);
   //   });
@@ -229,7 +229,7 @@ function Header(props) {
   const confirmConnect = async (messageId, orderId) => {
     try {
       await axios.post(
-        `${apiUrl}/api/confirm-connect`,
+        `${apiUrls}/api/confirm-connect`,
         {
           messageId,
           orderId,
@@ -253,7 +253,7 @@ function Header(props) {
 
   const rejectConnect = async (messageId, orderId) => {
     try {
-      await axios.post(`${apiUrl}/api/reject-connect`, {
+      await axios.post(`${apiUrls}/api/reject-connect`, {
         messageId,
         orderId,
       });
@@ -267,7 +267,7 @@ function Header(props) {
   };
 
   // useEffect(() => {
-  //   const socket = io("${apiUrl}/api");
+  //   const socket = io("${apiUrls}/api");
   //   // Call to handle existing messages if needed on initial render
 
   //   // Listen for the "newMessage" event and update messages in real-time
@@ -457,13 +457,13 @@ export default Header;
 //   const [expired, setExpired] = useState({});
 //   const [unread, setUnread] = useState(0);
 //   const [showProfile, setShowProfile] = useState(false);
-//   const apiUrl = "http://localhost:4000";
+//   const apiUrls = "http://localhost:4000";
 //   const userbread = user.userId;
 
 //   const fetchData = async () => {
 //     try {
 //       const result = await axios.get(
-//         `${apiUrl}/api/messages?userbread=${userbread}&reset=false`
+//         `${apiUrls}/api/messages?userbread=${userbread}&reset=false`
 //       );
 
 //       const { messages, unreadCount } = result.data;

@@ -103,7 +103,7 @@ function YourComponent() {
   const fetchData = async (page) => {
     try {
       const response = await axios.get(
-        `${apiUrl}/api/schoolfeeagentsapi?page=${
+        `${apiUrls}/api/schoolfeeagentsapi?page=${
           page + 1
         }&pageSize=${usersPerPage}`
       );
@@ -155,7 +155,7 @@ function YourComponent() {
 
       try {
         const response = await axios.get(
-          `${apiUrl}/api/check-pending-connects?userId=${userId}&type=${type}`
+          `${apiUrls}/api/check-pending-connects?userId=${userId}&type=${type}`
         );
 
         const agent = response.data.agent_id;
@@ -444,7 +444,7 @@ function YourComponent() {
 
     try {
       await axios.post(
-        `${apiUrl}/api/complete-connect`,
+        `${apiUrls}/api/complete-connect`,
         { orderCode },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -455,7 +455,7 @@ function YourComponent() {
     const orderId = orderCode2;
     try {
       await axios.post(
-        `${apiUrl}/api/incomplete-connect`,
+        `${apiUrls}/api/incomplete-connect`,
         { orderId },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -472,7 +472,7 @@ function YourComponent() {
 
     try {
       await axios.post(
-        `${apiUrl}/api/submitreview`,
+        `${apiUrls}/api/submitreview`,
         {
           type,
           agentType,
@@ -504,7 +504,7 @@ function YourComponent() {
   const handleShowProfile = async () => {
     try {
       const result = await axios.get(
-        `${apiUrl}/api/agentprofile?userId=${userbread}&type=schoolfeeagents`,
+        `${apiUrls}/api/agentprofile?userId=${userbread}&type=schoolfeeagents`,
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
 
@@ -652,7 +652,7 @@ function YourComponent() {
 
     try {
       await axios.post(
-        `${apiUrl}/api/patchrating`,
+        `${apiUrls}/api/patchrating`,
         data, // Use the encoded data
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -684,7 +684,7 @@ function YourComponent() {
 
     try {
       await axios.post(
-        `${apiUrl}/api/patchrating`,
+        `${apiUrls}/api/patchrating`,
         data, // Use the encoded data
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
@@ -733,7 +733,7 @@ function YourComponent() {
     }
     try {
       const response = await axios.get(
-        `${apiUrl}/api/get-account-balance?userId=${userbread}`
+        `${apiUrls}/api/get-account-balance?userId=${userbread}`
       );
 
       const accountBalance = response.data.account_balance;
@@ -1002,7 +1002,7 @@ function YourComponent() {
       const agentUserId = selectedAgent.fk_user_id;
 
       await axios.post(
-        `${apiUrl}/api/send-connect-email`,
+        `${apiUrls}/api/send-connect-email`,
         {
           agentId: agentId,
           userId: userId,
