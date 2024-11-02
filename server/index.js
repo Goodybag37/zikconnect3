@@ -250,7 +250,6 @@ const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 app.post("/paystack/initialize", cors(), (req, res) => {
   console.log("Request body:", req.body);
   const { email, amount } = req.body;
-  console.log("request was made here", email, amount, PAYSTACK_SECRET_KEY);
 
   const params = JSON.stringify({
     email,
@@ -1475,7 +1474,7 @@ app.get("/api/buysellapi", async (req, res) => {
         original_name,
         status 
       FROM buysell 
-      WHERE status IN ('available', 'order', 'unavailable')
+    WHERE status IN ('available', 'order', 'unavailable')
     `;
 
     const queryParams = [];
@@ -3813,22 +3812,22 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
         updatedItem = result.rows[0];
 
         // Add a job to the queue to change the status after 30 minutes
-        await myQueue.add({ agentId }, { delay: 3 * 10000 });
+        await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
       } // 30 minutes delay
 
       agentLocation = await pool.query(
         `SELECT exact_location FROM buysell WHERE id = $1`,
         [agentId]
       );
+    } else {
+      // Query the agent's exact location from the database
+      agentLocation = await pool.query(
+        `SELECT exact_location FROM agents WHERE agent_id = $1`,
+        [agentId]
+      );
     }
 
     const { lat, lon, display_name } = response.data;
-
-    // Query the agent's exact location from the database
-    agentLocation = await pool.query(
-      `SELECT exact_location FROM agents WHERE agent_id = $1`,
-      [agentId]
-    );
 
     if (agentLocation.rows.length === 0) {
       throw new Error("Agent location not found in the database");
@@ -3936,9 +3935,38 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
 
     const response = await pool.query(
       `INSERT INTO messages (user_id, message, type, sender_id, order_code)
-   VALUES ($1, $2, $3, $4, $5) RETURNING *`, // Return the inserted row
+   VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [agentUserId, message, agentType, userId, orderId]
     );
+
+    const messageId = response.rows[0].id; // Assuming 'id' is the primary key for messages
+
+    // Update the agent_phone based on the people's phone number
+    await pool.query(
+      `UPDATE messages
+   SET agent_phone = p.phone
+   FROM people p
+   WHERE messages.user_id = p.id AND messages.id = $1`,
+      [messageId]
+    );
+
+    await pool.query(
+      `UPDATE messages
+   SET agent_fullname = p.full_name
+   FROM people p
+   WHERE messages.user_id = p.id AND messages.id = $1`,
+      [messageId]
+    );
+
+    // Update the agent_whatsapp based on the agents' contact
+    await pool.query(
+      `UPDATE messages
+   SET agent_whatsapp = a.contact
+   FROM agents a
+   WHERE messages.user_id = a.user_id AND messages.id = $1`,
+      [messageId]
+    );
+
     // await notifyNewMessages(agentUserId);
 
     const insertedMessage = response.rows[0]; // The inserted message with basic info
@@ -4889,38 +4917,29 @@ app.post("/api/reject-connect", async (req, res) => {
   }
 });
 
-app.post("/api/connectbuysell", async (req, res) => {
-  const { itemId } = req.body;
-  // console.log("updating buysell ", itemId);
+app.get("/api/connect-buysell", async (req, res) => {
+  const { itemId } = req.query;
 
   try {
-    // Update the status in the database
+    // Query the database for the item status
     const result = await pool.query(
-      "UPDATE buysell SET status = $1 WHERE id = $2 RETURNING *",
-      ["order", itemId]
+      "SELECT status FROM buysell WHERE id = $1",
+      [itemId]
     );
 
-    if (result.rowCount > 0) {
-      const updatedItem = result.rows[0];
+    const response = result.rows;
 
-      // Add a job to the queue to change the status after 30 minutes
-      await myQueue.add({ itemId }, { delay: 3 * 10000 }); // 30 minutes delay
-
-      // Broadcast the status update to all connected clients
-      io.emit("statusUpdate", {
-        itemId: updatedItem.id,
-        status: updatedItem.status,
-      });
-
-      res
-        .status(200)
-        .json({ message: "Status updated successfully", item: updatedItem });
-    } else {
-      // Item not found
-      res.status(404).json({ message: "Item not found" });
+    if (response.length === 0) {
+      console.warn(`No data found for itemId: ${itemId}`);
+      return res.status(404).json({ message: "Item not found" });
     }
+
+    // Extract and send only the status value
+    const status = result.rows[0].status;
+    res.json({ status });
+    console.log("Response for connect is:", { status });
   } catch (error) {
-    console.error("Error updating status:", error);
+    console.error("Error retrieving data:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -5301,7 +5320,7 @@ app.get("/api/messages", async (req, res) => {
 
     // Query to get all messages for the user
     const result = await pool.query(
-      "SELECT * FROM messages WHERE user_id = $1 ORDER BY timestamp DESC",
+      "SELECT * FROM messages WHERE user_id = $1 OR sender_id = $1 ORDER BY timestamp DESC",
       [userbread]
     );
 
@@ -5311,6 +5330,8 @@ app.get("/api/messages", async (req, res) => {
       `SELECT COUNT(*) AS unread_count FROM messages WHERE user_id = $1 AND status = $2`,
       [userbread, status]
     );
+
+    const agentPhone = await pool.query("SELECT ");
 
     const response = result.rows; // All messages for the user
     const unreadCount = parseInt(result2.rows[0].unread_count, 10); // Unread messages count
