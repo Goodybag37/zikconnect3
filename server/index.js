@@ -485,12 +485,28 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // app.use(fileUpload());
 
 app.set("trust proxy", 1); // trust first proxy
-const pool = new pg.Pool({
+const poolss = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
   password: process.env.DB_PASSWORD,
   port: 5433,
+});
+
+const pool = new pg.Pool({
+  host: process.env.RDS_USER, // Replace with your RDS endpoint
+  port: 5432, // Replace with your RDS port
+  user: process.env.RDS_USER_NAME, // Replace with your RDS username
+  password: process.env.RDS_PASSWORD, // Replace with your RDS password
+  database: process.env.RDS_DATABASE, // Replace with your RDS database name
+});
+
+pool.connect((err) => {
+  if (err) {
+    console.error("Error connecting to the database:", err);
+  } else {
+    console.log("Connected to the RDS database successfully!");
+  }
 });
 
 const pools = new pg.Pool({
