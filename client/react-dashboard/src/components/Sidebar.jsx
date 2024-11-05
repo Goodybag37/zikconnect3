@@ -42,6 +42,11 @@ function Sidebar(props) {
 
       <ul className="sidebar-list text-gradient mt-0">
         <li className="sidebar-list-item">
+          <CustomLink className="card-title" to={"/"} userId={id} email={mail}>
+            <BsFillPersonLinesFill className="icon" /> Home
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
           <CustomLink
             className="card-title"
             to={"/agents"}

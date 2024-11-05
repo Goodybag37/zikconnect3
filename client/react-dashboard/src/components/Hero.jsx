@@ -49,10 +49,7 @@ const Hero = () => {
             </button>
           </Link>
           <Link to="/login">
-            <button className="loginButton ">
-              {" "}
-              <BsFillPersonFill className="connect_icon" /> Login
-            </button>
+            <button className="loginButton "> Login</button>
           </Link>
           {/* <div className="ss:flex  md:mr-4 mr-0">
           <GetStarted />
