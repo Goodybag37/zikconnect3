@@ -134,6 +134,7 @@ app.use(
       `${baseUrl}`, // React local frontend
       // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
       "https://zikconnect.com",
+      "http://localhost:3000",
     ],
     credentials: true,
   })
@@ -339,7 +340,7 @@ app.get("/paystack/verify/:reference", cors(), async (req, res) => {
   paystackReq.end();
 });
 
-app.post("/api/paystack-webhook", async (req, res) => {
+app.post("/api/paystack-webhook", cors(), async (req, res) => {
   const { event, data } = req.body;
 
   if (event === "charge.success" && data.status === "success") {
@@ -393,8 +394,8 @@ app.post("/api/paystack-webhook", async (req, res) => {
                     } connects</strong>. Please use it carefully and avoid abuse on the site.</p>`;
 
       const mailOptions = {
-        from: "admin@zikconnect.com",
-        to: "edithobiukwu012@gmail.com",
+        from: "Zikconnect admin@zikconnect.com",
+        to: updatedReference.email,
         subject: subject,
         text: text,
         html: html,
@@ -964,7 +965,7 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   return distance; // Return distance in kilometers
 };
 
-app.post("/api/register", async (req, res) => {
+app.post("/api/register", cors(), async (req, res) => {
   const { email, password, fullname } = req.body;
 
   try {
@@ -1011,7 +1012,7 @@ app.post("/api/register", async (req, res) => {
       from: "admin@zikconnect.com", // Sender address
       // to: email,
       // Recipient's email address
-      to: "edithobiukwu012@gmail.com",
+      to: email,
       subject: subject, // Subject line
       text: text, // Plain text body
       html: html, // HTML body
@@ -1532,547 +1533,30 @@ const upload = multer({
   },
 });
 
-app.post("/api/upload-property", upload.single("file"), async (req, res) => {
-  try {
-    let { originalname, filename, mimetype } = req.file;
-    const { name, description, user, price, located } = req.body;
-    // const fkUserId = parseInt(fk_user_id, 10);
-
-    const settingsQuery = "SELECT settings FROM people WHERE id = $1";
-    const settingsResult = await pool.query(settingsQuery, [user]);
-    const userSettings = settingsResult.rows[0]?.settings || {};
-
-    // Extract toggle_status.buysell from settings
-    const toggleStatusBuysell =
-      userSettings?.toggle_status?.buysell || "available"; // Default to "available" if not found
-
-    // Step 2: Check the toggle status, set property status accordingly
-    let propertyStatus = "available";
-    if (toggleStatusBuysell === "unavailable") {
-      propertyStatus = "unavailable";
-    }
-
-    if (
-      filename.endsWith(".heic") ||
-      filename.endsWith(".HEIC") ||
-      filename.endsWith(".heif") ||
-      filename.endsWith(".HEIF")
-    ) {
-      const inputPath = req.file.path;
-      const outputPath = path.join("uploads/", Date.now() + ".jpeg");
-
-      // Convert HEIC to JPEG
-      const buffer = fs.readFileSync(inputPath);
-      const outputBuffer = await heicConvert({
-        buffer,
-        format: "JPEG",
-        quality: 1, // 1 is maximum quality
-      });
-
-      // Save the converted JPEG
-      fs.writeFileSync(outputPath, outputBuffer);
-
-      // Update filename and mimetype
-      filename = path.basename(outputPath);
-      req.file.mimetype = "image/jpeg";
-
-      // Delete the original HEIC file
-      fs.unlinkSync(inputPath);
-    } else {
-      // Optimize other formats with Sharp
-      const inputPath = req.file.path;
-      const outputPath = path.join(
-        "uploads/",
-        Date.now() + path.extname(req.file.originalname)
-      );
-
-      // Compress and optimize the image
-      await sharp(inputPath)
-        .resize({ width: 800, withoutEnlargement: true })
-        .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
-        .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
-        .toFile(outputPath);
-
-      // Update filename
-      filename = path.basename(outputPath);
-
-      // Delete the original file
-      fs.unlinkSync(inputPath);
-    }
-    // Fetch seller details
-    const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
-    const sellerResult = await pool.query(sellerQuery, [user]);
-    const sellerName = sellerResult.rows[0].full_name || "Unknown";
-    const sellerContact = sellerResult.rows[0].phone || "Unknown";
-
-    await pool.query(
-      `
-  UPDATE people
-  SET 
-    settings = jsonb_set(
-      settings, 
-      '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
-    ),
-    account_balance = account_balance - 300
-  WHERE 
-    id = $1;
-  `,
-      [user] // Pass user ID as parameter here
-    );
-
-    // Insert into events
-    const insertQuery = `
-      INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-    `;
-    await pool.query(insertQuery, [
-      name,
-      description,
-      user,
-      price,
-      located,
-      sellerName,
-      sellerContact,
-      originalname,
-      filename,
-      propertyStatus,
-    ]);
-
-    res.send("File uploaded successfully");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred");
-  }
-});
-
-app.post("/api/upload-lodge", upload.single("file"), async (req, res) => {
-  try {
-    let { originalname, filename, mimetype } = req.file;
-    const { name, description, user, price, located } = req.body;
-    // const fkUserId = parseInt(fk_user_id, 10);
-
-    const settingsQuery = "SELECT settings FROM people WHERE id = $1";
-    const settingsResult = await pool.query(settingsQuery, [user]);
-    const userSettings = settingsResult.rows[0]?.settings || {};
-
-    // Extract toggle_status.buysell from settings
-    const toggleStatusLodge = userSettings?.toggle_status?.lodge || "available"; // Default to "available" if not found
-
-    // Step 2: Check the toggle status, set property status accordingly
-    let lodgeStatus = "available";
-    if (toggleStatusLodge === "unavailable") {
-      lodgeStatus = "unavailable";
-    }
-
-    if (
-      filename.endsWith(".heic") ||
-      filename.endsWith(".HEIC") ||
-      filename.endsWith(".heif") ||
-      filename.endsWith(".HEIF")
-    ) {
-      const inputPath = req.file.path;
-      const outputPath = path.join("uploads/", Date.now() + ".jpeg");
-
-      // Convert HEIC to JPEG
-      const buffer = fs.readFileSync(inputPath);
-      const outputBuffer = await heicConvert({
-        buffer,
-        format: "JPEG",
-        quality: 1, // 1 is maximum quality
-      });
-
-      // Save the converted JPEG
-      fs.writeFileSync(outputPath, outputBuffer);
-
-      // Update filename and mimetype
-      filename = path.basename(outputPath);
-      req.file.mimetype = "image/jpeg";
-
-      // Delete the original HEIC file
-      fs.unlinkSync(inputPath);
-    } else {
-      // Optimize other formats with Sharp
-      const inputPath = req.file.path;
-      const outputPath = path.join(
-        "uploads/",
-        Date.now() + path.extname(req.file.originalname)
-      );
-
-      // Compress and optimize the image
-      await sharp(inputPath)
-        .resize({ width: 800, withoutEnlargement: true })
-        .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
-        .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
-        .toFile(outputPath);
-
-      // Update filename
-      filename = path.basename(outputPath);
-
-      // Delete the original file
-      fs.unlinkSync(inputPath);
-    }
-    // Fetch seller details
-    const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
-    const sellerResult = await pool.query(sellerQuery, [user]);
-    const sellerName = sellerResult.rows[0].full_name || "Unknown";
-    const sellerContact = sellerResult.rows[0].phone || "Unknown";
-
-    await pool.query(
-      `
-  UPDATE people
-  SET 
-    settings = jsonb_set(
-      settings, 
-      '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
-    ),
-    account_balance = account_balance - 300
-  WHERE 
-    id = $1;
-  `,
-      [user] // Pass user ID as parameter here
-    );
-
-    // Insert into events
-    const insertQuery = `
-      INSERT INTO lodge (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-    `;
-    await pool.query(insertQuery, [
-      name,
-      description,
-      user,
-      price,
-      located,
-      sellerName,
-      sellerContact,
-      originalname,
-      filename,
-      propertyStatus,
-    ]);
-
-    res.send("File uploaded successfully");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred");
-  }
-});
-
-app.post("/api/upload-event", upload.single("file"), async (req, res) => {
-  try {
-    let { originalname, filename, mimetype } = req.file;
-    const { name, description, event_date, user, price, located } = req.body;
-    // const fkUserId = parseInt(fk_user_id, 10);
-
-    const settingsQuery = "SELECT settings FROM people WHERE id = $1";
-    const settingsResult = await pool.query(settingsQuery, [user]);
-    const userSettings = settingsResult.rows[0]?.settings || {};
-
-    // Extract toggle_status.buysell from settings
-    const toggleStatusBuysell =
-      userSettings?.toggle_status?.event || "available"; // Default to "available" if not found
-
-    // Step 2: Check the toggle status, set property status accordingly
-    let propertyStatus = "available";
-    if (toggleStatusBuysell === "unavailable") {
-      propertyStatus = "unavailable";
-    }
-
-    if (
-      filename.endsWith(".heic") ||
-      filename.endsWith(".HEIC") ||
-      filename.endsWith(".heif") ||
-      filename.endsWith(".HEIF")
-    ) {
-      const inputPath = req.file.path;
-      const outputPath = path.join("uploads/", Date.now() + ".jpeg");
-
-      // Convert HEIC to JPEG
-      const buffer = fs.readFileSync(inputPath);
-      const outputBuffer = await heicConvert({
-        buffer,
-        format: "JPEG",
-        quality: 1, // 1 is maximum quality
-      });
-
-      // Save the converted JPEG
-      fs.writeFileSync(outputPath, outputBuffer);
-
-      // Update filename and mimetype
-      filename = path.basename(outputPath);
-      req.file.mimetype = "image/jpeg";
-
-      // Delete the original HEIC file
-      fs.unlinkSync(inputPath);
-    } else {
-      // Optimize other formats with Sharp
-      const inputPath = req.file.path;
-      const outputPath = path.join(
-        "uploads/",
-        Date.now() + path.extname(req.file.originalname)
-      );
-
-      // Compress and optimize the image
-      await sharp(inputPath)
-        .resize({ width: 800, withoutEnlargement: true })
-        .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
-        .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
-        .toFile(outputPath);
-
-      // Update filename
-      filename = path.basename(outputPath);
-
-      // Delete the original file
-      fs.unlinkSync(inputPath);
-    }
-    // Fetch seller details
-    const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
-    const sellerResult = await pool.query(sellerQuery, [user]);
-    const sellerName = sellerResult.rows[0].full_name || "Unknown";
-    const sellerContact = sellerResult.rows[0].phone || "Unknown";
-
-    await pool.query(
-      `
-  UPDATE people
-  SET 
-    settings = jsonb_set(
-      settings, 
-      '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 500)  -- The new value as JSONB
-    ),
-    account_balance = account_balance - 500
-  WHERE 
-    id = $1;
-  `,
-      [user] // Pass user ID as parameter here
-    );
-
-    // Insert into events
-    const insertQuery = `
-      INSERT INTO event (name, description, fk_user_id, event_date,  price, location, seller_name, contact, original_name, unique_name, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `;
-    await pool.query(insertQuery, [
-      name,
-      description,
-      user,
-      event_date,
-      price,
-      located,
-      sellerName,
-      sellerContact,
-      originalname,
-      filename,
-      propertyStatus,
-    ]);
-
-    res.send("File uploaded successfully");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred");
-  }
-});
-
-const multipleStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Directory to save the files
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${uuidv4()}${ext}`; // Unique filename
-    cb(null, uniqueName);
-  },
-});
-
-// File filter for multiple uploads
-const multipleFileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/heif",
-    "image/heic",
-  ];
-  if (!allowedTypes.includes(file.mimetype)) {
-    const error = new Error("Incorrect file type");
-    error.code = "INCORRECT_FILETYPE";
-    return cb(error, false);
-  }
-  cb(null, true);
-};
-
-// Multer instance for multiple file uploads
-const multipleUpload = multer({
-  storage: multipleStorage,
-  limits: {
-    fileSize: 1024 * 1024 * 5, // Limit file size to 5MB per file
-  },
-  fileFilter: multipleFileFilter,
-});
-
 app.post(
-  "/api/upload-lodge",
-  multipleUpload.array("files", 3),
+  "/api/upload-property",
+  upload.single("file"),
+  cors(),
   async (req, res) => {
     try {
-      const { name, description, user, price, located } = req.body;
-      const filesArray = req.files; // Array of uploaded files
-      const fileData = [];
-
-      if (!filesArray || filesArray.length === 0) {
-        return res.status(400).json({ message: "No files uploaded" });
-      }
-
-      // console.log("Number of files received:", filesArray.length);
-      // console.log("Files Array:", filesArray);
-
-      for (let file of filesArray) {
-        let { originalname, filename, mimetype, path: filePath } = file;
-        // console.log("Processing file:", originalname, "at path:", filePath);
-
-        // Check if file exists before processing
-        // console.log(`Checking if file exists: ${filePath}`);
-        if (!fs.existsSync(filePath)) {
-          console.error(`File not found: ${filePath}`);
-          throw new Error(`Input file is missing: ${filePath}`);
-        }
-
-        // Check if file is HEIC/HEIF and convert to JPEG
-        if (
-          filename.toLowerCase().endsWith(".heic") ||
-          filename.toLowerCase().endsWith(".heif")
-        ) {
-          const outputFilename = `${Date.now()}-${uuidv4()}.jpeg`;
-          const outputPath = path.join("uploads/", outputFilename);
-
-          // Convert HEIC/HEIF to JPEG
-          const buffer = fs.readFileSync(filePath);
-          const outputBuffer = await heicConvert({
-            buffer,
-            format: "JPEG",
-            quality: 1, // Maximum quality
-          });
-
-          // Save converted JPEG and update file details
-          fs.writeFileSync(outputPath, outputBuffer);
-          // console.log(`Converted file saved to ${outputPath}`);
-
-          // Update filename and mimetype
-          filename = outputFilename;
-          mimetype = "image/jpeg";
-
-          // Delete original HEIC/HEIF file
-          fs.unlinkSync(filePath);
-          // console.log(`Original HEIC/HEIF file deleted: ${filePath}`);
-        } else {
-          // Optimize other formats with Sharp
-          const outputFilename = `${Date.now()}-${uuidv4()}${path.extname(
-            file.originalname
-          )}`;
-          const outputPath = path.join("uploads/", outputFilename);
-
-          // console.log(
-          //   `Optimizing image with Sharp: ${filePath} -> ${outputPath}`
-          // );
-
-          // // Check if input file exists before processing with Sharp
-          // console.log(`Checking if input file exists for Sharp: ${filePath}`);
-          if (!fs.existsSync(filePath)) {
-            console.error(
-              `Input file missing before Sharp processing: ${filePath}`
-            );
-            throw new Error(
-              `Input file is missing before processing: ${filePath}`
-            );
-          }
-
-          // Compress and optimize the image
-          await sharp(filePath)
-            .resize({ width: 800, withoutEnlargement: true }) // Max width 800px
-            .toFormat(mimetype.split("/")[1], { quality: 30 }) // Quality 30
-            .toFile(outputPath);
-
-          // console.log(`Optimized file saved to ${outputPath}`);
-
-          // Update filename
-          filename = outputFilename;
-
-          // Delete the original file
-          fs.unlinkSync(filePath);
-          // console.log(`Original file deleted: ${filePath}`);
-        }
-
-        // Collect the original and unique filenames
-        fileData.push({
-          original_name: originalname,
-          unique_name: filename,
-        });
-      }
-
-      // Fetch seller details
-      const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
-      const sellerResult = await pool.query(sellerQuery, [user]);
-      const sellerName = sellerResult.rows[0]?.full_name || "Unknown";
-      const sellerContact = sellerResult.rows[0]?.phone || "Unknown";
-
-      // Insert into lodges table with pictures as JSONB
-      const insertQuery = `
-      INSERT INTO lodges (name, description, fk_user_id, price, location, seller_name, contact, pictures)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `;
-      const insertValues = [
-        name,
-        description,
-        user,
-        price,
-        located,
-        sellerName,
-        sellerContact,
-        JSON.stringify(fileData), // Convert to JSON string
-      ];
-
-      const insertResult = await pool.query(insertQuery, insertValues);
-
-      // console.log("Insert Result:", insertResult.rows[0]);
-
-      res.status(201).json({
-        message: "Files uploaded successfully",
-        lodge: insertResult.rows[0],
-      });
-    } catch (error) {
-      console.error("Error uploading files:", error);
-      res.status(500).json({ message: "An error occurred during the upload" });
-    }
-  }
-);
-
-app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
-  const { id, type } = req.params;
-  // console.log("id", id);
-  const { name, description, price, location } = req.body;
-  const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
-  if (!validTypes.includes(type)) {
-    return res.status(400).send({ error: "Invalid type parameter" });
-  }
-
-  // console.log("body of data", req.body);
-  const existingData = await pool.query(`SELECT * FROM ${type} WHERE id = $1`, [
-    id,
-  ]);
-
-  const existingItem = existingData.rows[0];
-  const updatedName = name !== undefined ? name : existingItem.name;
-  const updatedDescription =
-    description !== undefined ? description : existingItem.description;
-  const updatedPrice = price !== undefined ? price : existingItem.price;
-  const updatedLocation =
-    location !== undefined ? location : existingItem.location;
-
-  try {
-    if (req.file) {
       let { originalname, filename, mimetype } = req.file;
+      const { name, description, user, price, located } = req.body;
+      // const fkUserId = parseInt(fk_user_id, 10);
+
+      const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+      const settingsResult = await pool.query(settingsQuery, [user]);
+      const userSettings = settingsResult.rows[0]?.settings || {};
+
+      // Extract toggle_status.buysell from settings
+      const toggleStatusBuysell =
+        userSettings?.toggle_status?.buysell || "available"; // Default to "available" if not found
+
+      // Step 2: Check the toggle status, set property status accordingly
+      let propertyStatus = "available";
+      if (toggleStatusBuysell === "unavailable") {
+        propertyStatus = "unavailable";
+      }
+
       if (
         filename.endsWith(".heic") ||
         filename.endsWith(".HEIC") ||
@@ -2120,42 +1604,581 @@ app.put("/api/edit-upload/:id", upload.single("file"), async (req, res) => {
         // Delete the original file
         fs.unlinkSync(inputPath);
       }
+      // Fetch seller details
+      const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+      const sellerResult = await pool.query(sellerQuery, [user]);
+      const sellerName = sellerResult.rows[0].full_name || "Unknown";
+      const sellerContact = sellerResult.rows[0].phone || "Unknown";
 
-      // Insert into buysells
+      await pool.query(
+        `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 300
+  WHERE 
+    id = $1;
+  `,
+        [user] // Pass user ID as parameter here
+      );
+
+      // Insert into events
       const insertQuery = `
-      UPDATE  ${type} SET name = $1, description =$2, price = $3, location =$4, original_name = $5, unique_name = $6 WHERE id = $7
+      INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `;
       await pool.query(insertQuery, [
         name,
         description,
-
+        user,
         price,
-        location,
-
+        located,
+        sellerName,
+        sellerContact,
         originalname,
         filename,
-        id,
+        propertyStatus,
       ]);
 
       res.send("File uploaded successfully");
-    } else {
-      const insertQuery = `
-      UPDATE  ${type} SET name = $1, description =$2, price = $3, location =$4  WHERE id = $5
-    `;
-      await pool.query(insertQuery, [name, description, price, location, id]);
-      res.send("File uploaded successfully");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred");
     }
-
-    // const fkUserId = parseInt(fk_user_id, 10);
-
-    // Fetch seller details
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("An error occurred");
   }
+);
+
+app.post(
+  "/api/upload-lodge",
+  upload.single("file"),
+  cors(),
+  async (req, res) => {
+    try {
+      let { originalname, filename, mimetype } = req.file;
+      const { name, description, user, price, located } = req.body;
+      // const fkUserId = parseInt(fk_user_id, 10);
+
+      const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+      const settingsResult = await pool.query(settingsQuery, [user]);
+      const userSettings = settingsResult.rows[0]?.settings || {};
+
+      // Extract toggle_status.buysell from settings
+      const toggleStatusLodge =
+        userSettings?.toggle_status?.lodge || "available"; // Default to "available" if not found
+
+      // Step 2: Check the toggle status, set property status accordingly
+      let lodgeStatus = "available";
+      if (toggleStatusLodge === "unavailable") {
+        lodgeStatus = "unavailable";
+      }
+
+      if (
+        filename.endsWith(".heic") ||
+        filename.endsWith(".HEIC") ||
+        filename.endsWith(".heif") ||
+        filename.endsWith(".HEIF")
+      ) {
+        const inputPath = req.file.path;
+        const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+
+        // Convert HEIC to JPEG
+        const buffer = fs.readFileSync(inputPath);
+        const outputBuffer = await heicConvert({
+          buffer,
+          format: "JPEG",
+          quality: 1, // 1 is maximum quality
+        });
+
+        // Save the converted JPEG
+        fs.writeFileSync(outputPath, outputBuffer);
+
+        // Update filename and mimetype
+        filename = path.basename(outputPath);
+        req.file.mimetype = "image/jpeg";
+
+        // Delete the original HEIC file
+        fs.unlinkSync(inputPath);
+      } else {
+        // Optimize other formats with Sharp
+        const inputPath = req.file.path;
+        const outputPath = path.join(
+          "uploads/",
+          Date.now() + path.extname(req.file.originalname)
+        );
+
+        // Compress and optimize the image
+        await sharp(inputPath)
+          .resize({ width: 800, withoutEnlargement: true })
+          .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
+          .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
+          .toFile(outputPath);
+
+        // Update filename
+        filename = path.basename(outputPath);
+
+        // Delete the original file
+        fs.unlinkSync(inputPath);
+      }
+      // Fetch seller details
+      const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+      const sellerResult = await pool.query(sellerQuery, [user]);
+      const sellerName = sellerResult.rows[0].full_name || "Unknown";
+      const sellerContact = sellerResult.rows[0].phone || "Unknown";
+
+      await pool.query(
+        `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 300
+  WHERE 
+    id = $1;
+  `,
+        [user] // Pass user ID as parameter here
+      );
+
+      // Insert into events
+      const insertQuery = `
+      INSERT INTO lodge (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `;
+      await pool.query(insertQuery, [
+        name,
+        description,
+        user,
+        price,
+        located,
+        sellerName,
+        sellerContact,
+        originalname,
+        filename,
+        propertyStatus,
+      ]);
+
+      res.send("File uploaded successfully");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred");
+    }
+  }
+);
+
+app.post(
+  "/api/upload-event",
+  upload.single("file"),
+  cors(),
+  async (req, res) => {
+    try {
+      let { originalname, filename, mimetype } = req.file;
+      const { name, description, event_date, user, price, located } = req.body;
+      // const fkUserId = parseInt(fk_user_id, 10);
+
+      const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+      const settingsResult = await pool.query(settingsQuery, [user]);
+      const userSettings = settingsResult.rows[0]?.settings || {};
+
+      // Extract toggle_status.buysell from settings
+      const toggleStatusBuysell =
+        userSettings?.toggle_status?.event || "available"; // Default to "available" if not found
+
+      // Step 2: Check the toggle status, set property status accordingly
+      let propertyStatus = "available";
+      if (toggleStatusBuysell === "unavailable") {
+        propertyStatus = "unavailable";
+      }
+
+      if (
+        filename.endsWith(".heic") ||
+        filename.endsWith(".HEIC") ||
+        filename.endsWith(".heif") ||
+        filename.endsWith(".HEIF")
+      ) {
+        const inputPath = req.file.path;
+        const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+
+        // Convert HEIC to JPEG
+        const buffer = fs.readFileSync(inputPath);
+        const outputBuffer = await heicConvert({
+          buffer,
+          format: "JPEG",
+          quality: 1, // 1 is maximum quality
+        });
+
+        // Save the converted JPEG
+        fs.writeFileSync(outputPath, outputBuffer);
+
+        // Update filename and mimetype
+        filename = path.basename(outputPath);
+        req.file.mimetype = "image/jpeg";
+
+        // Delete the original HEIC file
+        fs.unlinkSync(inputPath);
+      } else {
+        // Optimize other formats with Sharp
+        const inputPath = req.file.path;
+        const outputPath = path.join(
+          "uploads/",
+          Date.now() + path.extname(req.file.originalname)
+        );
+
+        // Compress and optimize the image
+        await sharp(inputPath)
+          .resize({ width: 800, withoutEnlargement: true })
+          .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
+          .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
+          .toFile(outputPath);
+
+        // Update filename
+        filename = path.basename(outputPath);
+
+        // Delete the original file
+        fs.unlinkSync(inputPath);
+      }
+      // Fetch seller details
+      const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+      const sellerResult = await pool.query(sellerQuery, [user]);
+      const sellerName = sellerResult.rows[0].full_name || "Unknown";
+      const sellerContact = sellerResult.rows[0].phone || "Unknown";
+
+      await pool.query(
+        `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 500)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 500
+  WHERE 
+    id = $1;
+  `,
+        [user] // Pass user ID as parameter here
+      );
+
+      // Insert into events
+      const insertQuery = `
+      INSERT INTO event (name, description, fk_user_id, event_date,  price, location, seller_name, contact, original_name, unique_name, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `;
+      await pool.query(insertQuery, [
+        name,
+        description,
+        user,
+        event_date,
+        price,
+        located,
+        sellerName,
+        sellerContact,
+        originalname,
+        filename,
+        propertyStatus,
+      ]);
+
+      res.send("File uploaded successfully");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred");
+    }
+  }
+);
+
+const multipleStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/"); // Directory to save the files
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${uuidv4()}${ext}`; // Unique filename
+    cb(null, uniqueName);
+  },
 });
 
-app.post("/api/delete-upload/:id", async (req, res) => {
+// File filter for multiple uploads
+const multipleFileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heif",
+    "image/heic",
+  ];
+  if (!allowedTypes.includes(file.mimetype)) {
+    const error = new Error("Incorrect file type");
+    error.code = "INCORRECT_FILETYPE";
+    return cb(error, false);
+  }
+  cb(null, true);
+};
+
+// Multer instance for multiple file uploads
+const multipleUpload = multer({
+  storage: multipleStorage,
+  limits: {
+    fileSize: 1024 * 1024 * 5, // Limit file size to 5MB per file
+  },
+  fileFilter: multipleFileFilter,
+});
+
+// app.post(
+//   "/api/upload-lodge",
+//   multipleUpload.array("files", 3),
+//   async (req, res) => {
+//     try {
+//       const { name, description, user, price, located } = req.body;
+//       const filesArray = req.files; // Array of uploaded files
+//       const fileData = [];
+
+//       if (!filesArray || filesArray.length === 0) {
+//         return res.status(400).json({ message: "No files uploaded" });
+//       }
+
+//       // console.log("Number of files received:", filesArray.length);
+//       // console.log("Files Array:", filesArray);
+
+//       for (let file of filesArray) {
+//         let { originalname, filename, mimetype, path: filePath } = file;
+//         // console.log("Processing file:", originalname, "at path:", filePath);
+
+//         // Check if file exists before processing
+//         // console.log(`Checking if file exists: ${filePath}`);
+//         if (!fs.existsSync(filePath)) {
+//           console.error(`File not found: ${filePath}`);
+//           throw new Error(`Input file is missing: ${filePath}`);
+//         }
+
+//         // Check if file is HEIC/HEIF and convert to JPEG
+//         if (
+//           filename.toLowerCase().endsWith(".heic") ||
+//           filename.toLowerCase().endsWith(".heif")
+//         ) {
+//           const outputFilename = `${Date.now()}-${uuidv4()}.jpeg`;
+//           const outputPath = path.join("uploads/", outputFilename);
+
+//           // Convert HEIC/HEIF to JPEG
+//           const buffer = fs.readFileSync(filePath);
+//           const outputBuffer = await heicConvert({
+//             buffer,
+//             format: "JPEG",
+//             quality: 1, // Maximum quality
+//           });
+
+//           // Save converted JPEG and update file details
+//           fs.writeFileSync(outputPath, outputBuffer);
+//           // console.log(`Converted file saved to ${outputPath}`);
+
+//           // Update filename and mimetype
+//           filename = outputFilename;
+//           mimetype = "image/jpeg";
+
+//           // Delete original HEIC/HEIF file
+//           fs.unlinkSync(filePath);
+//           // console.log(`Original HEIC/HEIF file deleted: ${filePath}`);
+//         } else {
+//           // Optimize other formats with Sharp
+//           const outputFilename = `${Date.now()}-${uuidv4()}${path.extname(
+//             file.originalname
+//           )}`;
+//           const outputPath = path.join("uploads/", outputFilename);
+
+//           // console.log(
+//           //   `Optimizing image with Sharp: ${filePath} -> ${outputPath}`
+//           // );
+
+//           // // Check if input file exists before processing with Sharp
+//           // console.log(`Checking if input file exists for Sharp: ${filePath}`);
+//           if (!fs.existsSync(filePath)) {
+//             console.error(
+//               `Input file missing before Sharp processing: ${filePath}`
+//             );
+//             throw new Error(
+//               `Input file is missing before processing: ${filePath}`
+//             );
+//           }
+
+//           // Compress and optimize the image
+//           await sharp(filePath)
+//             .resize({ width: 800, withoutEnlargement: true }) // Max width 800px
+//             .toFormat(mimetype.split("/")[1], { quality: 30 }) // Quality 30
+//             .toFile(outputPath);
+
+//           // console.log(`Optimized file saved to ${outputPath}`);
+
+//           // Update filename
+//           filename = outputFilename;
+
+//           // Delete the original file
+//           fs.unlinkSync(filePath);
+//           // console.log(`Original file deleted: ${filePath}`);
+//         }
+
+//         // Collect the original and unique filenames
+//         fileData.push({
+//           original_name: originalname,
+//           unique_name: filename,
+//         });
+//       }
+
+//       // Fetch seller details
+//       const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+//       const sellerResult = await pool.query(sellerQuery, [user]);
+//       const sellerName = sellerResult.rows[0]?.full_name || "Unknown";
+//       const sellerContact = sellerResult.rows[0]?.phone || "Unknown";
+
+//       // Insert into lodges table with pictures as JSONB
+//       const insertQuery = `
+//       INSERT INTO lodges (name, description, fk_user_id, price, location, seller_name, contact, pictures)
+//       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+//       RETURNING *
+//     `;
+//       const insertValues = [
+//         name,
+//         description,
+//         user,
+//         price,
+//         located,
+//         sellerName,
+//         sellerContact,
+//         JSON.stringify(fileData), // Convert to JSON string
+//       ];
+
+//       const insertResult = await pool.query(insertQuery, insertValues);
+
+//       // console.log("Insert Result:", insertResult.rows[0]);
+
+//       res.status(201).json({
+//         message: "Files uploaded successfully",
+//         lodge: insertResult.rows[0],
+//       });
+//     } catch (error) {
+//       console.error("Error uploading files:", error);
+//       res.status(500).json({ message: "An error occurred during the upload" });
+//     }
+//   }
+// );
+
+app.put(
+  "/api/edit-upload/:id",
+  upload.single("file"),
+  cors(),
+  async (req, res) => {
+    const { id, type } = req.params;
+    // console.log("id", id);
+    const { name, description, price, location } = req.body;
+    const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
+    if (!validTypes.includes(type)) {
+      return res.status(400).send({ error: "Invalid type parameter" });
+    }
+
+    // console.log("body of data", req.body);
+    const existingData = await pool.query(
+      `SELECT * FROM ${type} WHERE id = $1`,
+      [id]
+    );
+
+    const existingItem = existingData.rows[0];
+    const updatedName = name !== undefined ? name : existingItem.name;
+    const updatedDescription =
+      description !== undefined ? description : existingItem.description;
+    const updatedPrice = price !== undefined ? price : existingItem.price;
+    const updatedLocation =
+      location !== undefined ? location : existingItem.location;
+
+    try {
+      if (req.file) {
+        let { originalname, filename, mimetype } = req.file;
+        if (
+          filename.endsWith(".heic") ||
+          filename.endsWith(".HEIC") ||
+          filename.endsWith(".heif") ||
+          filename.endsWith(".HEIF")
+        ) {
+          const inputPath = req.file.path;
+          const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+
+          // Convert HEIC to JPEG
+          const buffer = fs.readFileSync(inputPath);
+          const outputBuffer = await heicConvert({
+            buffer,
+            format: "JPEG",
+            quality: 1, // 1 is maximum quality
+          });
+
+          // Save the converted JPEG
+          fs.writeFileSync(outputPath, outputBuffer);
+
+          // Update filename and mimetype
+          filename = path.basename(outputPath);
+          req.file.mimetype = "image/jpeg";
+
+          // Delete the original HEIC file
+          fs.unlinkSync(inputPath);
+        } else {
+          // Optimize other formats with Sharp
+          const inputPath = req.file.path;
+          const outputPath = path.join(
+            "uploads/",
+            Date.now() + path.extname(req.file.originalname)
+          );
+
+          // Compress and optimize the image
+          await sharp(inputPath)
+            .resize({ width: 800, withoutEnlargement: true })
+            .png({ compressionLevel: 9 }) // PNG compression level (0-9)// Resize to a maximum width of 800 pixels
+            .toFormat(mimetype.split("/")[1], { quality: 30 }) // Set quality to 30
+            .toFile(outputPath);
+
+          // Update filename
+          filename = path.basename(outputPath);
+
+          // Delete the original file
+          fs.unlinkSync(inputPath);
+        }
+
+        // Insert into buysells
+        const insertQuery = `
+      UPDATE  ${type} SET name = $1, description =$2, price = $3, location =$4, original_name = $5, unique_name = $6 WHERE id = $7
+    `;
+        await pool.query(insertQuery, [
+          name,
+          description,
+
+          price,
+          location,
+
+          originalname,
+          filename,
+          id,
+        ]);
+
+        res.send("File uploaded successfully");
+      } else {
+        const insertQuery = `
+      UPDATE  ${type} SET name = $1, description =$2, price = $3, location =$4  WHERE id = $5
+    `;
+        await pool.query(insertQuery, [name, description, price, location, id]);
+        res.send("File uploaded successfully");
+      }
+
+      // const fkUserId = parseInt(fk_user_id, 10);
+
+      // Fetch seller details
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred");
+    }
+  }
+);
+
+app.post("/api/delete-upload/:id", cors(), async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -2202,7 +2225,7 @@ app.get("/api/get-status/:userId", async (req, res) => {
   }
 });
 
-app.post("/api/update-status/:type", async (req, res) => {
+app.post("/api/update-status/:type", cors(), async (req, res) => {
   const { status, userId } = req.body;
   const { type } = req.params;
 
@@ -2236,7 +2259,7 @@ app.post("/api/update-status/:type", async (req, res) => {
   }
 });
 
-app.post("/api/preference-toggleask", async (req, res) => {
+app.post("/api/preference-toggleask", cors(), async (req, res) => {
   const { userId } = req.body;
 
   try {
@@ -2353,7 +2376,7 @@ app.get("/api/foodagentsapi", async (req, res) => {
   }
 });
 
-app.post("/api/patchrating", async (req, res) => {
+app.post("/api/patchrating", cors(), async (req, res) => {
   const { agentId, userId, rateType, agentType } = req.body;
 
   try {
@@ -2405,39 +2428,6 @@ app.post("/api/patchrating", async (req, res) => {
   }
 });
 
-app.post("/api/patchratingfood", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
-
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE foodagents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE foodagents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
-  }
-});
 app.get("/api/repairagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2533,40 +2523,6 @@ app.get("/api/repairagentsapi", async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json("An error occurred while fetching repair agents.");
-  }
-});
-
-app.post("/api/patchratingcrypto", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
-
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE repairagents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE cybercafeagents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
   }
 });
 
@@ -2667,39 +2623,7 @@ ORDER BY
     console.log(error);
   }
 });
-app.post("/api/patchratingcyber", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
 
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE cybercafeagents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE cybercafeagents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
-  }
-});
 app.get("/api/deliveryagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2795,38 +2719,6 @@ ORDER BY
   }
 });
 
-app.post("/api/patchratingdelivery", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
-
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE deliveryagents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE deliveryagents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
-  }
-});
-
 app.get("/api/rideragentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2919,40 +2811,6 @@ ORDER BY
     });
   } catch (error) {
     console.log(error);
-  }
-});
-
-app.post("/api/patchratingrider", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
-
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE rideragents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE rideragents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
   }
 });
 
@@ -3054,40 +2912,6 @@ ORDER BY
   }
 });
 
-app.post("/api/patchratingschoolfee", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
-
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE schoolfeeagents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE schoolfeeagents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
-  }
-});
-
 app.get("/api/whatsapptvagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -3186,7 +3010,7 @@ ORDER BY
   }
 });
 
-app.post("/api/submitreview", async (req, res) => {
+app.post("/api/submitreview", cors(), async (req, res) => {
   try {
     const { type, agentType, userid, agentId, review } = req.body;
 
@@ -3217,39 +3041,39 @@ app.post("/api/submitreview", async (req, res) => {
 
 app;
 
-app.post("/api/patchratingwhatsapptv", async (req, res) => {
-  const agentId = req.query.agentId;
-  const goodRating = parseInt(req.query.goodRating);
-  const badRating = parseInt(req.query.badRating);
+// app.post("/api/patchratingwhatsapptv", async (req, res) => {
+//   const agentId = req.query.agentId;
+//   const goodRating = parseInt(req.query.goodRating);
+//   const badRating = parseInt(req.query.badRating);
 
-  try {
-    if (!isNaN(goodRating)) {
-      const newGoodRating = goodRating + 1;
-      const result = await pool.query(
-        "UPDATE whatsapptvagents SET good_rating = $1 WHERE id = $2",
-        [newGoodRating, agentId]
-      );
-      // console.log(
-      //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
-      // );
-      res.sendStatus(200);
-    } else if (!isNaN(badRating)) {
-      const newBadRating = badRating + 1;
-      const result = await pool.query(
-        "UPDATE whatsapptvagents SET bad_rating = $1 WHERE id = $2",
-        [newBadRating, agentId]
-      );
-      // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
-      res.sendStatus(200);
-    } else {
-      // Handle the case when neither goodRating nor badRating is provided in the request
-      res.status(400).send("Invalid or missing rating values");
-    }
-  } catch (error) {
-    console.log(error);
-    res.sendStatus(500); // Internal Server Error
-  }
-});
+//   try {
+//     if (!isNaN(goodRating)) {
+//       const newGoodRating = goodRating + 1;
+//       const result = await pool.query(
+//         "UPDATE whatsapptvagents SET good_rating = $1 WHERE id = $2",
+//         [newGoodRating, agentId]
+//       );
+//       // console.log(
+//       //   `Updated good rating for agent ${agentId} to ${newGoodRating}`
+//       // );
+//       res.sendStatus(200);
+//     } else if (!isNaN(badRating)) {
+//       const newBadRating = badRating + 1;
+//       const result = await pool.query(
+//         "UPDATE whatsapptvagents SET bad_rating = $1 WHERE id = $2",
+//         [newBadRating, agentId]
+//       );
+//       // console.log(`Updated bad rating for agent ${agentId} to ${newBadRating}`);
+//       res.sendStatus(200);
+//     } else {
+//       // Handle the case when neither goodRating nor badRating is provided in the request
+//       res.status(400).send("Invalid or missing rating values");
+//     }
+//   } catch (error) {
+//     console.log(error);
+//     res.sendStatus(500); // Internal Server Error
+//   }
+// });
 
 app.get("/api/total-connect", async (req, res) => {
   try {
@@ -3265,7 +3089,7 @@ app.get("/api/total-connect", async (req, res) => {
   }
 });
 
-app.post("/api/become-agent", async (req, res) => {
+app.post("/api/become-agent", cors(), async (req, res) => {
   const {
     type,
     located,
@@ -3869,7 +3693,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
       from: "Zikconnect admin@zikconnect.com", // Sender address
       // to: email,
       // Recipient's email address
-      to: "edithobiukwu012@gmail.com",
+      to: email,
       subject: subject, // Subject line
       text: text, // Plain text body
       html: html, // HTML body
@@ -3888,7 +3712,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
 });
 
 // Backend endpoint to handle agent's response
-app.post("/api/respond-to-connect", async (req, res) => {
+app.post("/api/respond-to-connect", cors(), async (req, res) => {
   const { order_id, user_id, agentUserId, agent_id, status } = req.query;
 
   // Debug logs
@@ -3922,16 +3746,18 @@ app.post("/api/respond-to-connect", async (req, res) => {
 
     if (status == "accepted") {
       const result2 = await pool.query(
-        `SELECT phone FROM people WHERE id = $1`,
+        `SELECT phone, email FROM people WHERE id = $1`,
         [user_id]
       );
       const result3 = await pool.query(
-        `SELECT contact FROM agents WHERE id = $1`,
+        `SELECT contact, email FROM agents WHERE id = $1`,
         [agent_id]
       );
 
-      const userPhone = result2.rows[0];
-      const agentWhatsapp = result3.rows[0];
+      const userPhone = result2.rows[0].phone;
+      const userEmail = result2.rows[0].email;
+      const agentWhatsapp = result3.rows[0].contact;
+      const agentEmail = result3.rows[0].email;
 
       const subject = "Connect Accepted";
       const text = `Your Connect has been accepted`;
@@ -3968,7 +3794,7 @@ app.post("/api/respond-to-connect", async (req, res) => {
         from: "Zikconnect admin@zikconnect.com", // Sender address
         // to: email,
         // Recipient's email address
-        to: "edithobiukwu012@gmail.com",
+        to: userEmail,
         subject: subject, // Subject line
         text: text, // Plain text body
         html: html, // HTML body
@@ -3978,7 +3804,7 @@ app.post("/api/respond-to-connect", async (req, res) => {
       const text2 = `Your Connect has been accepted`;
       const html2 = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
                      <p> Dear Esteemed Agent,</p>
-                     <br> </br><p> Your accepted the connect!! &#x1F389;
+                     <br> </br><p> You have accepted the connect!! &#x1F389;
                       We hope you serve our students with your best performance..&#x1F680; You have 30 minutes to deliver this order or give valid proof to the user to show that you are delivering your request
                        <p/> <br> </br>
                         <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${userPhone}">Chat With User</a>
@@ -4013,7 +3839,7 @@ app.post("/api/respond-to-connect", async (req, res) => {
         from: "Zikconnect admin@zikconnect.com", // Sender address
         // to: email,
         // Recipient's email address
-        to: "edithobiukwu012@gmail.com",
+        to: agentEmail,
         subject: subject2, // Subject line
         text: text2, // Plain text body
         html: html2, // HTML body
@@ -4088,16 +3914,18 @@ app.get("/api/respond-to-connect", async (req, res) => {
     );
     if (status == "accepted") {
       const result2 = await pool.query(
-        `SELECT phone FROM people WHERE id = $1`,
+        `SELECT phone, email FROM people WHERE id = $1`,
         [user_id]
       );
       const result3 = await pool.query(
-        `SELECT contact FROM agents WHERE id = $1`,
+        `SELECT contact, email FROM agents WHERE id = $1`,
         [agent_id]
       );
 
-      const userPhone = result2.rows[0];
-      const agentWhatsapp = result3.rows[0];
+      const userPhone = result2.rows[0].phone;
+      const userEmail = result2.rows[0].email;
+      const agentWhatsapp = result3.rows[0].contact;
+      const agentEmail = result3.rows[0].email;
 
       const subject = "Connect Accepted";
       const text = `Your Connect has been accepted`;
@@ -4134,7 +3962,7 @@ app.get("/api/respond-to-connect", async (req, res) => {
         from: "Zikconnect admin@zikconnect.com", // Sender address
         // to: email,
         // Recipient's email address
-        to: "edithobiukwu012@gmail.com",
+        to: userEmail,
         subject: subject, // Subject line
         text: text, // Plain text body
         html: html, // HTML body
@@ -4179,7 +4007,7 @@ app.get("/api/respond-to-connect", async (req, res) => {
         from: "Zikconnect admin@zikconnect.com", // Sender address
         // to: email,
         // Recipient's email address
-        to: "edithobiukwu012@gmail.com",
+        to: agentEmail,
         subject: subject2, // Subject line
         text: text2, // Plain text body
         html: html2, // HTML body
@@ -4295,7 +4123,7 @@ app.get("/api/respond-to-agent", async (req, res) => {
           from: "Zikconnect admin@zikconnect.com", // Sender address
           // to: email,
           // Recipient's email address
-          to: "edithobiukwu012@gmail.com",
+          to: email,
           subject: subject, // Subject line
           text: text, // Plain text body
           html: html, // HTML body
@@ -4330,7 +4158,7 @@ We are sorry for any inconvenience caused. you still have access to our other se
           from: "Zikconnect admin@zikconnect.com", // Sender address
           // to: email,
           // Recipient's email address
-          to: "edithobiukwu012@gmail.com",
+          to: email,
           subject: subject, // Subject line
           text: text, // Plain text body
           html: html, // HTML body
@@ -4352,7 +4180,7 @@ We are sorry for any inconvenience caused. you still have access to our other se
   }
 });
 
-app.post("/api/confirm-connect", async (req, res) => {
+app.post("/api/confirm-connect", cors(), async (req, res) => {
   const { messageId, orderId } = req.body; // Correctly extracting order_id from the request body
 
   try {
@@ -4444,7 +4272,7 @@ app.post("/api/confirm-connect", async (req, res) => {
       from: "Zikconnect admin@zikconnect.com", // Sender address
       // to: email,
       // Recipient's email address
-      to: "edithobiukwu012@gmail.com",
+      to: email,
       subject: subject, // Subject line
       text: text, // Plain text body
       html: html, // HTML body
@@ -4489,7 +4317,7 @@ app.post("/api/confirm-connect", async (req, res) => {
       from: "Zikconnect admin@zikconnect.com", // Sender address
       // to: email,
       // Recipient's email address
-      to: "edithobiukwu012@gmail.com",
+      to: email2,
       subject: subject2, // Subject line
       text: text2, // Plain text body
       html: html2, // HTML body
@@ -4511,7 +4339,7 @@ app.post("/api/confirm-connect", async (req, res) => {
   }
 });
 
-app.post("/api/complete-connect", async (req, res) => {
+app.post("/api/complete-connect", cors(), async (req, res) => {
   const { orderCode } = req.body;
 
   // console.log("Order has connected:", orderCode);
@@ -4591,7 +4419,7 @@ function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-app.post("/api/delete-connect", async (req, res) => {
+app.post("/api/delete-connect", cors(), async (req, res) => {
   const { messageId } = req.body;
 
   try {
@@ -4599,7 +4427,7 @@ app.post("/api/delete-connect", async (req, res) => {
   } catch (error) {}
 });
 
-app.post("/api/complete-connect", async (req, res) => {
+app.post("/api/complete-connect", cors(), async (req, res) => {
   const { orderCode } = req.body;
 
   // console.log("Order has connected:", orderCode);
@@ -4657,15 +4485,7 @@ app.post("/api/complete-connect", async (req, res) => {
   }
 });
 
-app.post("/api/delete-connect", async (req, res) => {
-  const { messageId } = req.body;
-
-  try {
-    await pool.query(`DELETE FROM messages WHERE id = $1`, [messageId]);
-  } catch (error) {}
-});
-
-app.post("/api/reject-connect", async (req, res) => {
+app.post("/api/reject-connect", cors(), async (req, res) => {
   const { orderId } = req.body; // Correctly extracting order_id from the request body
 
   try {
@@ -4686,7 +4506,7 @@ app.post("/api/reject-connect", async (req, res) => {
   }
 });
 
-app.get("/api/connect-buysell", async (req, res) => {
+app.get("/api/connect-buysell", cors(), async (req, res) => {
   const { itemId } = req.query;
 
   try {
@@ -4737,7 +4557,7 @@ app.get("/api/get-used-number", async (req, res) => {
   }
 });
 
-app.post("/api/send-verification-email", async (req, res) => {
+app.post("/api/send-verification-email", cors(), async (req, res) => {
   const emailbread = req.body.emailbread;
   const userId = req.body.user;
 
@@ -4786,7 +4606,7 @@ app.post("/api/send-verification-email", async (req, res) => {
       from: "admin@zikconnect.com", // Sender address
       // to: email,
       // Recipient's email address
-      to: "edithobiukwu012@gmail.com",
+      to: emailbread,
       subject: subject, // Subject line
       text: text, // Plain text body
       html: html, // HTML body
@@ -4816,7 +4636,7 @@ app.post("/api/send-verification-email", async (req, res) => {
   }
 });
 
-app.post("/api/verify-email", async (req, res) => {
+app.post("/api/verify-email", cors(), async (req, res) => {
   const { emailbread, code, user } = req.body;
 
   try {
@@ -4853,7 +4673,7 @@ app.post("/api/verify-email", async (req, res) => {
         from: "admin@zikconnect.com", // Sender address
         // to: email,
         // Recipient's email address
-        to: "edithobiukwu012@gmail.com",
+        to: emailbread,
         subject: subject, // Subject line
         text: text, // Plain text body
         html: html, // HTML body
@@ -4875,6 +4695,33 @@ app.post("/api/verify-email", async (req, res) => {
   }
 });
 
+const apiKey = process.env.TERMII_TOKEN;
+const senderID = "N-Alert";
+
+async function sendVerificationCode(phoneNumber, code) {
+  try {
+    const response = await axios.post(
+      "https://v3.api.termii.com/api/sms/send",
+      {
+        to: phoneNumber,
+        from: senderID,
+        sms: `Hi User Your zikconnect verification pin is ${code}`,
+        type: "plain",
+        channel: "dnd",
+        api_key: apiKey,
+      }
+    );
+
+    if (response.data && response.data.message_id) {
+      console.log("Verification code sent successfully!");
+    } else {
+      console.log("Failed to send verification code:", response.data);
+    }
+  } catch (error) {
+    console.error("Error sending verification code:", error.message);
+  }
+}
+
 app.post("/api/send-verification-code", async (req, res) => {
   const phone = req.body.phone;
   const userId = req.body.user;
@@ -4890,29 +4737,8 @@ app.post("/api/send-verification-code", async (req, res) => {
   // SEND SMS
 
   try {
-    async function sendOTP(phoneNumber) {
-      const apiKey =
-        "TLnIcvLsuEiPFXUsraaxveZFlOpSuKBBSwTtthiOdzmhlgpIWnNIuCyIfzsaOq";
-
-      try {
-        const response = await axios.post(
-          "https://v3.api.termii.com/api/sms/send",
-          {
-            to: phoneNumber,
-            sms: `Your OTP code is 123456 ${verificationCode}`,
-            type: "plain",
-            channel: "genero",
-            sender_id: "zikconnect", // Use 'plain' or 'flash' for SMS types
-            api_key: apiKey,
-          }
-        );
-      } catch (error) {
-        console.error("Error sending OTP:", error);
-      }
-    }
-
     // Usage
-    sendOTP(phoneNumber);
+    sendVerificationCode(phoneNumber, verificationCode);
 
     if (verificationCode) {
       // Successfully sent the SMS, return a success message
@@ -4942,7 +4768,7 @@ app.post("/api/send-verification-code", async (req, res) => {
   }
 });
 
-app.post("/api/verify-phone", async (req, res) => {
+app.post("/api/verify-phone", cors(), async (req, res) => {
   const { phone, code, user } = req.body;
 
   try {

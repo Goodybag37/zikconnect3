@@ -8,7 +8,7 @@ import { logo } from "../assets"; // Corrected import
 import AuthContext from "../AuthContext";
 
 function VerifyPhone() {
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+234 0");
   const [code, setCode] = useState("");
   const [usedN, setUsedN] = useState("");
 
@@ -26,7 +26,7 @@ function VerifyPhone() {
   const isPhoneVerified = user.isPhoneVerified;
   const userData = JSON.parse(localStorage.getItem("user"));
 
-  const maxLength = 250;
+  const maxLength = 16;
   const codeLength = 6;
   const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
@@ -47,6 +47,17 @@ function VerifyPhone() {
         return prevTimer - 1;
       });
     }, 1000);
+  };
+
+  const handlePhoneChange = (e) => {
+    const input = e.target.value;
+
+    // Prevent the user from removing the prefix
+    if (!input.startsWith("+234 0")) {
+      setPhone("+234 0");
+    } else {
+      setPhone(input); // Update only if the prefix is intact
+    }
   };
 
   const handleSendCode = async () => {
@@ -134,13 +145,15 @@ function VerifyPhone() {
     setError("");
     setLoading(true);
 
+    const formattedPhone = phone.replace(/^\+234 0/, "");
+
     // console.log(`Submitting email: ${email}`); // Debugging line
     // console.log(`Submitting password: ${password}`); // Debugging line
 
     try {
       // Prepare the data in x-www-form-urlencoded format
 
-      formData.append("phone", phone);
+      formData.append("phone", formattedPhone);
       formData.append("code", code);
 
       // Send the data
@@ -191,7 +204,7 @@ function VerifyPhone() {
               setUsedN("");
               setSendVisible(true);
             }}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={handlePhoneChange}
             required // Added for form validation
             disabled={codeSent}
           />

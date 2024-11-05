@@ -1,10 +1,26 @@
 import React from "react";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { close, logo, menu } from "../assets";
 import { navLinks } from "../constants";
 import { Link, useLocation } from "react-router-dom";
+import { BsPersonCircle } from "react-icons/bs";
+import AuthContext from "../AuthContext";
 const Navbar = () => {
+  const { isAuthenticated, user, logout } = useContext(AuthContext);
   const [toggle, setToggle] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+
+  const userbread =
+    user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
+  const isSignedIn =
+    user?.isAuthenticated ||
+    JSON.parse(localStorage.getItem("user"))?.isAuthenticated;
+
+  const handleProfileClick = () => {
+    if (isSignedIn === true) setShowProfile(!showProfile);
+  };
+
   return (
     <div>
       <nav className=" w-full flex py-6 justify-between items-center navbar">
@@ -24,6 +40,11 @@ const Navbar = () => {
               </Link>
             </li>
           ))}
+
+          {/* <BsPersonCircle
+            // onClick={handleProfileClick}
+            className="icon iconCursor"
+          /> */}
         </ul>
 
         <div className="sm:hidden flex flex-1 justify-end items-center">
