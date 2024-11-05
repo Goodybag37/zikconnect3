@@ -17,6 +17,10 @@
 .env.development.local
 .env.test.local
 .env.production.local
+client/react-dashboard/.env
+client/react-dashboard/src/.env
+server/.env
+
 
 npm-debug.log*
 yarn-debug.log*
