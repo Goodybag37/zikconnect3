@@ -128,6 +128,17 @@ const baseUrl =
     ? "http://http://13.60.206.210"
     : "http://localhost:4000"; // Change this to your React app's URL in production
 
+app.use(
+  cors({
+    origin: [
+      `${baseUrl}`, // React local frontend
+      // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
+      "https://zikconnect.com",
+    ],
+    credentials: true,
+  })
+);
+
 app.post("/paystack/initialize", cors(), (req, res) => {
   const { email, amount } = req.body;
 
@@ -440,7 +451,8 @@ app.use(
   cors({
     origin: [
       `${baseUrl}`, // React local frontend
-      "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
+      // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
+      "https:localhost:3000",
     ],
     credentials: true,
   })
@@ -495,7 +507,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const poolss = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
@@ -511,13 +523,13 @@ pool.connect((err) => {
   }
 });
 
-const pools = new pg.Pool({
-  connectionString: process.env.DATABASE_URL, // your database URL from Heroku config vars
-  ssl:
-    process.env.NODE_ENV === "production"
-      ? { rejectUnauthorized: false }
-      : false,
-});
+// const pools = new pg.Pool({
+//   connectionString: process.env.DATABASE_URL, // your database URL from Heroku config vars
+//   ssl:
+//     process.env.NODE_ENV === "production"
+//       ? { rejectUnauthorized: false }
+//       : false,
+// });
 const PORT = process.env.PORT || 4000;
 const saltRounds = 10;
 
