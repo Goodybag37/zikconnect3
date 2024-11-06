@@ -11,6 +11,7 @@ const VerifyPayment = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState("");
   const navigate = useNavigate();
+  const apiUrls = process.env.REACT_APP_API_URL;
   const { isAuthenticated, setUser, login, logout } = useContext(AuthContext);
 
   useEffect(() => {
@@ -21,7 +22,7 @@ const VerifyPayment = () => {
     if (reference) {
       // Call the backend to verify the payment
       axios
-        .get(`http://localhost:4000/paystack/verify/${reference}`)
+        .get(`${apiUrls}/api/paystack/verify/${reference}`)
         .then((response) => {
           if (response.data.success) {
             const verifiedAmount = response.data.amount / 100;

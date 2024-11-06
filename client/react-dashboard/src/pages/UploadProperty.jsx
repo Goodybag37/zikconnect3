@@ -187,7 +187,7 @@ function UploadProperty() {
 
       // Send the data
       const response = await axios.post(
-        "http://localhost:4000/api/upload-property",
+        `${apiUrls}/api/upload-property`,
         formData
         // {
         //   headers: { "Content-Type": "multipart/form-data" },
