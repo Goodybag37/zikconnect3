@@ -4790,9 +4790,8 @@ async function sendVerificationCode(phoneNumber, code) {
 }
 
 app.post("/api/send-verification-code", async (req, res) => {
-  const phone = req.body.phone;
+  const phoneNumber = req.body.phone;
   const userId = req.body.user;
-  const phoneNumber = `+234${phone}`;
 
   if (!phone) {
     return res.status(400).json({ message: "Phone number is required" });
@@ -4837,22 +4836,23 @@ app.post("/api/send-verification-code", async (req, res) => {
 
 app.post("/api/verify-phone", async (req, res) => {
   const { phone, code, user } = req.body;
+  const phoneNumber = `+234${phone}`;
 
   try {
     // Check if the code is correct
     const result = await pool.query(
       "SELECT * FROM verification_codes WHERE phone_number = $1 AND verification_code = $2 AND status = 'pending'",
-      [phone, code]
+      [phoneNumber, code]
     );
 
     if (result.rows.length > 0) {
       // Update the status to 'verified'
       await pool.query(
         "UPDATE verification_codes SET status = 'verified' WHERE phone_number = $1",
-        [phone]
+        [phoneNumber]
       );
       await pool.query("UPDATE people SET phone = $1 WHERE id = $2", [
-        phone,
+        phoneNumber,
         user,
       ]);
 
