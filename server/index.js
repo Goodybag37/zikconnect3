@@ -3110,7 +3110,8 @@ app.post("/api/become-agent", cors(), async (req, res) => {
   );
 
   const response = await axios.get(
-    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+    { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
   );
 
   const { lat, lon, display_name } = response.data;
@@ -3266,7 +3267,12 @@ app.get("/api/get-distance", cors(), async (req, res) => {
     // Attempt to fetch location data from Nominatim
     try {
       const response = await axios.get(
-        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        {
+          headers: {
+            "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)",
+          },
+        }
       );
 
       if (response && response.data && response.data.lat && response.data.lon) {
@@ -3389,7 +3395,8 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
 
   if (latitude) {
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+      { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
     );
 
     if (
