@@ -122,11 +122,13 @@ app.use((req, res, next) => {
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
+const OPENCAGE_TOKEN = process.env.OPENCAGE_TOKEN;
 
-const baseUrl =
-  process.env.NODE_ENV === "production"
-    ? "http://http://13.60.206.210"
-    : "http://localhost:4000"; // Change this to your React app's URL in production
+const baseUrl = "http://zikconnect.com";
+
+// process.env.NODE_ENV === "production"
+//   ? "http://zikconnect.com"
+//   : "http://localhost:4000"; // Change this to your React app's URL in production
 
 app.use(
   cors({
@@ -3109,13 +3111,27 @@ app.post("/api/become-agent", cors(), async (req, res) => {
     [token, user]
   );
 
+  // const response1 = await axios.get(
+  //   `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+  //   { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
+  // );
+
   const response = await axios.get(
-    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-    { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
+    `https://api.opencagedata.com/geocode/v1/json`,
+    {
+      params: {
+        q: `${latitude},${longitude}`,
+        key: OPENCAGE_TOKEN,
+        pretty: 1,
+        no_annotations: 1,
+      },
+    }
   );
 
-  const { lat, lon, display_name } = response.data;
-  const locationData = { lat, lon, display_name };
+  const formatted = response.data.results[0]?.formatted || "";
+
+  const locationData = { latitude, longitude, formatted };
+  console.log("open cage is", locationData);
   const encodedLocationData = encodeURIComponent(
     JSON.stringify({ locationData })
   );
@@ -3167,7 +3183,7 @@ app.post("/api/become-agent", cors(), async (req, res) => {
                    <li><strong>User:</strong> ${user}</li>
                     <li><strong>Full  Name:</strong> ${fullName}</li>
                    <li><strong>Email:</strong> ${email}</li>
-                   <li><strong>Exact Location:</strong> ${locationData.display_name}</li>
+                   <li><strong>Exact Location:</strong> ${locationData.formatted}</li>
                 
                
                    <br></br>
@@ -3266,20 +3282,34 @@ app.get("/api/get-distance", cors(), async (req, res) => {
 
     // Attempt to fetch location data from Nominatim
     try {
+      // const response = await axios.get(
+      //   `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+      //   {
+      //     headers: {
+      //       "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)",
+      //     },
+      //   }
+      // );
+
       const response = await axios.get(
-        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+        `https://api.opencagedata.com/geocode/v1/json`,
         {
-          headers: {
-            "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)",
+          params: {
+            q: `${latitude},${longitude}`,
+            key: OPENCAGE_TOKEN,
+            pretty: 1,
+            no_annotations: 1,
           },
         }
       );
 
+      const formatted = response.data.results[0]?.formatted || "";
+
       if (response && response.data && response.data.lat && response.data.lon) {
         locationData = {
-          lat: response.data.lat,
-          lon: response.data.lon,
-          display_name: response.data.display_name,
+          lat: latitude,
+          lon: longitude,
+          display_name: formatted,
         };
       } else {
         console.warn("Nominatim returned no valid data");
@@ -3394,17 +3424,26 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
   let updatedItem = {};
 
   if (latitude) {
+    // const response = await axios.get(
+    //   `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+    //   { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
+    // );
+
     const response = await axios.get(
-      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-      { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
+      `https://api.opencagedata.com/geocode/v1/json`,
+      {
+        params: {
+          q: `${latitude},${longitude}`,
+          key: OPENCAGE_TOKEN,
+          pretty: 1,
+          no_annotations: 1,
+        },
+      }
     );
 
-    if (
-      !response ||
-      !response.data ||
-      !response.data.lat ||
-      !response.data.lon
-    ) {
+    const formatted = response.data.results[0]?.formatted || "";
+
+    if (!response || !response.data) {
       throw new Error(
         "Failed to retrieve location data from OpenStreetMap API"
       );
@@ -3438,7 +3477,14 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
       );
     }
 
-    const { lat, lon, display_name } = response.data;
+    locationData = {
+      lat: latitude,
+      lon: longitude,
+      display_name: formatted,
+      type: type,
+    };
+
+    // const { lat, lon, display_name } = response.data;
 
     if (agentLocation.rows.length === 0) {
       throw new Error("Agent location not found in the database");
@@ -3453,9 +3499,7 @@ app.post("/api/send-connect-email", cors(), async (req, res) => {
       throw new Error("Agent latitude or longitude is invalid");
     }
 
-    locationData = { lat, lon, display_name, type };
-
-    const start = [lon, lat]; // Start point from OpenStreetMap response
+    const start = [longitude, latitude]; // Start point from OpenStreetMap response
     const end = [agentLongitude, agentLatitude]; // End point from database
 
     if (!start || !end) {
