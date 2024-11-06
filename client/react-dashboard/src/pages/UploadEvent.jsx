@@ -188,7 +188,7 @@ function UploadEvent() {
 
       // Send the data
       const response = await axios.post(
-        "http://localhost:4000/api/upload-event",
+        `${apiUrls}/api/upload-event`,
         formData
         // {
         //   headers: { "Content-Type": "multipart/form-data" },

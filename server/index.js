@@ -41,7 +41,7 @@ const app = express();
 //     credentials: true, // If you need to include credentials (like cookies)
 //   },
 // });
-const baseUrl = "http://zikconnect.com";
+const baseUrl = "https://zikconnect.com";
 
 // process.env.NODE_ENV === "production"
 //   ? "http://zikconnect.com"
@@ -154,7 +154,7 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 const OPENCAGE_TOKEN = process.env.OPENCAGE_TOKEN;
 
-app.post("/paystack/initialize", cors(), (req, res) => {
+app.post("api/paystack/initialize", cors(), (req, res) => {
   const { email, amount } = req.body;
 
   const params = JSON.stringify({
@@ -237,7 +237,7 @@ app.get("/api/get-pending-payment", async (req, res) => {
   }
 });
 
-app.get("/paystack/verify/:reference", cors(), async (req, res) => {
+app.get("api/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
 
   const transactionCheck = await pool.query(

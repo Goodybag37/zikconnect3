@@ -97,13 +97,10 @@ function FundAccount() {
 
       console.log("email is ", email);
       // Initialize the transaction by calling your backend
-      const response = await axios.post(
-        "http://localhost:4000/paystack/initialize",
-        {
-          email,
-          amount,
-        }
-      );
+      const response = await axios.post(`${apiUrls}/api/paystack/initialize`, {
+        email,
+        amount,
+      });
 
       const { authorization_url } = response.data;
       if (authorization_url) {
