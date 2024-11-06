@@ -142,7 +142,7 @@ app.use(
   })
 );
 
-app.post("/paystack/initialize", cors(), (req, res) => {
+app.post("/paystack/initialize", (req, res) => {
   const { email, amount } = req.body;
 
   const params = JSON.stringify({
@@ -201,7 +201,7 @@ app.post("/paystack/initialize", cors(), (req, res) => {
   paystackReq.end();
 });
 
-app.get("/api/get-pending-payment", cors(), async (req, res) => {
+app.get("/api/get-pending-payment", async (req, res) => {
   const { email } = req.query; // Extract the email from the query parameters
   try {
     const result = await pool.query(
@@ -225,7 +225,7 @@ app.get("/api/get-pending-payment", cors(), async (req, res) => {
   }
 });
 
-app.get("/paystack/verify/:reference", cors(), async (req, res) => {
+app.get("/paystack/verify/:reference", async (req, res) => {
   const { reference } = req.params;
 
   const transactionCheck = await pool.query(
@@ -3305,7 +3305,7 @@ app.get("/api/get-distance", cors(), async (req, res) => {
 
       const formatted = response.data.results[0]?.formatted || "";
 
-      if (response && response.data && response.data.lat && response.data.lon) {
+      if (response && response.data) {
         locationData = {
           lat: latitude,
           lon: longitude,
