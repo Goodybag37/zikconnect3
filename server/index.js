@@ -41,6 +41,36 @@ const app = express();
 //     credentials: true, // If you need to include credentials (like cookies)
 //   },
 // });
+const baseUrl = "http://zikconnect.com";
+
+// process.env.NODE_ENV === "production"
+//   ? "http://zikconnect.com"
+//   : "http://localhost:4000"; // Change this to your React app's URL in production
+
+// app.use(
+//   cors({
+//     origin: [
+//       `${baseUrl}`, // React local frontend
+//       // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
+//       "http://zikconnect.com",
+//       // "http://localhost:3000",
+//     ],
+//     credentials: true,
+//   })
+// );
+app.use(
+  cors({
+    origin: [
+      "https://js.paystack.co", // Paystack's JavaScript library
+      "https://zikconnect.com", // Your frontend domain
+    ],
+    methods: ["GET", "POST", "OPTIONS"], // Specify allowed methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Specify allowed headers
+  })
+);
+
+app.use(compression());
+
 const ipinfo = new IPinfoWrapper(process.env.IP_INFO_TOKEN);
 
 const blockedAgents = [
@@ -124,25 +154,7 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 const OPENCAGE_TOKEN = process.env.OPENCAGE_TOKEN;
 
-const baseUrl = "http://zikconnect.com";
-
-// process.env.NODE_ENV === "production"
-//   ? "http://zikconnect.com"
-//   : "http://localhost:4000"; // Change this to your React app's URL in production
-
-app.use(
-  cors({
-    origin: [
-      `${baseUrl}`, // React local frontend
-      // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
-      "http://zikconnect.com",
-      // "http://localhost:3000",
-    ],
-    credentials: true,
-  })
-);
-
-app.post("/paystack/initialize", (req, res) => {
+app.post("/paystack/initialize", cors(), (req, res) => {
   const { email, amount } = req.body;
 
   const params = JSON.stringify({
@@ -225,7 +237,7 @@ app.get("/api/get-pending-payment", async (req, res) => {
   }
 });
 
-app.get("/paystack/verify/:reference", async (req, res) => {
+app.get("/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
 
   const transactionCheck = await pool.query(
@@ -449,19 +461,6 @@ myQueue.process(async (job) => {
     console.error("Error updating status in delayed job:", error);
   }
 });
-
-app.use(
-  cors({
-    origin: [
-      `${baseUrl}`, // React local frontend
-      // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
-      "https:localhost:3000",
-    ],
-    credentials: true,
-  })
-);
-
-app.use(compression());
 
 // let transporter = nodemailer.createTransport({
 //   host: "smtp.gmail.com",
@@ -819,7 +818,7 @@ app.get("/api/profile/", async (req, res) => {
   }
 });
 
-app.post("/api/log", cors(), async (req, res, next) => {
+app.post("/api/log", async (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -967,7 +966,7 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   return distance; // Return distance in kilometers
 };
 
-app.post("/api/register", cors(), async (req, res) => {
+app.post("/api/register", async (req, res) => {
   const { email, password, fullname } = req.body;
 
   try {
@@ -1537,6 +1536,7 @@ const upload = multer({
 
 app.post(
   "/api/upload-property",
+
   upload.single("file"),
 
   async (req, res) => {
@@ -1657,7 +1657,7 @@ app.post(
 app.post(
   "/api/upload-lodge",
   upload.single("file"),
-  cors(),
+
   async (req, res) => {
     try {
       let { originalname, filename, mimetype } = req.file;
@@ -1776,7 +1776,7 @@ app.post(
 app.post(
   "/api/upload-event",
   upload.single("file"),
-  cors(),
+
   async (req, res) => {
     try {
       let { originalname, filename, mimetype } = req.file;
@@ -2070,7 +2070,7 @@ const multipleUpload = multer({
 app.put(
   "/api/edit-upload/:id",
   upload.single("file"),
-  cors(),
+
   async (req, res) => {
     const { id, type } = req.params;
     // console.log("id", id);
@@ -2180,7 +2180,7 @@ app.put(
   }
 );
 
-app.post("/api/delete-upload/:id", cors(), async (req, res) => {
+app.post("/api/delete-upload/:id", async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -2227,7 +2227,7 @@ app.get("/api/get-status/:userId", async (req, res) => {
   }
 });
 
-app.post("/api/update-status/:type", cors(), async (req, res) => {
+app.post("/api/update-status/:type", async (req, res) => {
   const { status, userId } = req.body;
   const { type } = req.params;
 
@@ -2261,7 +2261,7 @@ app.post("/api/update-status/:type", cors(), async (req, res) => {
   }
 });
 
-app.post("/api/preference-toggleask", cors(), async (req, res) => {
+app.post("/api/preference-toggleask", async (req, res) => {
   const { userId } = req.body;
 
   try {
@@ -2378,7 +2378,7 @@ app.get("/api/foodagentsapi", async (req, res) => {
   }
 });
 
-app.post("/api/patchrating", cors(), async (req, res) => {
+app.post("/api/patchrating", async (req, res) => {
   const { agentId, userId, rateType, agentType } = req.body;
 
   try {
@@ -3012,7 +3012,7 @@ ORDER BY
   }
 });
 
-app.post("/api/submitreview", cors(), async (req, res) => {
+app.post("/api/submitreview", async (req, res) => {
   try {
     const { type, agentType, userid, agentId, review } = req.body;
 
@@ -3274,7 +3274,7 @@ async function getPlaceName(longitude, latitude) {
   }
 }
 
-app.get("/api/get-distance", cors(), async (req, res) => {
+app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
 
   try {
@@ -3370,7 +3370,7 @@ app.get("/api/get-distance", cors(), async (req, res) => {
   }
 });
 
-app.get("/api/get-account-balance", cors(), async (req, res) => {
+app.get("/api/get-account-balance", async (req, res) => {
   const { userId } = req.query;
   try {
     const result = await pool.query(
@@ -3763,7 +3763,7 @@ app.post("/api/send-connect-email", async (req, res) => {
 });
 
 // Backend endpoint to handle agent's response
-app.post("/api/respond-to-connect", cors(), async (req, res) => {
+app.post("/api/respond-to-connect", async (req, res) => {
   const { order_id, user_id, agentUserId, agent_id, status } = req.query;
 
   // Debug logs
@@ -4231,7 +4231,7 @@ We are sorry for any inconvenience caused. you still have access to our other se
   }
 });
 
-app.post("/api/confirm-connect", cors(), async (req, res) => {
+app.post("/api/confirm-connect", async (req, res) => {
   const { messageId, orderId } = req.body; // Correctly extracting order_id from the request body
 
   try {
@@ -4390,7 +4390,7 @@ app.post("/api/confirm-connect", cors(), async (req, res) => {
   }
 });
 
-app.post("/api/complete-connect", cors(), async (req, res) => {
+app.post("/api/complete-connect", async (req, res) => {
   const { orderCode } = req.body;
 
   // console.log("Order has connected:", orderCode);
@@ -4470,7 +4470,7 @@ function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-app.post("/api/delete-connect", cors(), async (req, res) => {
+app.post("/api/delete-connect", async (req, res) => {
   const { messageId } = req.body;
 
   try {
@@ -4478,7 +4478,7 @@ app.post("/api/delete-connect", cors(), async (req, res) => {
   } catch (error) {}
 });
 
-app.post("/api/complete-connect", cors(), async (req, res) => {
+app.post("/api/complete-connect", async (req, res) => {
   const { orderCode } = req.body;
 
   // console.log("Order has connected:", orderCode);
@@ -4536,7 +4536,7 @@ app.post("/api/complete-connect", cors(), async (req, res) => {
   }
 });
 
-app.post("/api/reject-connect", cors(), async (req, res) => {
+app.post("/api/reject-connect", async (req, res) => {
   const { orderId } = req.body; // Correctly extracting order_id from the request body
 
   try {
@@ -4557,7 +4557,7 @@ app.post("/api/reject-connect", cors(), async (req, res) => {
   }
 });
 
-app.get("/api/connect-buysell", cors(), async (req, res) => {
+app.get("/api/connect-buysell", async (req, res) => {
   const { itemId } = req.query;
 
   try {
@@ -4608,7 +4608,7 @@ app.get("/api/get-used-number", async (req, res) => {
   }
 });
 
-app.post("/api/send-verification-email", cors(), async (req, res) => {
+app.post("/api/send-verification-email", async (req, res) => {
   const emailbread = req.body.emailbread;
   const userId = req.body.user;
 
@@ -4687,7 +4687,7 @@ app.post("/api/send-verification-email", cors(), async (req, res) => {
   }
 });
 
-app.post("/api/verify-email", cors(), async (req, res) => {
+app.post("/api/verify-email", async (req, res) => {
   const { emailbread, code, user } = req.body;
 
   try {
@@ -4819,7 +4819,7 @@ app.post("/api/send-verification-code", async (req, res) => {
   }
 });
 
-app.post("/api/verify-phone", cors(), async (req, res) => {
+app.post("/api/verify-phone", async (req, res) => {
   const { phone, code, user } = req.body;
 
   try {
