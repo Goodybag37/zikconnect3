@@ -135,8 +135,8 @@ app.use(
     origin: [
       `${baseUrl}`, // React local frontend
       // "https://zikconnect-36adf65e1cf3.herokuapp.com", // Heroku frontend
-      "https://zikconnect.com",
-      "http://localhost:3000",
+      "http://zikconnect.com",
+      // "http://localhost:3000",
     ],
     credentials: true,
   })
@@ -425,14 +425,14 @@ let itemStatus = {}; // Store the status of items
 
 const myQueue = new Bull("my-queue", {
   redis: {
-    host: "localhost",
+    host: "http://zikconnect.com",
     port: 6379,
     password: "good3767589",
   },
 });
 
 const redisClient = Redis.createClient({
-  host: "localhost",
+  host: "http://zikconnect.com",
   port: 6379,
   password: "good3767589", // If applicable
 });
@@ -1538,7 +1538,7 @@ const upload = multer({
 app.post(
   "/api/upload-property",
   upload.single("file"),
-  cors(),
+
   async (req, res) => {
     try {
       let { originalname, filename, mimetype } = req.file;
@@ -3091,7 +3091,7 @@ app.get("/api/total-connect", async (req, res) => {
   }
 });
 
-app.post("/api/become-agent", cors(), async (req, res) => {
+app.post("/api/become-agent", async (req, res) => {
   const {
     type,
     located,
@@ -3391,7 +3391,7 @@ app.get("/api/get-account-balance", cors(), async (req, res) => {
   }
 });
 
-app.post("/api/send-connect-email", cors(), async (req, res) => {
+app.post("/api/send-connect-email", async (req, res) => {
   const {
     agentId,
     userId,
