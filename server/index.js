@@ -154,7 +154,7 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
 const OPENCAGE_TOKEN = process.env.OPENCAGE_TOKEN;
 
-app.post("api/paystack/initialize", cors(), (req, res) => {
+app.post("/api/paystack/initialize", cors(), (req, res) => {
   const { email, amount } = req.body;
 
   const params = JSON.stringify({
@@ -237,7 +237,7 @@ app.get("/api/get-pending-payment", async (req, res) => {
   }
 });
 
-app.get("api/paystack/verify/:reference", cors(), async (req, res) => {
+app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
 
   const transactionCheck = await pool.query(
@@ -1504,7 +1504,7 @@ app.get("/api/lodge/:id", async (req, res) => {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Directory to save the file
+    cb(null, path.join(__dirname, "uploads")); // Directory to save the file
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
