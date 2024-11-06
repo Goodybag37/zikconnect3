@@ -1589,7 +1589,8 @@ app.post(
         // Optimize other formats with Sharp
         const inputPath = req.file.path;
         const outputPath = path.join(
-          "uploads/",
+          __dirname, // This will use the current directory of the script
+          "uploads",
           Date.now() + path.extname(req.file.originalname)
         );
 
@@ -1685,7 +1686,11 @@ app.post(
         filename.endsWith(".HEIF")
       ) {
         const inputPath = req.file.path;
-        const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+        const outputPath = path.join(
+          __dirname,
+          "uploads",
+          Date.now() + ".jpeg"
+        );
 
         // Convert HEIC to JPEG
         const buffer = fs.readFileSync(inputPath);
@@ -1708,7 +1713,8 @@ app.post(
         // Optimize other formats with Sharp
         const inputPath = req.file.path;
         const outputPath = path.join(
-          "uploads/",
+          __dirname, // This will use the current directory of the script
+          "uploads",
           Date.now() + path.extname(req.file.originalname)
         );
 
@@ -1804,7 +1810,11 @@ app.post(
         filename.endsWith(".HEIF")
       ) {
         const inputPath = req.file.path;
-        const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+        const outputPath = path.join(
+          __dirname, // This will use the current directory of the script
+          "uploads",
+          Date.now() + ".jpeg"
+        );
 
         // Convert HEIC to JPEG
         const buffer = fs.readFileSync(inputPath);
@@ -1827,7 +1837,8 @@ app.post(
         // Optimize other formats with Sharp
         const inputPath = req.file.path;
         const outputPath = path.join(
-          "uploads/",
+          __dirname, // This will use the current directory of the script
+          "uploads",
           Date.now() + path.extname(req.file.originalname)
         );
 
@@ -2104,7 +2115,11 @@ app.put(
           filename.endsWith(".HEIF")
         ) {
           const inputPath = req.file.path;
-          const outputPath = path.join("uploads/", Date.now() + ".jpeg");
+          const outputPath = path.join(
+            __dirname, // This will use the current directory of the script
+            "uploads",
+            Date.now() + ".jpeg"
+          );
 
           // Convert HEIC to JPEG
           const buffer = fs.readFileSync(inputPath);
@@ -2127,7 +2142,8 @@ app.put(
           // Optimize other formats with Sharp
           const inputPath = req.file.path;
           const outputPath = path.join(
-            "uploads/",
+            __dirname, // This will use the current directory of the script
+            "uploads",
             Date.now() + path.extname(req.file.originalname)
           );
 
