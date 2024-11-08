@@ -40,7 +40,7 @@ function Profiles() {
   const userId = searchParams.get("userId");
   const userEmail = searchParams.get("email");
 
-  const heading = "Profile";
+  const heading = "Connects";
 
   const OpenSidebar = () => {
     setOpenSidebarToggle(!openSidebarToggle);

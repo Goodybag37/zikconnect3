@@ -6,7 +6,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { logo } from "../assets";
 import AuthContext from "../AuthContext";
 import UserContext from "../UserContext";
-import { BsFillPersonFill, BsLockFill } from "react-icons/bs";
+import { BsFillPersonFill, BsLockFill, BsXLg } from "react-icons/bs";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
+import Modal from "../components/Modal";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -18,6 +20,9 @@ const Login = () => {
   const { isAuthenticated, user, login } = useContext(AuthContext);
   const { setProfile } = useContext(UserContext);
   const apiUrls = process.env.REACT_APP_API_URL;
+  const [showPassword, setShowPassword] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState("");
   const apiUrl = "http://localhost:4000";
 
   const handleSubmit = async (e) => {
@@ -86,6 +91,68 @@ const Login = () => {
       setLoading(false);
     }
   };
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleShowModal = () => {
+    const content = (
+      <>
+        <div className="verifyPopup">
+          <h2 className="popupHeading inline">Change Password </h2>
+          <BsXLg
+            className="text-gradient closeModal4"
+            onClick={() => setShowModal(false)}
+          />
+        </div>
+        {email !== "" ? (
+          <>
+            <p className="popup-paragraph">
+              By clicking on confirm your password would automatically be
+              changed and a new password would be sent to your email ({email}).
+              Please do not share your password with anyone and make sure you
+              change it on your profile after logging into your account.
+            </p>
+
+            <button
+              onClick={() => {
+                setShowModal(false);
+                handleForgotPassword;
+              }}
+              className="bg-blue-gradient roommate-button connect-accept-button"
+            >
+              Confirm
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="popup-paragraph">
+              Please input a valid email address on the email field before
+              clicking on forgot password
+            </p>
+          </>
+        )}
+      </>
+    );
+    setShowModal(true);
+    setModalContent(content);
+  };
+  const handleForgotPassword = async () => {
+    try {
+      const response = await axios.post(`${apiUrls}/api/forgot-password`, {
+        email,
+      });
+
+      setError("An Email has been sent to your email ");
+    } catch (error) {
+      if (error.response) {
+        setError(error.response.data.message);
+      } else {
+        setError("An unexpected error occurred. Please try again.");
+      }
+      console.log(error);
+    }
+  };
 
   useEffect(() => {
     console.log("AuthContext Updated:", { isAuthenticated, user });
@@ -118,16 +185,23 @@ const Login = () => {
             required
           />
         </div>
-        <div className="input-group">
+        <div className="input-group password-container">
           {/* <BsLockFill className="input-icon" /> */}
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             id="password"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+          <button
+            type="button"
+            onClick={togglePasswordVisibility}
+            className="password-toggle-button"
+          >
+            {showPassword ? <FaEyeSlash /> : <FaEye />}
+          </button>
         </div>
 
         <button
@@ -154,7 +228,21 @@ const Login = () => {
             Register
           </Link>
         </p>
+
+        <p className="forgotPassword " onClick={handleShowModal}>
+          Forgot Password
+        </p>
       </form>
+
+      <Modal
+        show={showModal}
+        onClose={() => {
+          setShowModal(false);
+
+          localStorage.removeItem("showModal");
+        }}
+        content={modalContent}
+      />
     </div>
   );
 };

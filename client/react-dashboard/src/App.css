@@ -29,6 +29,18 @@ body {
   font-size: 20px;
   margin-right: 2px;
 }
+.iconSidebar {
+  vertical-align: middle;
+  line-height: 1px;
+  font-size: 15px;
+
+  color: #d86a16;
+  background-color: #000000;
+  margin-right: 4px;
+
+  padding: 4px;
+  border-radius: 10px;
+}
 
 .iconCursor {
   cursor: pointer;
@@ -59,7 +71,7 @@ body {
 }
 
 .close_icon {
-  color: red;
+  color: #d86a16;
   margin-left: 30px;
   margin-top: 10px;
   cursor: pointer;
@@ -931,7 +943,7 @@ select {
   background-color: transparent;
   border: 0.5px solid #ccc;
   width: 5rem;
-  font-size: 0.6rem;
+  font-size: 16px;
 }
 
 .search {
@@ -1210,6 +1222,7 @@ select {
   margin-right: 10px;
   height: 2rem;
   width: fit-content;
+  border: none;
 }
 .roommateButtonPicture {
   border-radius: 10px;
@@ -1219,6 +1232,7 @@ select {
   width: 7rem;
   color: black;
   background-color: #d86a16;
+  border: none;
 }
 .roommate-list-button {
   display: flex;
@@ -1916,4 +1930,76 @@ select {
 /* Styling when the input is focused */
 .form-group input:focus {
   border-color: #66afe9;
+}
+
+.cantBeChanged {
+  font-size: 10px;
+  margin-top: -20px;
+  margin-left: -8rem;
+  color: #33bbcf;
+}
+.password-container {
+  position: relative;
+  display: inline-block; /* Ensures the icon stays aligned with the input */
+  width: 100%; /* Adjust width as needed */
+}
+
+.password-input {
+  width: 100%; /* Full width of the container */
+  padding-right: 30px; /* Space for the icon */
+}
+
+.password-toggle-button {
+  position: absolute;
+  top: 45%; /* Vertically center the icon */
+  right: 10px; /* Space between icon and right side of input */
+  transform: translateY(-50%); /* Ensure perfect vertical alignment */
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px; /* Icon size */
+  padding: 0;
+  outline: none; /* Remove focus outline */
+  opacity: 0.5;
+}
+
+.forgotPassword {
+  margin-bottom: -10px;
+  color: #ff6d00;
+  transform: translateY(50%);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+/* Style the parent container to align to the left */
+.passWordRegex {
+  list-style-type: none;
+  padding-left: 0;
+  font-size: 12px; /* Makes the text small */
+  color: #666; /* Default text color */
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Style for each individual list item */
+.passWordRegex li {
+  margin-bottom: 20px;
+  position: relative;
+  padding-left: 20px; /* Indentation for list items */
+}
+
+/* Add a blue checkmark when the requirement is met */
+.passWordRegex li.valid {
+  color: #33bbcf; /* Blue when the condition is met */
+}
+
+.passWordRegex li.valid::before {
+  content: "\2714"; /* Unicode checkmark symbol */
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #33bbcf;
+  font-size: 14px;
 }

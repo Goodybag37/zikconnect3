@@ -8,6 +8,7 @@ import { logo } from "../assets"; // Corrected import
 import AuthContext from "../AuthContext";
 import UserContext from "../UserContext";
 import { BsFillPersonFill, BsLockFill } from "react-icons/bs";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -21,17 +22,51 @@ const Register = () => {
   const location = useLocation();
   const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
-
+  const [cantBeChanged, setCantBeChanged] = useState(false);
   const { isAuthenticated, user, login } = useContext(AuthContext);
+  const [showPassword, setShowPassword] = useState(false);
   const { setProfile } = useContext(UserContext);
+  const [showRequirements, setShowRequirements] = useState(false);
+  const [isValid, setIsValid] = useState({
+    length: false,
+    lowercase: false,
+    uppercase: false,
+    digit: false,
+  });
+
+  const [passwordError, setPasswordError] = useState("");
+
+  const validatePassword = (password) => {
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*]{8,}$/;
+
+    setIsValid({
+      length: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      digit: /\d/.test(password),
+    });
+    return passwordRegex.test(password);
+  };
+
+  React.useEffect(() => {
+    if (password) {
+      // Ensure password is not undefined or null
+      validatePassword(password);
+    }
+  }, [password]); // Add password to dependency array
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    console.log(`Submitting email: ${email}`); // Debugging line
-    console.log(`Submitting password: ${password}`); // Debugging line
+    if (!validatePassword(password)) {
+      setError("Password must meet all requirements");
+      setLoading(false);
+
+      return;
+    }
 
     try {
       // Prepare the data in x-www-form-urlencoded format
@@ -81,6 +116,10 @@ const Register = () => {
     }
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   useEffect(() => {
     console.log("AuthContext Updated:", { isAuthenticated, user });
   }, [isAuthenticated, user]);
@@ -99,11 +138,13 @@ const Register = () => {
           <input
             type="text"
             id="email"
-            placeholder="Full name"
+            placeholder="Full Name - (FirstN LastN)"
             value={fullname}
+            onClick={() => setCantBeChanged(true)}
             onChange={(e) => setFullname(e.target.value)}
           />
         </div>
+        {cantBeChanged && <p className="cantBeChanged">Can not be changed</p>}
         <div className="input-group input-email ">
           {/* <BsFillPersonFill className="input-icon" /> */}
           <input
@@ -111,19 +152,45 @@ const Register = () => {
             id="email"
             placeholder="Email"
             value={email}
+            onClick={() => setCantBeChanged(false)}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
-        <div className="input-group">
+        <div className="input-group password-container">
           {/* <BsLockFill className="input-icon" /> */}
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             id="email"
             placeholder="Password"
             value={password}
+            onClick={() => {
+              setShowRequirements(true);
+              setCantBeChanged(false);
+            }}
             onChange={(e) => setPassword(e.target.value)}
           />
+          <button
+            type="button"
+            onClick={togglePasswordVisibility}
+            className="password-toggle-button"
+          >
+            {showPassword ? <FaEyeSlash /> : <FaEye />}
+          </button>
         </div>
+        {showRequirements && (
+          <ul className="passWordRegex">
+            <li className={isValid.length ? "valid" : ""}>
+              At least 8 characters long
+            </li>
+            <li className={isValid.lowercase ? "valid" : ""}>
+              At least one lowercase letter
+            </li>
+            <li className={isValid.uppercase ? "valid" : ""}>
+              At least one uppercase letter
+            </li>
+            <li className={isValid.digit ? "valid" : ""}>At least one digit</li>
+          </ul>
+        )}
         <button
           className="login-button bg-blue-gradient"
           type="submit"

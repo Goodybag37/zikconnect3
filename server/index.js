@@ -62,7 +62,8 @@ app.use(
   cors({
     origin: [
       "https://js.paystack.co", // Paystack's JavaScript library
-      "https://zikconnect.com", // Your frontend domain
+      "https://zikconnect.com",
+      "http://localhost:3000", // Your frontend domain
     ],
     methods: ["GET", "POST", "OPTIONS"], // Specify allowed methods
     allowedHeaders: ["Content-Type", "Authorization"], // Specify allowed headers
@@ -500,7 +501,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -509,7 +510,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const pools = new pg.Pool({
+const pool = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
@@ -625,11 +626,43 @@ cron.schedule("* * * * *", async () => {
     const completeTime = new Date();
     const result = await pool.query(
       `UPDATE connect
+        SET status = 'available',
+            request_time = CURRENT_TIMESTAMP
+        WHERE status = 'order'
+          AND request_time IS NOT NULL
+          AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '30 minutes'
+        RETURNING type, agent_id`
+    );
+
+    if (result.rows.length > 0) {
+      const { type, agent_id } = result.rows[0];
+
+      if (type && agent_id) {
+        await pool.query(
+          `UPDATE ${type} SET status = 'available' WHERE id = $1`,
+          [agent_id]
+        );
+      } else {
+        console.warn("agentType or agentId is missing in the returned row.");
+      }
+    } else {
+      return;
+    }
+  } catch (error) {
+    console.error("Error updating connect statuses:", error);
+  }
+});
+
+cron.schedule("* * * * *", async () => {
+  try {
+    const completeTime = new Date();
+    const result = await pool.query(
+      `UPDATE connect
         SET status = 'completed',
            request_time = CURRENT_TIMESTAMP
          WHERE status = 'accepted'
          AND request_time IS NOT NULL
-         AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '0.01 minutes'
+         AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '30 minutes'
          RETURNING *`
     );
     if (result.rows.length > 0) {
@@ -815,6 +848,115 @@ app.get("/api/profile/", async (req, res) => {
   } catch (error) {
     console.error("Error fetching profile:", error);
     res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/api/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  try {
+    // Check if the email exists in the database
+    const exists = await pool.query(
+      "SELECT email FROM people WHERE email = $1",
+      [email]
+    );
+    if (exists.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No email found, please create an account instead." });
+    }
+
+    // Generate a new password and hash it
+    const newPass = uuidv4(); // Consider using a more user-friendly temporary password format
+    const hashedPassword = await bcrypt.hash(newPass, 10);
+
+    // Update the password in the database
+    await pool.query("UPDATE people SET password = $1 WHERE email = $2", [
+      hashedPassword,
+      email,
+    ]);
+
+    // Prepare email content
+    const subject = "New Password";
+    const text = `Welcome to Zikconnect`;
+    const html = `
+      <h1 style="color: #15b58e; margin-left: 20%;">Changed Password!</h1>
+      <p style="font-family: 'Times New Roman';">
+        Dear User,<br />
+        You have opted to change your password on our platform. Here is your new password for your account. Please do not share this with anyone.
+        <br /><br />
+        <strong>${newPass}</strong>
+        <br /><br />
+        You can go to your profile and change your password to something more secure.
+      </p>
+    `;
+
+    // Mail options
+    const mailOptions = {
+      from: "admin@zikconnect.com",
+      to: email,
+      subject: subject,
+      text: text,
+      html: html,
+    };
+
+    // Send the email
+    await transporter.sendMail(mailOptions);
+
+    // Respond to the client
+    res
+      .status(200)
+      .json({ message: "A new password has been sent to your email address." });
+  } catch (error) {
+    console.error("Error sending reset password email:", error);
+    res
+      .status(500)
+      .json({ message: "An error occurred while processing your request." });
+  }
+});
+
+app.post("/api/change-password", async (req, res) => {
+  const { oldPassword, newPassword, email } = req.body;
+
+  try {
+    // Check if the user exists
+    const result = await pool.query(
+      "SELECT password FROM people WHERE email = $1",
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Get the hashed password from the database
+    const hashedPassword = result.rows[0].password;
+
+    // Compare the old password with the stored hashed password
+    const passwordMatch = await bcrypt.compare(oldPassword, hashedPassword);
+
+    if (passwordMatch) {
+      // Passwords match, hash the new password
+      const newHashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update the password in the database
+      await pool.query("UPDATE people SET password = $1 WHERE email = $2", [
+        newHashedPassword,
+        email,
+      ]);
+
+      return res
+        .status(200)
+        .json({ message: "Password updated successfully." });
+    } else {
+      // Incorrect old password
+      return res.status(401).json({
+        message: "Incorrect old password. Please try again.",
+      });
+    }
+  } catch (error) {
+    // Handle any unexpected errors
+    console.error("Error during password change:", error);
+    res.status(500).json({ message: "Internal server error." });
   }
 });
 
@@ -3218,8 +3360,8 @@ app.post("/api/become-agent", async (req, res) => {
                      <br></br>
                     <a style="padding: 10px 20px; background-color: blue; color: white; 
                     text-decoration: none; border-radius: 5px; margin-right:4px;"
-                     href=" https://a8b8-129-205-124-222.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&locationData=${encodedLocationData}&status=approved&token=${token}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
- <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href=" https://a8b8-129-205-124-222.ngrok-free.app/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
+                     href=" https://zikconnect.com/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&locationData=${encodedLocationData}&status=approved&token=${token}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
+ <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href=" https://zikconnect.com/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
   </ul>
                  </p>`;
 
@@ -3227,8 +3369,8 @@ app.post("/api/become-agent", async (req, res) => {
 
   // Email options for the admin
   const mailOptions2 = {
-    from: "admin@zikconnect.com", // Sender's address
-    to: "goodnessezeanyika012@gmail.com", // Admin's email
+    from: "ZIKCONNECT admin@zikconnect.com", // Sender's address
+    to: "zikconnectinfo@gmail.com", // Admin's email
     subject: subject2, // Subject line
     text: text2, // Plain text body
     html: html2, // HTML body
@@ -3420,6 +3562,8 @@ app.post("/api/send-connect-email", async (req, res) => {
     type,
   } = req.body;
 
+  const requestTime = new Date(); // Current time
+
   const result = await pool.query(
     `SELECT account_balance FROM people WHERE id = $1`,
     [userId]
@@ -3466,12 +3610,31 @@ app.post("/api/send-connect-email", async (req, res) => {
     }
     let agentLocation = {};
 
-    if (agentType == "buysell") {
+    if (
+      agentType == "buysell" ||
+      agentType == "lodge" ||
+      agentType == "event"
+    ) {
       // Query the agent's exact location from the database
-
+      const status = "order";
       const result = await pool.query(
-        "UPDATE buysell SET status = $1 WHERE id = $2 RETURNING *",
+        `UPDATE ${agentType} SET status = $1 WHERE id = $2 RETURNING *`,
         ["order", agentId]
+      );
+
+      await pool.query(
+        "INSERT INTO connect (order_id, user_id, agent_id, request_time, status, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        [
+          orderId,
+          userId,
+          agentId,
+          requestTime,
+          status,
+          agentType,
+          locationData,
+          distance,
+          duration,
+        ]
       );
 
       if (result.rowCount > 0) {
@@ -3490,6 +3653,20 @@ app.post("/api/send-connect-email", async (req, res) => {
       agentLocation = await pool.query(
         `SELECT exact_location FROM agents WHERE agent_id = $1`,
         [agentId]
+      );
+
+      await pool.query(
+        "INSERT INTO connect (order_id, user_id, agent_id, request_time, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        [
+          orderId,
+          userId,
+          agentId,
+          requestTime,
+          agentType,
+          locationData,
+          distance,
+          duration,
+        ]
       );
     }
 
@@ -3536,23 +3713,9 @@ app.post("/api/send-connect-email", async (req, res) => {
     };
   }
 
-  const requestTime = new Date(); // Current time
-
   try {
     // Query the database to get the agent's email
-    await pool.query(
-      "INSERT INTO connect (order_id, user_id, agent_id, request_time, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-      [
-        orderId,
-        userId,
-        agentId,
-        requestTime,
-        agentType,
-        locationData,
-        distance,
-        duration,
-      ]
-    );
+
     await pool.query(`
   UPDATE connect
   SET agent_location = to_jsonb(a.exact_location)
@@ -3712,10 +3875,10 @@ app.post("/api/send-connect-email", async (req, res) => {
                      
                       <li style = "font-size: 10px;"> Manual Locations do not come with  distance and direction calculations</li>
            </p>
-                      </p>`;
+                                  <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
+    <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
 
-    //                        <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
-    // <a href="https://zikconnect-36adf65e1cf3.herokuapp.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
+                      </p>`;
 
     if (
       agentType == "buysell" ||
@@ -4790,8 +4953,9 @@ async function sendVerificationCode(phoneNumber, code) {
 }
 
 app.post("/api/send-verification-code", async (req, res) => {
-  const phoneNumber = req.body.phone;
+  const phone = req.body.phone;
   const userId = req.body.user;
+  const phoneNumber = `+234${phone}`;
 
   if (!phone) {
     return res.status(400).json({ message: "Phone number is required" });
@@ -4836,23 +5000,22 @@ app.post("/api/send-verification-code", async (req, res) => {
 
 app.post("/api/verify-phone", async (req, res) => {
   const { phone, code, user } = req.body;
-  const phoneNumber = `+234${phone}`;
 
   try {
     // Check if the code is correct
     const result = await pool.query(
       "SELECT * FROM verification_codes WHERE phone_number = $1 AND verification_code = $2 AND status = 'pending'",
-      [phoneNumber, code]
+      [phone, code]
     );
 
     if (result.rows.length > 0) {
       // Update the status to 'verified'
       await pool.query(
         "UPDATE verification_codes SET status = 'verified' WHERE phone_number = $1",
-        [phoneNumber]
+        [phone]
       );
       await pool.query("UPDATE people SET phone = $1 WHERE id = $2", [
-        phoneNumber,
+        phone,
         user,
       ]);
 

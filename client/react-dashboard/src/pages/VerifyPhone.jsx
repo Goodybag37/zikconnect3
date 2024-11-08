@@ -62,9 +62,10 @@ function VerifyPhone() {
 
   const handleSendCode = async () => {
     try {
+      const formattedPhone = phone.replace(/^\+234 0/, "");
       // Create a new instance of URLSearchParams to encode the phone number and user ID
       const formData = new URLSearchParams();
-      formData.append("phone", phone);
+      formData.append("phone", formattedPhone);
       formData.append("user", userId);
 
       // Send a GET request to check if the phone number has already been used
@@ -145,7 +146,7 @@ function VerifyPhone() {
     setError("");
     setLoading(true);
 
-    const formattedPhone = phone.replace(/^\+234 0/, "");
+    // const formattedPhone = phone.replace(/^\+234 0/, "");
 
     // console.log(`Submitting email: ${email}`); // Debugging line
     // console.log(`Submitting password: ${password}`); // Debugging line
@@ -153,7 +154,7 @@ function VerifyPhone() {
     try {
       // Prepare the data in x-www-form-urlencoded format
 
-      formData.append("phone", formattedPhone);
+      formData.append("phone", phone);
       formData.append("code", code);
 
       // Send the data

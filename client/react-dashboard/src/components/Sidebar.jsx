@@ -3,16 +3,12 @@ import { Link } from "react-router-dom";
 import { Routes, Route, useParams, useLocation } from "react-router-dom";
 import CustomLink from "./CustomLink";
 import { discount, logo } from "../assets";
-
-import {
-  BsFillCollectionFill,
-  BsFillPeopleFill,
-  BsFillHouseDoorFill,
-  BsFillPersonLinesFill,
-  BsFillArchiveFill,
-  BsFillGrid3X3GapFill,
-  BsFillGearFill,
-} from "react-icons/bs";
+import { HiHome } from "react-icons/hi2";
+import { TbHomePlus } from "react-icons/tb";
+import { IoPeople } from "react-icons/io5";
+import { FaPeoplePulling } from "react-icons/fa6";
+import { FaCartPlus } from "react-icons/fa";
+import { BsFillGearFill, BsBrowserEdge } from "react-icons/bs";
 
 function Sidebar(props) {
   const [mail, setMail] = useState();
@@ -43,7 +39,7 @@ function Sidebar(props) {
       <ul className="sidebar-list text-gradient mt-0">
         <li className="sidebar-list-item">
           <CustomLink className="card-title" to={"/"} userId={id} email={mail}>
-            <BsFillPersonLinesFill className="icon" /> Home
+            <HiHome className="iconSidebar bg-black-gradient" /> Home
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
@@ -53,7 +49,7 @@ function Sidebar(props) {
             userId={id}
             email={mail}
           >
-            <BsFillPersonLinesFill className="icon" /> Agents
+            <IoPeople className="iconSidebar bg-black-gradient" /> Agents
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
@@ -63,7 +59,7 @@ function Sidebar(props) {
             userId={id}
             email={mail}
           >
-            <BsFillPeopleFill className="icon" /> Events
+            <FaPeoplePulling className="iconSidebar bg-black-gradient" /> Events
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
@@ -73,7 +69,7 @@ function Sidebar(props) {
             userId={id}
             email={mail}
           >
-            <BsFillHouseDoorFill className="icon" /> Lodges
+            <TbHomePlus className="iconSidebar bg-black-gradient" /> Lodges
           </CustomLink>
         </li>
         {/* <li className="sidebar-list-item">
@@ -83,7 +79,7 @@ function Sidebar(props) {
             userId={id}
             email={mail}
           >
-            <BsFillHouseDoorFill className="icon" /> Roommates
+            <BsFillHouseDoorFill className="iconSidebar bg-black-gradient"/> Roommates
           </CustomLink>
         </li> */}
         <li className="sidebar-list-item">
@@ -93,7 +89,7 @@ function Sidebar(props) {
             userId={id}
             email={mail}
           >
-            <BsFillCollectionFill className="icon" /> Buy/Sell
+            <FaCartPlus className="iconSidebar bg-black-gradient" /> Buy/Sell
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
@@ -103,7 +99,17 @@ function Sidebar(props) {
             userId={userId}
             email={email}
           >
-            <BsFillGearFill className="icon" /> Profile
+            <BsBrowserEdge className="iconSidebar bg-black-gradient" /> Connects
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
+            to={"/settings"}
+            userId={userId}
+            email={email}
+          >
+            <BsFillGearFill className="iconSidebar bg-black-gradient" /> Profile
           </CustomLink>
         </li>
       </ul>
