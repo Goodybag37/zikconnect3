@@ -435,7 +435,7 @@ function YourComponent() {
                               }}
                             >
                               <option value="" disabled>
-                                Select...
+                                {selectedReviewType || "Select..."}
                               </option>
                               <option value="good">Good</option>
                               <option value="bad">Bad</option>

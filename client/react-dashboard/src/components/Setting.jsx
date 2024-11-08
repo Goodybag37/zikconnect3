@@ -77,7 +77,7 @@ function Setting() {
               <p>
                 {/* <BsFillTelephoneFill /> */}
                 <strong>Change Password- </strong>
-                <Link className="editPhone" to="/agents">
+                <Link className="editPhone" to="/changepassword">
                   <BsEyedropper />
                 </Link>
               </p>

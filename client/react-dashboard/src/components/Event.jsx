@@ -1111,17 +1111,16 @@ function YourComponent() {
       </div>
     );
   }
-
-  const filteredEvents = events.filter((event) => {
+  const filteredBuysells = buysells.filter((buysell) => {
     if (viewMode === "general") {
-      return event.status === "available" || "order";
+      return buysell.status === "available" || buysell.status === "order";
     }
     return true; // Show all items in profile view
   });
 
-  const displayUsers = filteredEvents
-    .filter((event) =>
-      selectedAgent ? event.fk_user_id === selectedAgent : true
+  const displayUsers = filteredBuysells
+    .filter((buysell) =>
+      selectedAgent ? buysell.fk_user_id === selectedAgent : true
     )
     .map(createCard);
 

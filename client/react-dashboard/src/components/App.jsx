@@ -27,6 +27,7 @@ import UploadLodge from "../pages/UploadLodge";
 import UploadEvent from "../pages/UploadEvent";
 import FundAccount from "../pages/FundAccount";
 import VerifyPayment from "../pages/VerifyPayment";
+import ChangePassword from "../pages/ChangePassword";
 
 import Settings from "../pages/Settings";
 function App() {
@@ -77,6 +78,7 @@ function App() {
           <Route path="/uploadlodge" element={<UploadLodge />} />
           <Route path="/uploadproperty" element={<UploadProperty />} />
           <Route path="/uploadevent" element={<UploadEvent />} />
+          <Route path="/changepassword" element={<ChangePassword />} />
         </Route>
 
         <Route path="/verifyphone" element={<VerifyPhone />} />

@@ -13,7 +13,7 @@ function Settings() {
 
   const userId = searchParams.get("userId");
   const userEmail = searchParams.get("email");
-  const heading = "Settings";
+  const heading = "Profile";
 
   const OpenSidebar = () => {
     setOpenSidebarToggle(!openSidebarToggle);
