@@ -645,12 +645,14 @@ select {
   margin-top: -20rem;
   color: #d86a16;
   cursor: pointer;
+  border: none;
 }
 .card-inners > .card_icon {
   font-size: 25px;
   margin-top: -20rem;
   color: #d86a16;
   cursor: pointer;
+  border: none;
 }
 
 .flipped-card .text {

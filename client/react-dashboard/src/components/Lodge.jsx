@@ -1102,16 +1102,16 @@ function YourComponent() {
     );
   }
 
-  const filteredBuysells = buysells.filter((buysell) => {
+  const filteredLodges = lodges.filter((lodge) => {
     if (viewMode === "general") {
-      return buysell.status === "available" || buysell.status === "order";
+      return lodge.status === "available" || lodge.status === "order";
     }
     return true; // Show all items in profile view
   });
 
-  const displayUsers = filteredBuysells
-    .filter((buysell) =>
-      selectedAgent ? buysell.fk_user_id === selectedAgent : true
+  const displayUsers = filteredLodges
+    .filter((lodge) =>
+      selectedAgent ? lodge.fk_user_id === selectedAgent : true
     )
     .map(createCard);
 
