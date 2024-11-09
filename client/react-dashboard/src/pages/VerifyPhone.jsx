@@ -172,6 +172,11 @@ function VerifyPhone() {
 
       console.log("you have been added as agent", response.data);
 
+      login({
+        ...userData,
+        isPhoneVerified: phone || false,
+      });
+
       // Get the redirect path from the URL parameters
       const redirectPath =
         new URLSearchParams(location.search).get("redirect") || "/agents";

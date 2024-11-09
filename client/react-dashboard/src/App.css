@@ -2010,3 +2010,10 @@ select {
   color: #007bff;
   font-size: 14px;
 }
+
+.copyCode {
+  display: inline;
+  margin-left: 3px;
+  margin-top: -50px;
+  font-size: 10px;
+}

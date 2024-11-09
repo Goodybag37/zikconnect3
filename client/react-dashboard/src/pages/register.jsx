@@ -38,8 +38,7 @@ const Register = () => {
   const [passwordError, setPasswordError] = useState("");
 
   const validatePassword = (password) => {
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d!@#$%^&*]{8,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\W_]{8,}$/;
 
     setIsValid({
       length: password.length >= 8,
