@@ -1182,7 +1182,7 @@ RETURNING email;
         const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
                       <strong><p style = "font-family: Times New Roman ;"> Dear User, You have successfully referred another user named ${capitalizedFullName}, <br /> 
                       We are super excited knowing that you trust our services to bring your friends onboard!. 
-                      A sum of 500 naira would be credited to your walllet when the new user verifies thier phone number on the site. Keep Going!!  </strong>if you have further questions</strong>
+                      A sum of 500 naira would be credited to your walllet when the new user verifies thier phone number on the site. Keep Going!!  </strong>if you have further questions reach out to us at admin@zikconnect.com</strong>
                       </strong>
                       </p>`;
 
