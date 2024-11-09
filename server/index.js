@@ -501,7 +501,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -510,7 +510,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const pools = new pg.Pool({
+const pool = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
@@ -824,7 +824,8 @@ app.get("/api/profile/", async (req, res) => {
         settings -> 'Completed Orders' AS settings_completed_orders,
         settings -> 'Totl Connect Made' AS settings_total_connectmade,
         settings -> 'Totl Connect Received' AS settings_total_connectreceived,
-        settings -> 'Avg Completed Orders' AS settings_average_orders    
+        settings -> 'Avg Completed Orders' AS settings_average_orders, 
+        settings -> 'Referral Code' as settings_referral_code   
       FROM people 
       LEFT JOIN roommates ON people.id = roommates.fk_user_id 
       LEFT JOIN lodge ON people.id = lodge.fk_user_id 
@@ -4897,6 +4898,7 @@ app.post("/api/send-verification-email", async (req, res) => {
 
   // Generate a 6-digit verification code
   const verificationCode = generateVerificationCode();
+  console.log(verificationCode);
 
   try {
     const subject = "Verify Email";

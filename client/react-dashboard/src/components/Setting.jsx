@@ -10,10 +10,14 @@ import {
   BsFillPlusSquareFill,
   BsFillPersonXFill,
 } from "react-icons/bs";
+import { FaRegCopy } from "react-icons/fa";
 
 function Setting() {
   const { isAuthenticated, user, login, signout } = useContext(AuthContext);
   const [profile, setProfile] = useState([]);
+
+  const [copied, setCopied] = useState(false);
+  const textToCopy = profile.settings_referral_code; // Text to be copied
 
   // Ensure user is defined before accessing user.userId
   const userbread = user ? user.userId : null;
@@ -21,6 +25,13 @@ function Setting() {
   const apiUrls = process.env.REACT_APP_API_URL;
 
   const apiUrl = "http://localhost:4000"; // Use env variable or fallback
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    });
+  };
 
   const fetchData = async () => {
     try {
@@ -58,6 +69,16 @@ function Setting() {
               <hr className="profileRule"></hr>
               <p className="text-gradient">
                 <strong>User ID: {user.id} </strong>
+                {/* <BsFillPersonFill /> */}
+              </p>
+              <hr className="profileRule"></hr>
+              <p className="text-gradient">
+                <strong>
+                  Referral Code: {profile.settings_referral_code}{" "}
+                </strong>
+
+                <FaRegCopy onClick={handleCopy} style={{ cursor: "pointer" }} />
+                {copied == true ? <p className="copyCode">copied</p> : ""}
                 {/* <BsFillPersonFill /> */}
               </p>
               <hr className="profileRule"></hr>
