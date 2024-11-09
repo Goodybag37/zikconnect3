@@ -967,7 +967,9 @@ function YourComponent() {
         <p className="popup-paragraph">Order Number: {newCode}</p>
         {selectedAgent && (
           <>
-            <p className="popup-paragraph">Agent ID: {selectedAgent.agentId}</p>
+            <p className="popup-paragraph">
+              Agent ID: {selectedAgent.agent_id}
+            </p>
             <p className="popup-paragraph">
               Agent Full Name: {selectedAgent.name}
             </p>
@@ -1044,9 +1046,7 @@ function YourComponent() {
                   className="text-gradient card-icon-flip"
                   onClick={() => handleFlip(agent.id)}
                 />
-
                 <h2 className="info-header">Info</h2>
-
                 <p>
                   User ID: {agent.fk_user_id}
                   <hr />
@@ -1081,12 +1081,13 @@ function YourComponent() {
                     (agent.completed_orders / agent.total_connect_received) *
                       100
                   )}
-                  % Manual Location: {agent.location}
+                  %
                 </p>
                 <hr />
                 <br />
+                Manual Location: {agent.location}
+                <hr />
                 <br />
-
                 <h2 className="info-header">
                   Reviews
                   <FaThumbsUp className="review-button review-button-good" />{" "}
@@ -1118,7 +1119,6 @@ function YourComponent() {
                     <hr />
                   </div>
                 ))}
-
                 <button
                   className="bg-blue-gradient agent-button leave-review-button"
                   onClick={() => {
@@ -1156,7 +1156,6 @@ function YourComponent() {
                     </p>
                   </div>
                 )}
-
                 {isPopupOpen2 && (
                   <div className="rounded-md p-4 bg-black-gradient popup">
                     <div className="flex flex-row justify-between">
@@ -1180,7 +1179,6 @@ function YourComponent() {
                     </p>
                   </div>
                 )}
-
                 {isReviewFormVisible && (
                   <div className="review-form">
                     <div className="review-type-selection">

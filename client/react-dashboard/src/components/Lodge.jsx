@@ -1065,7 +1065,7 @@ function YourComponent() {
                       ? "In Order..."
                       : connecting[lodge.id]
                       ? "Connecting..."
-                      : "Connect"}
+                      : "Rent Lodge"}
                   </button>
 
                   <button

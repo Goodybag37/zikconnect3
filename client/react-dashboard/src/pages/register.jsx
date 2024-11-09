@@ -16,6 +16,7 @@ const Register = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState("");
   const [fullname, setFullname] = useState("");
+  const [refferral, setRefferral] = useState("");
   const [error, setError] = useState(""); // Add error state
   const [loading, setLoading] = useState(false); // Add loading state
   const navigate = useNavigate();
@@ -74,6 +75,7 @@ const Register = () => {
       formData.append("email", email);
       formData.append("password", password);
       formData.append("fullname", fullname);
+      formData.append("upline", refferral);
 
       // Send the data
       const response = await axios.post(`${apiUrls}/api/register`, formData, {
@@ -84,7 +86,7 @@ const Register = () => {
 
       console.log("Registration successful:", userData);
 
-      localStorage.setItem("authToken", response.data.token); // Assuming the token is in response.data.token
+      // localStorage.setItem("authToken", response.data.token); // Assuming the token is in response.data.token
       localStorage.setItem("user", JSON.stringify(userData));
       localStorage.setItem("isAuthenticated", true);
 
@@ -142,6 +144,7 @@ const Register = () => {
             value={fullname}
             onClick={() => setCantBeChanged(true)}
             onChange={(e) => setFullname(e.target.value)}
+            required
           />
         </div>
         {cantBeChanged && <p className="cantBeChanged">Can not be changed</p>}
@@ -154,6 +157,18 @@ const Register = () => {
             value={email}
             onClick={() => setCantBeChanged(false)}
             onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="input-group input-email ">
+          {/* <BsFillPersonFill className="input-icon" /> */}
+          <input
+            type="text"
+            id="email"
+            placeholder="Referral Code (Optional)"
+            value={refferral}
+            onClick={() => setCantBeChanged(false)}
+            onChange={(e) => setRefferral(e.target.value)}
           />
         </div>
         <div className="input-group password-container">
@@ -168,6 +183,7 @@ const Register = () => {
               setCantBeChanged(false);
             }}
             onChange={(e) => setPassword(e.target.value)}
+            required
           />
           <button
             type="button"

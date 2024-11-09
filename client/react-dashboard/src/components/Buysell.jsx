@@ -1103,7 +1103,7 @@ function YourComponent() {
                       ? "In Order..."
                       : connecting[buysell.id]
                       ? "Connecting..."
-                      : "Connect"}
+                      : "Buy Item"}
                   </button>
 
                   <button
