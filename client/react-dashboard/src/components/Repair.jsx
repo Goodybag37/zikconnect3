@@ -1597,7 +1597,7 @@ function YourComponent() {
               </div>
             </div>
             <a
-              href="https://whatsapp.com/2349169215343"
+              href="https://wa.me/+2349169215343"
               className="text-gradient report"
             >
               Report Agent?

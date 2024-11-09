@@ -787,7 +787,7 @@ function YourComponent() {
           <strong> ORDER CODE : </strong> {messages.order_code}
           <hr />
           <br />
-          <a className="reportUser" href="https://whatsapp.com/2349169215343">
+          <a className="reportUser" href="https://wa.me/+2349169215343">
             Report User?
           </a>
           <hr />
