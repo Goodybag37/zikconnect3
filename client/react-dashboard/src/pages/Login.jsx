@@ -204,11 +204,7 @@ const Login = () => {
           </button>
         </div>
 
-        <button
-          className="login-button bg-blue-gradient"
-          type="submit"
-          disabled={loading}
-        >
+        <button className="login-button" type="submit" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
         </button>
 
@@ -224,7 +220,7 @@ const Login = () => {
 
         <p>
           Don’t have an account?{" "}
-          <Link className="signup-link text-gradient" to="/register">
+          <Link className="signup-link " to="/register">
             Register
           </Link>
         </p>

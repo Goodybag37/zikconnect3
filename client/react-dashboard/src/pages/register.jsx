@@ -207,16 +207,12 @@ const Register = () => {
             <li className={isValid.digit ? "valid" : ""}>At least one digit</li>
           </ul>
         )}
-        <button
-          className="login-button bg-blue-gradient"
-          type="submit"
-          disabled={loading}
-        >
+        <button className="login-button " type="submit" disabled={loading}>
           {loading ? "Registering..." : "Register"}
         </button>
         <p>
           Already have an account?{" "}
-          <Link className="signup-link text-gradient " to="/login">
+          <Link className="signup-link" to="/login">
             Login
           </Link>
         </p>

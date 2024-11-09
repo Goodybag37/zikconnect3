@@ -1327,6 +1327,7 @@ select {
 
 .input-email {
   width: 100%;
+  border: #0b0a0a;
 }
 
 .signup-link {
@@ -1349,7 +1350,7 @@ select {
   height: 50px;
   margin-bottom: 10px;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid black;
   border-radius: 4px;
   box-sizing: border-box;
 }
@@ -1998,7 +1999,7 @@ select {
 
 /* Add a blue checkmark when the requirement is met */
 .passWordRegex li.valid {
-  color: #33bbcf; /* Blue when the condition is met */
+  color: blue; /* Blue when the condition is met */
 }
 
 .passWordRegex li.valid::before {
@@ -2006,6 +2007,6 @@ select {
   position: absolute;
   left: 0;
   top: 0;
-  color: #33bbcf;
+  color: blue;
   font-size: 14px;
 }
