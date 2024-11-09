@@ -9,6 +9,7 @@ import { IoPeople } from "react-icons/io5";
 import { FaPeoplePulling } from "react-icons/fa6";
 import { FaCartPlus } from "react-icons/fa";
 import { BsFillGearFill, BsBrowserEdge } from "react-icons/bs";
+import { BiSupport } from "react-icons/bi";
 
 function Sidebar(props) {
   const [mail, setMail] = useState();
@@ -111,6 +112,16 @@ function Sidebar(props) {
           >
             <BsFillGearFill className="iconSidebar bg-black-gradient" /> Profile
           </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <a
+            className="card-title"
+            href="https://wa.me/+2349169215343"
+            userId={userId}
+            email={email}
+          >
+            <BiSupport className="iconSidebar bg-black-gradient" /> Contact Us
+          </a>
         </li>
       </ul>
     </aside>
