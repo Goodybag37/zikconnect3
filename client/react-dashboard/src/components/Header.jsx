@@ -11,6 +11,7 @@ import {
   BsCashCoin,
 } from "react-icons/bs";
 import axios from "axios";
+import { FaRegCopy } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import AuthContext from "../AuthContext";
 import { io } from "socket.io-client"; // Optional chaining to avoid errors if user is null
@@ -41,6 +42,10 @@ function Header(props) {
   const apiUrl = "http://localhost:4000";
   const userbread =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
+
+  const [copied, setCopied] = useState(false);
+  const textToCopy = profile.settings_referral_code; // Text to be copied
+
   // const socket = io(apiUrls);
   const handleMessages = async () => {
     setShowMessages(!showMessages);
@@ -65,6 +70,13 @@ function Header(props) {
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    });
   };
 
   // const fetchData = async () => {
@@ -387,6 +399,14 @@ function Header(props) {
           <p className="profileParagraph">
             <BsFillPersonFill /> <strong>User: </strong> {user.id}
           </p>
+          <br></br>
+          <p className="profileParagraph">
+            <BsFillPersonFill /> <strong>Referral Code: </strong>{" "}
+            {profile.settings_referral_code}
+            <FaRegCopy onClick={handleCopy} style={{ cursor: "pointer" }} />
+            {copied == true ? <p className="copyCode">copied</p> : ""}
+          </p>
+
           <br></br>
 
           <p className="profileParagraph">

@@ -501,7 +501,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -510,7 +510,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const pools = new pg.Pool({
+const pool = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
@@ -3967,7 +3967,7 @@ app.post("/api/send-connect-email", async (req, res) => {
                       <li style = "font-size: 10px;"> Manual Locations do not come with  distance and direction calculations</li>
            </p>
                                   <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
-    <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
+    <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
 
                       </p>`;
 
@@ -4203,7 +4203,7 @@ app.get("/api/check-pending-connects", async (req, res) => {
 });
 
 app.get("/api/respond-to-connect", async (req, res) => {
-  const { order_id, user_id, agent_id, status } = req.query;
+  const { order_id, agent_user_id, user_id, agent_id, status } = req.query;
 
   // Debug logs
   // console.log(order_id, user_id, agent_id, status);
@@ -4293,7 +4293,7 @@ app.get("/api/respond-to-connect", async (req, res) => {
       const text2 = `Your Connect has been accepted`;
       const html2 = `<h1 style="color: #15b58e ; margin-left: 20% " >Accepted &#x1F389; </h1>
                      <p> Dear Esteemed Agent,</p>
-                     <br> </br><p> Your accepted the connect!! &#x1F389;
+                     <br> </br><p> You accepted the connect!! &#x1F389;
                       We hope you serve our students with your best performance..&#x1F680; You have 30 minutes to deliver this order or give valid proof to the user to show that you are delivering your request
                        <p/> <br> </br>
                         <a style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;" href="https://wa.me/234${userPhone}">Chat With User</a>
