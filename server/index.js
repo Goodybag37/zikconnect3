@@ -501,7 +501,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pools = new pg.Pool({
+const pool = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -510,7 +510,7 @@ const pools = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const pool = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
