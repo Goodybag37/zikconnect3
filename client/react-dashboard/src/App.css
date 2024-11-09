@@ -23,6 +23,10 @@ body {
   height: 100vh;
 }
 
+button {
+  border: none;
+}
+
 .icon {
   vertical-align: middle;
   line-height: 1px;

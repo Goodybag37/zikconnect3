@@ -115,6 +115,8 @@ function VerifyPhone() {
       formData.append("code", code);
       formData.append("user", userId);
 
+      console.log(userId, phone, code);
+
       const response = await axios.post(
         `${apiUrls}/api/verify-phone`,
         formData,
@@ -145,8 +147,9 @@ function VerifyPhone() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    const formData = new URLSearchParams();
 
-    // const formattedPhone = phone.replace(/^\+234 0/, "");
+    const formattedPhone = phone.replace(/^\+234 0/, "");
 
     // console.log(`Submitting email: ${email}`); // Debugging line
     // console.log(`Submitting password: ${password}`); // Debugging line
@@ -154,8 +157,9 @@ function VerifyPhone() {
     try {
       // Prepare the data in x-www-form-urlencoded format
 
-      formData.append("phone", phone);
+      formData.append("phoneN", formattedPhone);
       formData.append("code", code);
+      formData.append("user", userId);
 
       // Send the data
       const response = await axios.post(
@@ -236,7 +240,7 @@ function VerifyPhone() {
         </div>
 
         <button
-          onClick={() => handleVerifyCode()}
+          // onClick={() => handleVerifyCode()}
           className="login-button bg-blue-gradient"
           type="submit"
           disabled={loading}

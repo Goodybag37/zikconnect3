@@ -501,7 +501,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -510,7 +510,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const pools = new pg.Pool({
+const pool = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
@@ -662,7 +662,7 @@ cron.schedule("* * * * *", async () => {
            request_time = CURRENT_TIMESTAMP
          WHERE status = 'accepted'
          AND request_time IS NOT NULL
-         AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '30 minutes'
+         AND (CURRENT_TIMESTAMP - request_time) > INTERVAL '0.01 minutes'
          RETURNING *`
     );
     if (result.rows.length > 0) {
@@ -806,8 +806,10 @@ app.get("/api/profile/", async (req, res) => {
         people.date AS account_created, 
        
         roommates.fullname AS roommate_name, 
-        lodges.name AS lodge_name, 
-        lodges.description AS lodge_description, 
+        lodge.name AS lodge_name, 
+        lodge.description AS lodge_description, 
+        event.name AS event_name, 
+        event.description AS event_description, 
         buysell.name AS buysell_name, 
         buysell.description AS buysell_description, 
         buysell.id AS buysell_id, 
@@ -825,8 +827,9 @@ app.get("/api/profile/", async (req, res) => {
         settings -> 'Avg Completed Orders' AS settings_average_orders    
       FROM people 
       LEFT JOIN roommates ON people.id = roommates.fk_user_id 
-      LEFT JOIN lodges ON people.id = lodges.fk_user_id 
+      LEFT JOIN lodge ON people.id = lodge.fk_user_id 
       LEFT JOIN buysell ON people.id = buysell.fk_user_id 
+      LEFT JOIN event ON people.id = event.fk_user_id 
       LEFT JOIN foodagents ON people.id = foodagents.fk_user_id 
       LEFT JOIN repairagents ON people.id = repairagents.fk_user_id 
       LEFT JOIN cybercafeagents ON people.id = cybercafeagents.fk_user_id 
@@ -1109,15 +1112,25 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
 };
 
 app.post("/api/register", async (req, res) => {
-  const { email, password, fullname } = req.body;
+  const { email, password, fullname, upline } = req.body;
 
   try {
     const ip2 = req.ip;
 
     const ip = getClientIp(req);
 
+    let locationData;
+
     // Fetch user's location based on the IP address
-    const locationData = await getUserLocation(ip);
+    try {
+      locationData = await getUserLocation(ip);
+    } catch (err) {
+      console.warn("IP lookup failed, using default location data:", err);
+      locationData = {
+        city: null,
+        loc: "0,0", // Default latitude and longitude if lookup fails
+      };
+    }
 
     // Check if the email already exists in the database
     const result = await pool.query("SELECT email FROM people WHERE email=$1", [
@@ -1139,31 +1152,58 @@ app.post("/api/register", async (req, res) => {
 
     // Hash the password before storing it
     const hashedPassword = await bcrypt.hash(password, 10);
-    const subject = "Welcome!! ";
-    const text = `Welcome to Zikconnect`;
-    const html = `<h1 style="color: #15b58e ; margin-left: 20% " >WELCOME  &#x1F389;  &#x1F389;</h1>
-                      <strong><p style = "font-family: Times New Roman ; ">Dear ${capitalizedFullName}, <br /> 
-                      We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students.
-                      This is a platform carefully designed to enhance our student lives. After Confirming your email you would be a able 
-                      to perform various functions on the site like paying your fees, renting a lodge, buying and selling properties, order food
-                      get a delivery, and lots more. You can also earn money by becoming one of our agents on the site or uploading items for buyers to purchase
-                      Congrats!! Once again on your journey and feel free to reach out to our agents at <strong> admin@zikconnect.com  </strong>if you have further questions</strong>
-                      
+
+    if (upline) {
+      const result = await pool.query(
+        `
+  UPDATE people
+SET settings = jsonb_set(
+  settings,
+  '{Totl Referral}', 
+  to_jsonb(
+    (COALESCE((settings ->> 'Totl Referral')::int, 0) + 1)::text
+  ),
+  true
+)
+WHERE settings->>'Referral Code' = $1
+RETURNING email;
+  `,
+        [upline]
+      );
+
+      // Extract the email from the result
+      if (result.rows.length === 0) {
+      } else {
+        const email = result.rows[0].email;
+
+        const subject = "New Referral ";
+        const text = `Welcome to Zikconnect`;
+        const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
+                      <strong><p style = "font-family: Times New Roman ;"> Dear User, You have successfully referred another user named ${capitalizedFullName}, <br /> 
+                      We are super excited knowing that you trust our services to bring your friends onboard!. 
+                      A sum of 500 naira would be credited to your walllet when the new user verifies thier phone number on the site. Keep Going!!  </strong>if you have further questions</strong>
+                      </strong>
                       </p>`;
 
-    const mailOptions = {
-      from: "admin@zikconnect.com", // Sender address
-      // to: email,
-      // Recipient's email address
-      to: email,
-      subject: subject, // Subject line
-      text: text, // Plain text body
-      html: html, // HTML body
-    };
+        const mailOptions = {
+          from: "admin@zikconnect.com", // Sender address
+          // to: email,
+          // Recipient's email address
+          to: email,
+          subject: subject, // Subject line
+          text: text, // Plain text body
+          html: html, // HTML body
+        };
 
-    // Send email
-    const info = await transporter.sendMail(mailOptions);
-    // Insert the new user into the database
+        // Send email
+        await transporter.sendMail(mailOptions);
+      }
+
+      // Logs the updated email value
+    }
+
+    const random_code = uuidv4().replace(/-/g, "").slice(0, 6);
+
     await pool.query(
       `INSERT INTO people (email, password, full_name, settings) 
        VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -1188,17 +1228,52 @@ app.post("/api/register", async (req, res) => {
           },
           location: {
             city: locationData?.city || null,
-            latitude: locationData?.loc.split(",")[0] || null,
-            longitude: locationData?.loc.split(",")[1] || null,
+            latitude:
+              locationData?.loc && locationData.loc.includes(",")
+                ? locationData.loc.split(",")[0]
+                : null,
+            longitude:
+              locationData?.loc && locationData.loc.includes(",")
+                ? locationData.loc.split(",")[1]
+                : null,
           },
           "Totl Connect Made": 0,
           "Totl Connect Received": 0,
           "Completed Orders": 0,
           "Avg Completed Orders": 0,
+          "Referral Code": random_code,
+          "Referred By": upline ? upline : null,
+          "Totl Referral": 0,
           account_balance: 2000,
         }),
       ]
     );
+
+    const subject = "Welcome!! ";
+    const text = `Welcome to Zikconnect`;
+    const html = `<h1 style="color: #15b58e ; margin-left: 20% " >WELCOME  &#x1F389;  &#x1F389;</h1>
+                      <strong><p style = "font-family: Times New Roman ;"> Dear ${capitalizedFullName}, <br /> 
+                      We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students.
+                      This is a platform carefully designed to enhance our student lives. After Confirming your email you would be a able 
+                      to perform various functions on the site like paying your fees, renting a lodge, buying and selling properties, order food
+                      get a delivery, and lots more. You can also earn money by becoming one of our agents on the site or uploading items for buyers to purchase
+                      Congrats!! Once again on your journey and feel free to reach out to our agents at <strong> admin@zikconnect.com  </strong>if you have further questions</strong>
+                      
+                      </p>`;
+
+    const mailOptions = {
+      from: "admin@zikconnect.com", // Sender address
+      // to: email,
+      // Recipient's email address
+      to: email,
+      subject: subject, // Subject line
+      text: text, // Plain text body
+      html: html, // HTML body
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    // Insert the new user into the database
 
     // Query to retrieve the newly inserted user
     const userResult = await pool.query(
@@ -2689,71 +2764,73 @@ app.get("/api/repairagentsapi", async (req, res) => {
 app.get("/api/cybercafeagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-  cybercafeagents.agent_id AS id, 
-  UPPER(cybercafeagents.name) AS name, 
-  cybercafeagents.contact, 
-  cybercafeagents.location, 
-  cybercafeagents.account_created, 
-  cybercafeagents.agent_date AS agent_date, 
-  people.date AS account_creation_date,
-  cybercafeagents.fk_user_id,  
-  cybercafeagents.good_rating, 
-  cybercafeagents.bad_rating, 
-  COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
-  COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'good' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'bad' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text,  'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
-FROM 
-  cybercafeagents
-LEFT JOIN 
-  reviews 
-ON 
-  cybercafeagents.agent_id = reviews.agent_id 
-  AND reviews.agent_type = 'cybercafe'
-
-  LEFT JOIN 
-                agents 
-            ON 
-                cybercafeagents.agent_id = agents.agent_id  -- Join with the agents table
-
-                LEFT JOIN 
-                people 
-            ON 
-                cybercafeagents.fk_user_id = people.id  -- Join people table to get account creation date
-          
-        
-GROUP BY 
-  cybercafeagents.agent_id,
-  cybercafeagents.name,
-  cybercafeagents.contact,
-  cybercafeagents.location,
-  cybercafeagents.account_created,
-  cybercafeagents.agent_date,
-  cybercafeagents.fk_user_id,
-  agents.date,
-  people.date,
-  cybercafeagents.good_rating,
-  cybercafeagents.bad_rating
-ORDER BY 
-  cybercafeagents.agent_id DESC;
-
-
-      `);
+     SELECT 
+        cybercafeagents.agent_id AS id, 
+        UPPER(cybercafeagents.name) AS name, 
+        cybercafeagents.contact, 
+        cybercafeagents.location, 
+        cybercafeagents.account_created, 
+        cybercafeagents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        cybercafeagents.fk_user_id,  
+        cybercafeagents.good_rating, 
+        cybercafeagents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        cybercafeagents
+      LEFT JOIN 
+        reviews 
+      ON 
+        cybercafeagents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'cybercafe'
+      LEFT JOIN 
+        agents 
+      ON 
+        cybercafeagents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        cybercafeagents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        cybercafeagents.agent_id,
+        cybercafeagents.name,
+        cybercafeagents.contact,
+        cybercafeagents.location,
+        cybercafeagents.account_created,
+        cybercafeagents.agent_date,
+        cybercafeagents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        cybercafeagents.good_rating,
+        cybercafeagents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        cybercafeagents.agent_id DESC;
+    `);
 
     const cybercafeagents = result.rows;
 
@@ -2787,71 +2864,73 @@ ORDER BY
 app.get("/api/deliveryagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-  deliveryagents.agent_id AS id, 
-  UPPER(deliveryagents.name) AS name, 
-  deliveryagents.contact, 
-  deliveryagents.location, 
-  deliveryagents.account_created, 
-  deliveryagents.agent_date AS agent_date, 
-  people.date AS account_creation_date,
-  deliveryagents.fk_user_id,  
-  deliveryagents.good_rating, 
-  deliveryagents.bad_rating, 
-  COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
-  COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'good' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'bad' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text,  'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
-FROM 
-  deliveryagents
-LEFT JOIN 
-  reviews 
-ON 
-  deliveryagents.agent_id = reviews.agent_id 
-  AND reviews.agent_type = 'delivery'
-
-  LEFT JOIN 
-                agents 
-            ON 
-                deliveryagents.agent_id = agents.agent_id  -- Join with the agents table
-
-                LEFT JOIN 
-                people 
-            ON 
-                deliveryagents.fk_user_id = people.id  -- Join people table to get account creation date
-          
-        
-GROUP BY 
-  deliveryagents.agent_id,
-  deliveryagents.name,
-  deliveryagents.contact,
-  deliveryagents.location,
-  deliveryagents.account_created,
-  deliveryagents.agent_date,
-  deliveryagents.fk_user_id,
-  agents.date,
-  people.date,
-  deliveryagents.good_rating,
-  deliveryagents.bad_rating
-ORDER BY 
-  deliveryagents.agent_id DESC;
-
-
-      `);
+       SELECT 
+        deliveryagents.agent_id AS id, 
+        UPPER(deliveryagents.name) AS name, 
+        deliveryagents.contact, 
+        deliveryagents.location, 
+        deliveryagents.account_created, 
+        deliveryagents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        deliveryagents.fk_user_id,  
+        deliveryagents.good_rating, 
+        deliveryagents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        deliveryagents
+      LEFT JOIN 
+        reviews 
+      ON 
+        deliveryagents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'delivery'
+      LEFT JOIN 
+        agents 
+      ON 
+        deliveryagents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        deliveryagents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        deliveryagents.agent_id,
+        deliveryagents.name,
+        deliveryagents.contact,
+        deliveryagents.location,
+        deliveryagents.account_created,
+        deliveryagents.agent_date,
+        deliveryagents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        deliveryagents.good_rating,
+        deliveryagents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        deliveryagents.agent_id DESC;
+    `);
 
     const deliveryagents = result.rows;
 
@@ -2882,71 +2961,73 @@ ORDER BY
 app.get("/api/rideragentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-  rideragents.agent_id AS id, 
-  UPPER(rideragents.name) AS name, 
-  rideragents.contact, 
-  rideragents.location, 
-  rideragents.account_created, 
-  rideragents.agent_date AS agent_date, 
-  people.date AS account_creation_date,
-  rideragents.fk_user_id,  
-  rideragents.good_rating, 
-  rideragents.bad_rating, 
-  COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
-  COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'good' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'bad' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text,  'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
-FROM 
-  rideragents
-LEFT JOIN 
-  reviews 
-ON 
-  rideragents.agent_id = reviews.agent_id 
-  AND reviews.agent_type = 'rider'
-
-  LEFT JOIN 
-                agents 
-            ON 
-                rideragents.agent_id = agents.agent_id  -- Join with the agents table
-
-                LEFT JOIN 
-                people 
-            ON 
-                rideragents.fk_user_id = people.id  -- Join people table to get account creation date
-          
-        
-GROUP BY 
-  rideragents.agent_id,
-  rideragents.name,
-  rideragents.contact,
-  rideragents.location,
-  rideragents.account_created,
-  rideragents.agent_date,
-  rideragents.fk_user_id,
-  agents.date,
-  people.date,
-  rideragents.good_rating,
-  rideragents.bad_rating
-ORDER BY 
-  rideragents.agent_id DESC;
-
-
-      `);
+    SELECT 
+        rideragents.agent_id AS id, 
+        UPPER(rideragents.name) AS name, 
+        rideragents.contact, 
+        rideragents.location, 
+        rideragents.account_created, 
+        rideragents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        rideragents.fk_user_id,  
+        rideragents.good_rating, 
+        rideragents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        rideragents
+      LEFT JOIN 
+        reviews 
+      ON 
+        rideragents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'rider'
+      LEFT JOIN 
+        agents 
+      ON 
+        rideragents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        rideragents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        rideragents.agent_id,
+        rideragents.name,
+        rideragents.contact,
+        rideragents.location,
+        rideragents.account_created,
+        rideragents.agent_date,
+        rideragents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        rideragents.good_rating,
+        rideragents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        rideragents.agent_id DESC;
+    `);
 
     const rideragents = result.rows;
 
@@ -2978,70 +3059,72 @@ app.get("/api/schoolfeeagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-  schoolfeeagents.agent_id AS id, 
-  UPPER(schoolfeeagents.name) AS name, 
-  schoolfeeagents.contact, 
-  schoolfeeagents.location, 
-  schoolfeeagents.account_created, 
-  schoolfeeagents.agent_date AS agent_date, 
-  people.date AS account_creation_date,
-  schoolfeeagents.fk_user_id,  
-  schoolfeeagents.good_rating, 
-  schoolfeeagents.bad_rating, 
-  COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
-  COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'good' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'bad' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text,  'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
-FROM 
-  schoolfeeagents
-LEFT JOIN 
-  reviews 
-ON 
-  schoolfeeagents.agent_id = reviews.agent_id 
-  AND reviews.agent_type = 'schoolfee'
-
-  LEFT JOIN 
-                agents 
-            ON 
-                schoolfeeagents.agent_id = agents.agent_id  -- Join with the agents table
-
-                LEFT JOIN 
-                people 
-            ON 
-                schoolfeeagents.fk_user_id = people.id  -- Join people table to get account creation date
-          
-        
-GROUP BY 
-  schoolfeeagents.agent_id,
-  schoolfeeagents.name,
-  schoolfeeagents.contact,
-  schoolfeeagents.location,
-  schoolfeeagents.account_created,
-  schoolfeeagents.agent_date,
-  schoolfeeagents.fk_user_id,
-  agents.date,
-  people.date,
-  schoolfeeagents.good_rating,
-  schoolfeeagents.bad_rating
-ORDER BY 
-  schoolfeeagents.agent_id DESC;
-
-
-      `);
+        schoolfeeagents.agent_id AS id, 
+        UPPER(schoolfeeagents.name) AS name, 
+        schoolfeeagents.contact, 
+        schoolfeeagents.location, 
+        schoolfeeagents.account_created, 
+        schoolfeeagents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        schoolfeeagents.fk_user_id,  
+        schoolfeeagents.good_rating, 
+        schoolfeeagents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        schoolfeeagents
+      LEFT JOIN 
+        reviews 
+      ON 
+        schoolfeeagents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'schoolfee'
+      LEFT JOIN 
+        agents 
+      ON 
+        schoolfeeagents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        schoolfeeagents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        schoolfeeagents.agent_id,
+        schoolfeeagents.name,
+        schoolfeeagents.contact,
+        schoolfeeagents.location,
+        schoolfeeagents.account_created,
+        schoolfeeagents.agent_date,
+        schoolfeeagents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        schoolfeeagents.good_rating,
+        schoolfeeagents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        schoolfeeagents.agent_id DESC;
+    `);
 
     const schoolfeeagents = result.rows;
 
@@ -3076,70 +3159,72 @@ app.get("/api/whatsapptvagentsapi", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-  whatsapptvagents.agent_id AS id, 
-  UPPER(whatsapptvagents.name) AS name, 
-  whatsapptvagents.contact, 
-  whatsapptvagents.location, 
-  whatsapptvagents.account_created, 
-  whatsapptvagents.agent_date AS agent_date, 
-  people.date AS account_creation_date,
-  whatsapptvagents.fk_user_id,  
-  whatsapptvagents.good_rating, 
-  whatsapptvagents.bad_rating, 
-  COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
-  COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'good' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
-  ARRAY_AGG(
-    CASE 
-      WHEN reviews.type = 'bad' THEN 
-        json_build_object('user_id', reviews.user_id, 'text', reviews.text,  'date', reviews.date )
-      ELSE 
-        NULL 
-    END
-  ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews
-FROM 
-  whatsapptvagents
-LEFT JOIN 
-  reviews 
-ON 
-  whatsapptvagents.agent_id = reviews.agent_id 
-  AND reviews.agent_type = 'whatsapptv'
-
-  LEFT JOIN 
-                agents 
-            ON 
-                whatsapptvagents.agent_id = agents.agent_id  -- Join with the agents table
-
-                LEFT JOIN 
-                people 
-            ON 
-                whatsapptvagents.fk_user_id = people.id  -- Join people table to get account creation date
-          
-        
-GROUP BY 
-  whatsapptvagents.agent_id,
-  whatsapptvagents.name,
-  whatsapptvagents.contact,
-  whatsapptvagents.location,
-  whatsapptvagents.account_created,
-  whatsapptvagents.agent_date,
-  whatsapptvagents.fk_user_id,
-  agents.date,
-  people.date,
-  whatsapptvagents.good_rating,
-  whatsapptvagents.bad_rating
-ORDER BY 
-  whatsapptvagents.agent_id DESC;
-
-
-      `);
+        whatsapptvagents.agent_id AS id, 
+        UPPER(whatsapptvagents.name) AS name, 
+        whatsapptvagents.contact, 
+        whatsapptvagents.location, 
+        whatsapptvagents.account_created, 
+        whatsapptvagents.agent_date AS agent_date, 
+        people.date AS account_creation_date,
+         people.account_balance AS account_balance,
+        whatsapptvagents.fk_user_id,  
+        whatsapptvagents.good_rating, 
+        whatsapptvagents.bad_rating, 
+        COALESCE(COUNT(CASE WHEN reviews.type = 'good' THEN 1 END), 0) AS good_reviews_count,
+        COALESCE(COUNT(CASE WHEN reviews.type = 'bad' THEN 1 END), 0) AS bad_reviews_count,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'good' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'good') AS good_reviews,
+        ARRAY_AGG(
+          CASE 
+            WHEN reviews.type = 'bad' THEN 
+              json_build_object('user_id', reviews.user_id, 'text', reviews.text, 'date', reviews.date )
+            ELSE 
+              NULL 
+          END
+        ) FILTER (WHERE reviews.type = 'bad') AS bad_reviews,
+        -- Extracting the fields from the people.settings JSONB column
+        people.settings->>'Completed Orders' AS completed_orders,
+        people.settings->>'Totl Connect Received' AS total_connect_received
+      FROM 
+        whatsapptvagents
+      LEFT JOIN 
+        reviews 
+      ON 
+        whatsapptvagents.agent_id = reviews.agent_id 
+        AND reviews.agent_type = 'whatsapptv'
+      LEFT JOIN 
+        agents 
+      ON 
+        whatsapptvagents.agent_id = agents.agent_id  -- Join with the agents table
+      LEFT JOIN 
+        people 
+      ON 
+        whatsapptvagents.fk_user_id = people.id  -- Join people table to get account creation date
+      GROUP BY 
+        whatsapptvagents.agent_id,
+        whatsapptvagents.name,
+        whatsapptvagents.contact,
+        whatsapptvagents.location,
+        whatsapptvagents.account_created,
+        whatsapptvagents.agent_date,
+        whatsapptvagents.fk_user_id,
+        agents.date,
+        people.date,
+        people.account_balance,
+        whatsapptvagents.good_rating,
+        whatsapptvagents.bad_rating,
+        people.settings  -- Group by people.settings to use JSONB fields
+        HAVING 
+    people.account_balance > 100
+      ORDER BY 
+        whatsapptvagents.agent_id DESC;
+    `);
 
     const whatsapptvagents = result.rows;
 
@@ -3289,7 +3374,7 @@ app.post("/api/become-agent", async (req, res) => {
   const formatted = response.data.results[0]?.formatted || "";
 
   const locationData = { latitude, longitude, formatted };
-  console.log("open cage is", locationData);
+
   const encodedLocationData = encodeURIComponent(
     JSON.stringify({ locationData })
   );
@@ -3398,7 +3483,6 @@ app.post("/api/become-agent", async (req, res) => {
     const info2 = await transporter.sendMail(mailOptions2); // Email to admin
 
     // Log success message with info
-    console.log("Emails sent successfully:", info.messageId, info2.messageId);
 
     // Respond with success
     res.status(200).json({ message: "Emails sent successfully" });
@@ -3422,10 +3506,7 @@ async function getPlaceName(longitude, latitude) {
 
     const placeName =
       response.data.features[0]?.place_name || "Unknown Location";
-    console.log("Place Name:", placeName);
-    console.log("Place Name:", feature.place_name);
-    console.log("Address:", feature.text);
-    console.log("More Context:", feature.context);
+
     return placeName;
   } catch (error) {
     console.error("Error fetching geolocation:", error);
@@ -3568,6 +3649,13 @@ app.post("/api/send-connect-email", async (req, res) => {
     `SELECT account_balance FROM people WHERE id = $1`,
     [userId]
   );
+
+  const result3 = await pool.query(
+    "SELECT full_name from people WHERE id = $1",
+    [agentUserId]
+  );
+  const agentFullname = result3.rows[0].full_name;
+
   const accountBalance = result.rows[0];
   if (accountBalance < 100) {
     return res.status(400).json({
@@ -3623,13 +3711,14 @@ app.post("/api/send-connect-email", async (req, res) => {
       );
 
       await pool.query(
-        "INSERT INTO connect (order_id, user_id, agent_id, request_time, status, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        "INSERT INTO connect (order_id, user_id, agent_id, request_time, status, name, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
         [
           orderId,
           userId,
           agentId,
           requestTime,
           status,
+          agentFullname,
           agentType,
           locationData,
           distance,
@@ -3656,12 +3745,13 @@ app.post("/api/send-connect-email", async (req, res) => {
       );
 
       await pool.query(
-        "INSERT INTO connect (order_id, user_id, agent_id, request_time, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+        "INSERT INTO connect (order_id, user_id, agent_id, request_time, name, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         [
           orderId,
           userId,
           agentId,
           requestTime,
+          agentFullname,
           agentType,
           locationData,
           distance,
@@ -4943,9 +5033,7 @@ async function sendVerificationCode(phoneNumber, code) {
     );
 
     if (response.data && response.data.message_id) {
-      console.log("Verification code sent successfully!");
     } else {
-      console.log("Failed to send verification code:", response.data);
     }
   } catch (error) {
     console.error("Error sending verification code:", error.message);
@@ -4954,6 +5042,7 @@ async function sendVerificationCode(phoneNumber, code) {
 
 app.post("/api/send-verification-code", async (req, res) => {
   const phone = req.body.phone;
+
   const userId = req.body.user;
   const phoneNumber = `+234${phone}`;
 
@@ -4968,7 +5057,10 @@ app.post("/api/send-verification-code", async (req, res) => {
 
   try {
     // Usage
-    sendVerificationCode(phoneNumber, verificationCode);
+    const smsResponse = await sendVerificationCode(
+      phoneNumber,
+      verificationCode
+    );
 
     if (verificationCode) {
       // Successfully sent the SMS, return a success message
@@ -4978,7 +5070,7 @@ app.post("/api/send-verification-code", async (req, res) => {
        VALUES ($1, $2, $3, 'pending')
        ON CONFLICT (phone_number) 
        DO UPDATE SET verification_code = EXCLUDED.verification_code, status = 'pending', updated_at = CURRENT_TIMESTAMP`,
-        [userId, phone, verificationCode]
+        [userId, phoneNumber, verificationCode]
       );
 
       res.status(200).json({
@@ -4999,7 +5091,9 @@ app.post("/api/send-verification-code", async (req, res) => {
 });
 
 app.post("/api/verify-phone", async (req, res) => {
-  const { phone, code, user } = req.body;
+  const { phoneN, code, user } = req.body;
+
+  const phone = `+234${phoneN}`;
 
   try {
     // Check if the code is correct
@@ -5014,6 +5108,7 @@ app.post("/api/verify-phone", async (req, res) => {
         "UPDATE verification_codes SET status = 'verified' WHERE phone_number = $1",
         [phone]
       );
+
       await pool.query("UPDATE people SET phone = $1 WHERE id = $2", [
         phone,
         user,
@@ -5022,6 +5117,61 @@ app.post("/api/verify-phone", async (req, res) => {
       await pool.query(
         `DELETE FROM verification_codes WHERE status = 'verified'`
       );
+
+      const result2 = await pool.query(
+        `SELECT settings ->> 'Referred By' AS referral_code FROM people WHERE id = $1`,
+        [user]
+      );
+
+      const referral = result2.rows[0]?.referral_code;
+
+      const result3 = await pool.query(
+        `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings,
+      '{account_balance}', 
+      to_jsonb(
+        (COALESCE((settings ->> 'account_balance')::int, 0) + 500)::text
+      ),
+      true
+    ),
+    account_balance = account_balance + 500
+  WHERE settings->>'Referral Code' = $1
+  RETURNING email;
+  `,
+        [referral]
+      );
+
+      // Extract the email from the result
+      if (result3.rows.length === 0) {
+      } else {
+        const email = result3.rows[0].email;
+
+        const subject = "Referral Bonus";
+        const text = `Welcome to Zikconnect`;
+        const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
+                      <strong><p style = "font-family: Times New Roman ;">Dear User, Your account has been credited with 500 naira as the user you registered has verified their phone number. 
+                      Please head on to your dashboard to view the bonus. Thank you for trusting us  </strong>if you have further questions please contact us on admin@zikconnect.com</strong>
+                      </strong>
+                      </p>`;
+
+        const mailOptions = {
+          from: "admin@zikconnect.com", // Sender address
+          // to: email,
+          // Recipient's email address
+          to: email,
+          subject: subject, // Subject line
+          text: text, // Plain text body
+          html: html, // HTML body
+        };
+
+        // Send email
+        await transporter.sendMail(mailOptions);
+      }
+
+      // Logs the updated email value
 
       res.status(200).json({ message: "Phone number verified successfully" });
     } else {

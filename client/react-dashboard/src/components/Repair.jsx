@@ -210,13 +210,15 @@ function YourComponent() {
         const response = await axios.get(
           `${apiUrls}/api/check-pending-connects?userId=${userId}&type=${type}`
         );
-        console.log(response.data);
+        console.log("response.data is", response.data);
         const agent = response.data.agent_id;
         const orderCode = response.data.order_id;
         const countdownTime = response.data.request_time;
         const status = response.data.status;
         const contact = response.data.contact;
         const name = response.data.name;
+        const agentLocation =
+          response.data.agent_location.locationData.display_name;
         let reviewForm = false;
 
         const canReviewA = canReview[agent];
@@ -341,9 +343,8 @@ function YourComponent() {
                 <p className="popup-paragraph">Agent ID: {agent}</p>
                 <p className="popup-paragraph">Agent Full Name: {name}</p>
                 <p className="popup-paragraph">
-                  Distance between you two: {distance}kilometers
+                  Agent Location: {agentLocation}
                 </p>
-                <p className="popup-paragraph">Duration: {duration}minuites</p>
                 <Link to="/agents">
                   <button className="signoutButton profileParagraph text-gradient">
                     Back to Agents
@@ -1213,7 +1214,7 @@ function YourComponent() {
         <p className="popup-paragraph">Order Number: {newCode}</p>
         {selectedAgent && (
           <>
-            <p className="popup-paragraph">Agent ID: {selectedAgent.agentId}</p>
+            <p className="popup-paragraph">Agent ID: {agentId}</p>
             <p className="popup-paragraph">
               Agent Full Name: {selectedAgent.name}
             </p>
