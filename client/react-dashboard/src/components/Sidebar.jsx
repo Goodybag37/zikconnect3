@@ -120,7 +120,7 @@ function Sidebar(props) {
             userId={userId}
             email={email}
           >
-            <BiSupport className="iconSidebar bg-black-gradient" /> Contact Us
+            <BiSupport className="iconSidebar bg-black-gradient" /> Support
           </a>
         </li>
       </ul>

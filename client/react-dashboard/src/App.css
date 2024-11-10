@@ -2017,3 +2017,32 @@ select {
   margin-top: -50px;
   font-size: 10px;
 }
+
+.ticker-wrapper {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  background-color: #d86a16;
+  border-radius: 10px;
+}
+
+.ticker-content {
+  display: flex;
+  animation: ticker 15s linear infinite;
+}
+
+.ticker-item {
+  padding: 10px 20px;
+  color: rgb(32, 30, 30);
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+@keyframes ticker {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
