@@ -501,7 +501,25 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool = new pg.Pool({
+const pool =
+  process.env.ENVIRONMENT === "local"
+    ? new pg.Pool({
+        user: process.env.DB_USER,
+        host: "localhost",
+        database: "students",
+        password: process.env.DB_PASSWORD,
+        port: 5433,
+      })
+    : new pg.Pool({
+        user: process.env.RDS_USER_NAME,
+        host: process.env.RDS_USER, // Ensure this is intended, might need to be RDS_HOST
+        database: process.env.RDS_DATABASE,
+        port: 5432,
+        password: process.env.RDS_PASSWORD,
+        ssl: { rejectUnauthorized: false },
+      });
+
+const poolss = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -1760,12 +1778,39 @@ app.post(
   async (req, res) => {
     try {
       let { originalname, filename, mimetype } = req.file;
-      const { name, description, user, price, located } = req.body;
+      const { name, description, user, price, located, longitude, latitude } =
+        req.body;
       // const fkUserId = parseInt(fk_user_id, 10);
 
       const settingsQuery = "SELECT settings FROM people WHERE id = $1";
       const settingsResult = await pool.query(settingsQuery, [user]);
       const userSettings = settingsResult.rows[0]?.settings || {};
+
+      const response = await axios.get(
+        `https://api.opencagedata.com/geocode/v1/json`,
+        {
+          params: {
+            q: `${latitude},${longitude}`,
+            key: OPENCAGE_TOKEN,
+            pretty: 1,
+            no_annotations: 1,
+          },
+        }
+      );
+
+      const formatted = response.data.results[0]?.formatted || "";
+
+      const locationData = {
+        locationData: {
+          lat: latitude,
+          lon: longitude,
+          display_name: formatted,
+        },
+      };
+
+      const encodedLocationData = encodeURIComponent(
+        JSON.stringify({ locationData })
+      );
 
       // Extract toggle_status.buysell from settings
       const toggleStatusBuysell =
@@ -1849,8 +1894,8 @@ app.post(
 
       // Insert into events
       const insertQuery = `
-      INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO buysell (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status, exact_location)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `;
       await pool.query(insertQuery, [
         name,
@@ -1863,7 +1908,13 @@ app.post(
         originalname,
         filename,
         propertyStatus,
+        locationData,
       ]);
+
+      await pool.query(
+        "UPDATE buysell SET exact_location = $1 WHERE fk_user_id = $2 ",
+        [locationData, user]
+      );
 
       res.send("File uploaded successfully");
     } catch (error) {
@@ -1880,12 +1931,39 @@ app.post(
   async (req, res) => {
     try {
       let { originalname, filename, mimetype } = req.file;
-      const { name, description, user, price, located } = req.body;
+      const { name, description, user, price, located, longitude, latitude } =
+        req.body;
       // const fkUserId = parseInt(fk_user_id, 10);
 
       const settingsQuery = "SELECT settings FROM people WHERE id = $1";
       const settingsResult = await pool.query(settingsQuery, [user]);
       const userSettings = settingsResult.rows[0]?.settings || {};
+
+      const response = await axios.get(
+        `https://api.opencagedata.com/geocode/v1/json`,
+        {
+          params: {
+            q: `${latitude},${longitude}`,
+            key: OPENCAGE_TOKEN,
+            pretty: 1,
+            no_annotations: 1,
+          },
+        }
+      );
+
+      const formatted = response.data.results[0]?.formatted || "";
+
+      const locationData = {
+        locationData: {
+          lat: latitude,
+          lon: longitude,
+          display_name: formatted,
+        },
+      };
+
+      const encodedLocationData = encodeURIComponent(
+        JSON.stringify({ locationData })
+      );
 
       // Extract toggle_status.buysell from settings
       const toggleStatusLodge =
@@ -1973,8 +2051,8 @@ app.post(
 
       // Insert into events
       const insertQuery = `
-      INSERT INTO lodge (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO lodge (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status, exact_location)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,  $11)
     `;
       await pool.query(insertQuery, [
         name,
@@ -1987,7 +2065,13 @@ app.post(
         originalname,
         filename,
         propertyStatus,
+        locationData,
       ]);
+
+      await pool.query(
+        "UPDATE lodge SET exact_location = $1 WHERE fk_user_id = $2 ",
+        [locationData, user]
+      );
 
       res.send("File uploaded successfully");
     } catch (error) {
@@ -2004,12 +2088,47 @@ app.post(
   async (req, res) => {
     try {
       let { originalname, filename, mimetype } = req.file;
-      const { name, description, event_date, user, price, located } = req.body;
+      const {
+        name,
+        description,
+        event_date,
+        user,
+        price,
+        located,
+        longitude,
+        latitude,
+      } = req.body;
       // const fkUserId = parseInt(fk_user_id, 10);
 
       const settingsQuery = "SELECT settings FROM people WHERE id = $1";
       const settingsResult = await pool.query(settingsQuery, [user]);
       const userSettings = settingsResult.rows[0]?.settings || {};
+
+      const response = await axios.get(
+        `https://api.opencagedata.com/geocode/v1/json`,
+        {
+          params: {
+            q: `${latitude},${longitude}`,
+            key: OPENCAGE_TOKEN,
+            pretty: 1,
+            no_annotations: 1,
+          },
+        }
+      );
+
+      const formatted = response.data.results[0]?.formatted || "";
+
+      const locationData = {
+        locationData: {
+          lat: latitude,
+          lon: longitude,
+          display_name: formatted,
+        },
+      };
+
+      const encodedLocationData = encodeURIComponent(
+        JSON.stringify({ locationData })
+      );
 
       // Extract toggle_status.buysell from settings
       const toggleStatusBuysell =
@@ -2097,8 +2216,8 @@ app.post(
 
       // Insert into events
       const insertQuery = `
-      INSERT INTO event (name, description, fk_user_id, event_date,  price, location, seller_name, contact, original_name, unique_name, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO event (name, description, fk_user_id, event_date,  price, location, seller_name, contact, original_name, unique_name, status, exact_location)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     `;
       await pool.query(insertQuery, [
         name,
@@ -2112,8 +2231,12 @@ app.post(
         originalname,
         filename,
         propertyStatus,
+        locationData,
       ]);
-
+      await pool.query(
+        "UPDATE event SET exact_location = $1 WHERE fk_user_id = $2 ",
+        [locationData, user]
+      );
       res.send("File uploaded successfully");
     } catch (error) {
       console.error(error);
@@ -3517,6 +3640,8 @@ async function getPlaceName(longitude, latitude) {
 app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
 
+  console.log("latitude, longitud", latitude, longitude);
+
   try {
     let locationData = { lat: null, lon: null, display_name: null };
 
@@ -3563,6 +3688,8 @@ app.get("/api/get-distance", async (req, res) => {
       `SELECT exact_location FROM buysell WHERE id = $1`,
       [itemId]
     );
+
+    console.log("agentLocation", agentLocation);
 
     if (agentLocation.rows.length === 0) {
       throw new Error("Agent location not found in the database");
@@ -3704,19 +3831,21 @@ app.post("/api/send-connect-email", async (req, res) => {
       agentType == "lodge" ||
       agentType == "event"
     ) {
-      // Query the agent's exact location from the database
       const status = "order";
-      const result = await pool.query(
-        `UPDATE ${agentType} SET status = $1 WHERE id = $2 RETURNING *`,
-        ["order", agentId]
-      );
+      // SQL query to remove the NOT NULL constraint from a column
+      const alterTableQuery = `
+      ALTER TABLE connect
+      ALTER COLUMN agent_id DROP NOT NULL;
+    `;
+
+      // Execute the query
+      await pool.query(alterTableQuery);
 
       await pool.query(
-        "INSERT INTO connect (order_id, user_id, agent_id, request_time, status, name, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+        "INSERT INTO connect (order_id, user_id, request_time, status, name, type, user_location, distance, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
         [
           orderId,
           userId,
-          agentId,
           requestTime,
           status,
           agentFullname,
@@ -3727,12 +3856,17 @@ app.post("/api/send-connect-email", async (req, res) => {
         ]
       );
 
-      if (result.rowCount > 0) {
-        updatedItem = result.rows[0];
+      // const result = await pool.query(
+      //   `UPDATE ${agentType} SET status = $1 WHERE id = $2 RETURNING *`,
+      //   ["order", agentId]
+      // );
 
-        // Add a job to the queue to change the status after 30 minutes
-        // await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
-      } // 30 minutes delay
+      // if (result.rowCount > 0) {
+      //   updatedItem = result.rows[0];
+
+      //   // Add a job to the queue to change the status after 30 minutes
+      //   // await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
+      // } // 30 minutes delay
 
       agentLocation = await pool.query(
         `SELECT exact_location FROM buysell WHERE id = $1`,
