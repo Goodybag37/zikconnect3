@@ -4023,7 +4023,7 @@ app.post("/api/send-connect-email", async (req, res) => {
 
     // Send email
     const info = await transporter.sendMail(mailOptions);
-
+    // console.log("Message sent: %s", info.messageId);
     res
       .status(200)
       .send({ message: "Email sent successfully!", updatedMessage });
