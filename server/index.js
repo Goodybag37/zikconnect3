@@ -436,32 +436,32 @@ app.post("/api/paystack-webhook", cors(), async (req, res) => {
 
 let itemStatus = {}; // Store the status of items
 
-const myQueue = new Bull("my-queue", {
-  redis: {
-    host: "http://zikconnect.com",
-    port: 6379,
-    password: "good3767589",
-  },
-});
+// const myQueue = new Bull("my-queue", {
+//   redis: {
+//     host: "http://zikconnect.com",
+//     port: 6379,
+//     password: "good3767589",
+//   },
+// });
 
-const redisClient = Redis.createClient({
-  host: "http://zikconnect.com",
-  port: 6379,
-  password: "good3767589", // If applicable
-});
+// const redisClient = Redis.createClient({
+//   host: "http://zikconnect.com",
+//   port: 6379,
+//   password: "good3767589", // If applicable
+// });
 
-myQueue.process(async (job) => {
-  const { agentId } = job.data;
+// myQueue.process(async (job) => {
+//   const { agentId } = job.data;
 
-  try {
-    await pool.query("UPDATE buysell SET status = $1 WHERE id = $2", [
-      "available",
-      agentId,
-    ]);
-  } catch (error) {
-    console.error("Error updating status in delayed job:", error);
-  }
-});
+//   try {
+//     await pool.query("UPDATE buysell SET status = $1 WHERE id = $2", [
+//       "available",
+//       agentId,
+//     ]);
+//   } catch (error) {
+//     console.error("Error updating status in delayed job:", error);
+//   }
+// });
 
 // let transporter = nodemailer.createTransport({
 //   host: "smtp.gmail.com",
@@ -3731,7 +3731,7 @@ app.post("/api/send-connect-email", async (req, res) => {
         updatedItem = result.rows[0];
 
         // Add a job to the queue to change the status after 30 minutes
-        await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
+        // await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
       } // 30 minutes delay
 
       agentLocation = await pool.query(
