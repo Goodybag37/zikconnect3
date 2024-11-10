@@ -11,6 +11,8 @@ import Testimonial from "../components/Testimonial";
 import Client from "../components/Client";
 import CTA from "../components/CTA";
 import Footer from "../components/Footer";
+import TawkTo from "../components//TawkTo";
+import Ticker from "../components//Ticker";
 import "../App.css";
 
 const Home = () => {
@@ -28,6 +30,7 @@ const Home = () => {
       </div>
       <div className={`bg-primary ${styles.paddingX} ${styles.flexCenter}`}>
         <div className={`${styles.boxWidth}`}>
+          <TawkTo />
           <Stat />
           <Business />
           <Billing />

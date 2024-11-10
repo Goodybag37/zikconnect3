@@ -5,6 +5,8 @@ import CustomLink from "./CustomLink";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
+import TawkTo from "./TawkTo";
+import Ticker from "./Ticker";
 import {
   BsFillArchiveFill,
   BsFillPersonDashFill,
@@ -131,6 +133,7 @@ function Agent(props) {
 
   return (
     <main className="main-container">
+      <Ticker />
       <div className="main-cards">
         <div
           className="card cursor-pointer"
@@ -149,6 +152,7 @@ function Agent(props) {
               </CustomLink>
             </h3>
           </div>
+          <TawkTo />
           <p> Generate remita and Pay your school fees in one click.</p>
           <h4 className="text-gradient">
             {totalAgents.schoolfeeagents} connects
