@@ -3831,7 +3831,7 @@ app.post("/api/send-connect-email", async (req, res) => {
       agentType == "lodge" ||
       agentType == "event"
     ) {
-      const status = "order";
+      const status = "available";
       // SQL query to remove the NOT NULL constraint from a column
       const alterTableQuery = `
       ALTER TABLE connect
@@ -3856,10 +3856,10 @@ app.post("/api/send-connect-email", async (req, res) => {
         ]
       );
 
-      // const result = await pool.query(
-      //   `UPDATE ${agentType} SET status = $1 WHERE id = $2 RETURNING *`,
-      //   ["order", agentId]
-      // );
+      const result = await pool.query(
+        `UPDATE ${agentType} SET status = $1 WHERE status = $2 RETURNING *`,
+        ["available", "order"]
+      );
 
       // if (result.rowCount > 0) {
       //   updatedItem = result.rows[0];
