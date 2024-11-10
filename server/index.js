@@ -501,7 +501,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool = new pg.Pool({
+const pools = new pg.Pool({
   user: process.env.RDS_USER_NAME,
   host: process.env.RDS_USER,
   database: process.env.RDS_DATABASE,
@@ -510,7 +510,7 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-const pools = new pg.Pool({
+const pool = new pg.Pool({
   user: process.env.DB_USER,
   host: "localhost",
   database: "students",
@@ -3646,6 +3646,8 @@ app.post("/api/send-connect-email", async (req, res) => {
 
   const requestTime = new Date(); // Current time
 
+  console.log(req.body);
+
   const result = await pool.query(
     `SELECT account_balance FROM people WHERE id = $1`,
     [userId]
@@ -3731,7 +3733,7 @@ app.post("/api/send-connect-email", async (req, res) => {
         updatedItem = result.rows[0];
 
         // Add a job to the queue to change the status after 30 minutes
-        await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
+        // await myQueue.add({ agentId }, { delay: 30 * 60 * 1000 });
       } // 30 minutes delay
 
       agentLocation = await pool.query(
@@ -3739,6 +3741,12 @@ app.post("/api/send-connect-email", async (req, res) => {
         [agentId]
       );
     } else {
+      locationData = {
+        lat: latitude,
+        lon: longitude,
+        display_name: formatted,
+        type: type,
+      };
       // Query the agent's exact location from the database
       agentLocation = await pool.query(
         `SELECT exact_location FROM agents WHERE agent_id = $1`,
@@ -3760,13 +3768,6 @@ app.post("/api/send-connect-email", async (req, res) => {
         ]
       );
     }
-
-    locationData = {
-      lat: latitude,
-      lon: longitude,
-      display_name: formatted,
-      type: type,
-    };
 
     // const { lat, lon, display_name } = response.data;
 
@@ -4022,7 +4023,7 @@ app.post("/api/send-connect-email", async (req, res) => {
 
     // Send email
     const info = await transporter.sendMail(mailOptions);
-    // console.log("Message sent: %s", info.messageId);
+
     res
       .status(200)
       .send({ message: "Email sent successfully!", updatedMessage });
