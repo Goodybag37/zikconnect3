@@ -135,7 +135,7 @@ function Agent(props) {
     <main className="main-container">
       <Ticker />
       <div className="main-cards">
-        <div
+        {/* <div
           className="card cursor-pointer"
           onClick={() => navigateTo("/schoolfees")}
         >
@@ -152,12 +152,13 @@ function Agent(props) {
               </CustomLink>
             </h3>
           </div>
-          <TawkTo />
+
           <p> Generate remita and Pay your school fees in one click.</p>
           <h4 className="text-gradient">
             {totalAgents.schoolfeeagents} connects
           </h4>
-        </div>
+        </div> */}
+        <TawkTo />
         <div
           className="card cursor-pointer"
           onClick={() => navigateTo("/buysells")}
