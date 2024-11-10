@@ -174,6 +174,8 @@ function UploadProperty() {
       formData.append("description", description);
       formData.append("name", name);
       formData.append("price", price);
+      formData.append("longitude", locationM.longitude);
+      formData.append("latitude", locationM.latitude);
 
       if (selectedFile) {
         formData.append("file", selectedFile); // Ensure selectedFile is a File object
