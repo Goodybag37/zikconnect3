@@ -2024,11 +2024,14 @@ select {
   width: 100%;
   background-color: #d86a16;
   border-radius: 10px;
+  box-shadow: 10px 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .ticker-content {
   display: flex;
-  animation: ticker 15s linear infinite;
+  animation: ticker 30s linear infinite;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-weight: bolder;
 }
 
 .ticker-item {
