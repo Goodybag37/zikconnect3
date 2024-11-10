@@ -2029,7 +2029,7 @@ select {
 
 .ticker-content {
   display: flex;
-  animation: ticker 30s linear infinite;
+  animation: ticker 8s linear infinite;
   font-family: Georgia, "Times New Roman", Times, serif;
   font-weight: bolder;
 }
