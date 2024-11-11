@@ -2798,7 +2798,7 @@ app.get("/api/repairagentsapi", async (req, res) => {
         UPPER(repairagents.name) AS name, 
         repairagents.contact, 
         repairagents.location, 
-         repairagents.description, 
+        repairagents.description, 
         repairagents.account_created, 
         repairagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -3489,6 +3489,20 @@ app.post("/api/become-agent", async (req, res) => {
     latitude,
   } = req.body;
 
+  const result1 = await pool.query(
+    `SELECT * FROM agents WHERE user_id = $1 AND agent_type = $2`,
+    [user, type]
+  );
+
+  // Check if any rows are returned
+  const response1 = result1.rows.length;
+  if (response1 > 0) {
+    // Send a conflict response if the user is already an agent
+    return res
+      .status(409)
+      .json({ message: `You are already one of our ${type}` });
+  }
+
   const token = uuidv4(); // Generate a unique token
   await pool.query(
     "INSERT INTO approval_token (token, user_id) VALUES ($1, $2)",
@@ -3523,22 +3537,6 @@ app.post("/api/become-agent", async (req, res) => {
   if (!type || !fullName || !email || !user || !call || !whatsapp) {
     return res.status(400).json({ message: "Missing required fields" });
   }
-
-  await pool.query(
-    `
-  UPDATE people
-  SET 
-    settings = jsonb_set(
-      settings, 
-      '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 1000)  -- The new value as JSONB
-    ),
-    account_balance = account_balance - 1000
-  WHERE 
-    id = $1;
-  `,
-    [user] // Pass user ID as parameter here
-  );
 
   const query = `
       INSERT INTO agent_approval (type, located, description, call, whatsapp, email, user_id, fullname, gps_location)
@@ -3626,19 +3624,22 @@ app.post("/api/become-agent", async (req, res) => {
   // Send emails and handle errors
   try {
     // Query to check if the user is already an agent
-    const result = await pool.query(
-      `SELECT * FROM agents WHERE user_id = $1 AND agent_type = $2`,
-      [user, type]
-    );
 
-    // Check if any rows are returned
-    const response = result.rows.length;
-    if (response > 0) {
-      // Send a conflict response if the user is already an agent
-      return res
-        .status(409)
-        .json({ message: `You are already one of our ${type}` });
-    }
+    await pool.query(
+      `
+  UPDATE people
+  SET 
+    settings = jsonb_set(
+      settings, 
+      '{account_balance}', 
+      to_jsonb((settings->>'account_balance')::int - 1000)  -- The new value as JSONB
+    ),
+    account_balance = account_balance - 1000
+  WHERE 
+    id = $1;
+  `,
+      [user] // Pass user ID as parameter here
+    );
 
     // Ensure mailOptions and mailOptions2 are properly defined
     const info = await transporter.sendMail(mailOptions); // Email to user
@@ -3678,22 +3679,23 @@ async function getPlaceName(longitude, latitude) {
 app.get("/api/agent-management", async (req, res) => {
   try {
     const result = await pool.query(`SELECT 
-          id,          
-          type,
-          located,
-          description,
-          call,
-          whatsapp,
-          email,
-          user_id,
-          fullname,
-          gps_location->>'formatted' AS formatted_location,
-          status
-        FROM 
-          agent_approval`);
+      id,          
+      type,
+      located,
+      description,
+      call,
+      whatsapp,
+      email,
+      user_id,
+      fullname,
+      gps_location->>'formatted' AS formatted_location,
+      status
+    FROM 
+      agent_approval
+    ORDER BY id DESC`); // Order by id in descending order
+
     const agent_approval = result.rows;
     res.json({ approval: agent_approval });
-    console.log("Fetched agent approvals:", agent_approval);
   } catch (error) {
     console.error("Error fetching agent approvals:", error);
     res.status(500).json({ error: "Internal server error" });
@@ -3702,8 +3704,6 @@ app.get("/api/agent-management", async (req, res) => {
 
 app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
-
-  console.log("latitude, longitud", latitude, longitude);
 
   try {
     let locationData = { lat: null, lon: null, display_name: null };
@@ -3751,8 +3751,6 @@ app.get("/api/get-distance", async (req, res) => {
       `SELECT exact_location FROM buysell WHERE id = $1`,
       [itemId]
     );
-
-    console.log("agentLocation", agentLocation);
 
     if (agentLocation.rows.length === 0) {
       throw new Error("Agent location not found in the database");
@@ -5080,8 +5078,6 @@ app.get("/api/get-used-number", async (req, res) => {
   const phoneN = req.query.phoneUsed;
   const phone = `+234${phoneN}`;
 
-  console.log("Phone number being checked:", phone);
-
   try {
     const result = await pool.query(
       `SELECT phone FROM people WHERE phone = $1`,
@@ -5123,7 +5119,6 @@ app.post("/api/send-verification-email", async (req, res) => {
 
   // Generate a 6-digit verification code
   const verificationCode = generateVerificationCode();
-  console.log(verificationCode);
 
   try {
     const subject = "Verify Email";
@@ -5322,8 +5317,6 @@ app.post("/api/verify-phone", async (req, res) => {
 
   const phone = `+234${phoneN}`;
 
-  console.log(phoneN);
-
   try {
     // Check if the code is correct
     const result = await pool.query(
@@ -5470,9 +5463,6 @@ app.get("/api/messages", async (req, res) => {
 
 app.get("/api/agentprofile", async (req, res) => {
   const { userId, type } = req.query;
-
-  // console.log("Received userId:", userId);
-  // console.log("Received type:", type);
 
   try {
     const result = await pool.query(
