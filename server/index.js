@@ -3670,7 +3670,7 @@ app.get("/api/agent-management", async (req, res) => {
           email,
           user_id,
           fullname,
-          gps_location->>'formatted' AS formatted_location,
+         
           status
         FROM 
           agent_approval`);
@@ -3682,6 +3682,7 @@ app.get("/api/agent-management", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+// gps_location->>'formatted' AS formatted_location,
 
 app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
