@@ -29,6 +29,7 @@ function BecomeAgent() {
 
   const [description, setDescription] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+
   const [call, setCall] = useState("");
   const [error, setError] = useState("");
   const [reviewTypeSelection, setReviewTypeSelection] = useState({});
@@ -47,8 +48,24 @@ function BecomeAgent() {
   });
 
   const maxLength = 250;
-  const maxLengthN = 11;
+  const maxLengthN = 16;
 
+  const handlePhoneChange = (e) => {
+    let input = e.target.value;
+    setWhatsapp(input);
+  };
+
+  const handleFocus = (e) => {
+    // Set the value to start with '+234 0' only when the input is focused for the first time
+    const input = e.target.value;
+
+    // Prevent the user from removing the prefix
+    if (!input.startsWith("+234 0")) {
+      setWhatsapp("+234 0");
+    } else {
+      setWhatsapp(input); // Update only if the prefix is intact
+    }
+  };
   const handleSelectChange = (event) => {
     setSelectedAgent(event.target.value);
   };
@@ -310,13 +327,13 @@ function BecomeAgent() {
 
         <div className="input-group">
           <input
-            maxLength={maxLengthN}
+            maxLength={15} // Adjust the max length as needed
             type="tel"
             id="description"
-            placeholder="Whatsapp Number (11-digit)"
-            pattern="[0-9]{11}"
+            placeholder="Whatsapp Number (10-digit)"
             value={whatsapp}
-            onChange={(e) => setWhatsapp(e.target.value)}
+            onChange={handlePhoneChange}
+            onFocus={handleFocus} // Triggered when the input is clicked
             required // Added for form validation
           />
         </div>
