@@ -3489,6 +3489,17 @@ app.post("/api/become-agent", async (req, res) => {
     latitude,
   } = req.body;
 
+  if (call == null || fullName == null) {
+    const result = await pool.query(
+      "SELECT phone, full_name FROM people WHERE id = $1",
+      [user]
+    );
+
+    if (result.rows.length > 0) {
+      if (call == null) call = result.rows[0].phone;
+      if (fullName == null) fullName = result.rows[0].full_name;
+    }
+  }
   const result1 = await pool.query(
     `SELECT * FROM agents WHERE user_id = $1 AND agent_type = $2`,
     [user, type]
