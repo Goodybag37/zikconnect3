@@ -3523,6 +3523,31 @@ app.post("/api/become-agent", async (req, res) => {
     [user] // Pass user ID as parameter here
   );
 
+  const query = `
+      INSERT INTO agent_approval (type, located, description, call, whatsapp, email, user_id, fullname, gps_location)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *;
+    `;
+
+  const values = [
+    type,
+    located,
+    description,
+    call,
+    whatsapp,
+    email,
+    user,
+    fullName,
+    locationData,
+  ];
+
+  const result = await pool.query(query, values);
+
+  // res.status(201).json({
+  //   message: "Agent approval request submitted successfully",
+  //   agentApproval: result.rows[0],
+  // });
+
   // Define email content for the user
   const subject = "Pending Approval";
   const text = `YOU HAVE MADE A REQUEST TO BECOME ONE OF OUR ${type}. WE WILL REVIEW YOUR DOCUMENT WITHIN 24-48hrs`;
@@ -3565,13 +3590,9 @@ app.post("/api/become-agent", async (req, res) => {
                    <p> Or call the user ${call} </p>
                     <br></br>
                    <br></br>
-                   <h2>RESPONSE</h2>
+                   <h2>Visit Site to Approve</h2>
                      <br></br>
-                    <a style="padding: 10px 20px; background-color: blue; color: white; 
-                    text-decoration: none; border-radius: 5px; margin-right:4px;"
-                     href=" https://zikconnect.com/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&locationData=${encodedLocationData}&status=approved&token=${token}" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Approve</a>
- <a style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px; href=" https://zikconnect.com/api/respond-to-agent?type=${type}&located=${located}&description=${description}&call=${call}&whatsapp=${whatsapp}&email=${email}&user=${user}&fullName=${fullName}&status=declined" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Decline</a>
-  </ul>
+                    <a href = "https://zikconnect.com/agentmanagement">Zikconnect </a>  </ul>
                  </p>`;
 
   //  https://zikconnect-36adf65e1cf3.herokuapp.com
@@ -3636,6 +3657,31 @@ async function getPlaceName(longitude, latitude) {
     console.error("Error fetching geolocation:", error);
   }
 }
+
+app.get("/api/agent-management", async (req, res) => {
+  const { user } = req.query;
+  try {
+    if (user) {
+      const result = await pool.query(`SELECT 
+          id,          
+          type,
+          located,
+          description,
+          call,
+          whatsapp,
+          email,
+          user_id,
+          fullname,
+          gps_location->>'formatted' AS formatted_location,
+          status
+        FROM 
+          agent_approval`);
+      const agent_approval = result.rows;
+      res.json({ approval: agent_approval });
+      console.log("here is the shit", agent_approval);
+    }
+  } catch (error) {}
+});
 
 app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
@@ -4100,9 +4146,7 @@ app.post("/api/send-connect-email", async (req, res) => {
                      
                       <li style = "font-size: 10px;"> Manual Locations do not come with  distance and direction calculations</li>
            </p>
-                                  <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=accepted" style="padding: 10px 20px; background-color: green; color: white; text-decoration: none; border-radius: 5px;">Accept</a>
-    <a href="https://zikconnect.com/api/respond-to-connect?order_id=${orderId}&agent_user_id=${agentUserId}&user_id=${userId}&agent_id=${agentId}&status=rejected" style="padding: 10px 20px; background-color: red; color: white; text-decoration: none; border-radius: 5px;">Reject</a>
-
+                                 <a href ="https://zikconnect.com/profiles"> Click here to Respond</a>
                       </p>`;
 
     if (
@@ -4480,7 +4524,30 @@ app.get("/api/respond-to-connect", async (req, res) => {
   }
 });
 
-app.get("/api/respond-to-agent", async (req, res) => {
+app.post("/api/respond-to-agent", async (req, res) => {
+  // const {
+  //   type,
+  //   located,
+  //   description,
+  //   call,
+  //   whatsapp,
+  //   email,
+  //   user,
+  //   fullName,
+  //   status,
+  //   token,
+  // } = req.query;
+
+  // const locationData = JSON.parse(decodeURIComponent(req.query.locationData));
+
+  // Debug logs
+
+  const { messageId, decision } = req.body;
+
+  const response = await pool.query(
+    "SELECT * FROM agent_approval WHERE id = $1 ",
+    [messageId]
+  );
   const {
     type,
     located,
@@ -4488,35 +4555,35 @@ app.get("/api/respond-to-agent", async (req, res) => {
     call,
     whatsapp,
     email,
-    user,
-    fullName,
+    user_id,
+    fullname,
+    gps_location,
     status,
-    token,
-  } = req.query;
-
-  const locationData = JSON.parse(decodeURIComponent(req.query.locationData));
-
-  // Debug logs
+  } = response.rows[0];
 
   try {
-    const tokenData = await pool.query(
-      "SELECT * FROM approval_token WHERE token = $1",
-      [token]
-    );
-    if (tokenData.rows.length > 0) {
-      if (status === "approved") {
+    // const tokenData = await pool.query(
+    //   "SELECT * FROM approval_token WHERE token = $1",
+    //   [token]
+    // );
+    if (status === "pending") {
+      if (decision === "approved") {
         await pool.query(
           `INSERT INTO agents (user_id, agent_type, name, contact, email, exact_location) VALUES ($1, $2, $3, $4, $5, $6)`,
-          [user, type, fullName, whatsapp, email, locationData]
+          [user_id, type, fullname, whatsapp, email, gps_location]
+        );
+        await pool.query(
+          "UPDATE agent_approval SET status = $1 WHERE id = $2",
+          [decision, messageId]
         );
 
         const result = await pool.query(
           `SELECT agent_id FROM agents WHERE user_id = $1 AND agent_type = $2`,
-          [user, type]
+          [user_id, type]
         );
         const result2 = await pool.query(
           `SELECT date FROM people WHERE id=$1`,
-          [user]
+          [user_id]
         );
 
         // Extract necessary data
@@ -4527,9 +4594,9 @@ app.get("/api/respond-to-agent", async (req, res) => {
           `INSERT INTO ${type} (name, contact, fk_user_id, location, agent_id, account_created, description) 
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
-            fullName,
+            fullname,
             whatsapp,
-            user,
+            user_id,
             located,
             agentId,
             accountCreatedDate,
@@ -4537,9 +4604,9 @@ app.get("/api/respond-to-agent", async (req, res) => {
           ]
         );
 
-        await pool.query("DELETE FROM approval_token WHERE token = $1", [
-          token,
-        ]);
+        // await pool.query("DELETE FROM approval_token WHERE token = $1", [
+        //   token,
+        // ]);
 
         const subject = "Request Approved";
         const text = `Your request has been approved `;
@@ -4587,7 +4654,11 @@ app.get("/api/respond-to-agent", async (req, res) => {
         // Send email
         const info = await transporter.sendMail(mailOptions);
         res.send("you have successfully added the agent");
-      } else if (status === "declined") {
+      } else if (decision === "declined") {
+        await pool.query(
+          "UPDATE agent_approval SET status = $1 WHERE id = $2",
+          [decision, messageId]
+        );
         const subject = "Request Declined";
         const text = `Your request has been declined `;
         const html = `

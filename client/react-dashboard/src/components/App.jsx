@@ -28,7 +28,7 @@ import UploadEvent from "../pages/UploadEvent";
 import FundAccount from "../pages/FundAccount";
 import VerifyPayment from "../pages/VerifyPayment";
 import ChangePassword from "../pages/ChangePassword";
-
+import AgentManagement from "../pages/AgentManagement";
 import Settings from "../pages/Settings";
 function App() {
   const [openSidebarToggle, setOpenSidebarToggle] = useState(false);
@@ -93,6 +93,7 @@ function App() {
           }
         >
           <Route path="/agents" element={<Agents />} />
+          <Route path="/agentmanagement" element={<AgentManagement />} />
           <Route path="/fundaccount" element={<FundAccount />} />
           <Route path="/verifypayment" element={<VerifyPayment />} />
 

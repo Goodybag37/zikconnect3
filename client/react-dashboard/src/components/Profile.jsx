@@ -622,20 +622,24 @@ function YourComponent() {
                     TYPE : {capitalizeFirstLetter(messages.type)}
                   </li>
                   <li className="chat-call-buttons">
-                    <button
-                      className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                      disabled={isExpired2}
-                    >
-                      <BsPatchCheckFill className="connect_icon" />
-                      Call
-                    </button>
-                    <button
-                      className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                      disabled={isExpired2}
-                    >
-                      <BsXOctagonFill className="connect_icon" />
-                      Chat
-                    </button>
+                    <a href={`tel:${messages.sender_phone}`}>
+                      <button
+                        className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                        disabled={isExpired2}
+                      >
+                        <BsPatchCheckFill className="connect_icon" />
+                        Call
+                      </button>
+                    </a>
+                    <a href={`https://wa.me/${messages.sender_phone}`}>
+                      <button
+                        className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                        disabled={isExpired2}
+                      >
+                        <BsXOctagonFill className="connect_icon" />
+                        Chat
+                      </button>
+                    </a>
                     <p className="text-gradient">
                       <CountdownTimer endTime={expiryTime2} />
                     </p>
@@ -678,9 +682,9 @@ function YourComponent() {
                     {connectType === "received" ? (
                       <div>
                         <button
-                          onClick={() =>
-                            confirmConnect(messages.id, messages.order_code)
-                          }
+                          onClick={() => {
+                            confirmConnect(messages.id, messages.order_code);
+                          }}
                           className="bg-blue-gradient roommate-button connect-accept-button-chat"
                           disabled={isExpired || isAccepted}
                         >
@@ -700,31 +704,78 @@ function YourComponent() {
                       </div>
                     ) : (
                       <div>
-                        <button
-                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                          disabled={isExpired2 || !isExpired}
-                        >
-                          <BsPatchCheckFill className="connect_icon" />
-                          Call
-                        </button>
-                        <button
-                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                          disabled={isExpired2 || !isExpired}
-                        >
-                          <BsXOctagonFill className="connect_icon" />
-                          Chat
-                        </button>
-                        <button
-                          className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                          disabled={!isExpired2 || !isExpired}
-                          onClick={() => {
-                            handleDeleteClick(messages.id);
-                            // deleteConnect(messages.id);
-                          }}
-                        >
-                          <BsXOctagonFill className="connect_icon" />
-                          Delete
-                        </button>
+                        {["buysell", "event", "lodge"].includes(
+                          messages.type
+                        ) ? (
+                          <>
+                            <a href={`tel:${messages.agent_phone}`}>
+                              <button
+                                className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                                disabled={isExpired2 || !isExpired}
+                              >
+                                <BsPatchCheckFill className="connect_icon" />
+                                Call
+                              </button>
+                            </a>
+
+                            <a href={`https://wa.me/${messages.agent_phone}`}>
+                              <button
+                                className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                                disabled={isExpired2 || !isExpired}
+                              >
+                                <BsXOctagonFill className="connect_icon" />
+                                Chat
+                              </button>
+                            </a>
+
+                            <button
+                              className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                              disabled={!isExpired2 || !isExpired}
+                              onClick={() => {
+                                handleDeleteClick(messages.id);
+                                // deleteConnect(messages.id);
+                              }}
+                            >
+                              <BsXOctagonFill className="connect_icon" />
+                              Delete
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <a href={`tel:${messages.agent_phone}`}>
+                              <button
+                                className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                                disabled={isExpired2 || !isExpired}
+                              >
+                                <BsPatchCheckFill className="connect_icon" />
+                                Call
+                              </button>
+                            </a>
+                            <a
+                              href={`https://wa.me/${messages.agent_whatsapp}`}
+                            >
+                              <button
+                                className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                                disabled={isExpired2 || !isExpired}
+                              >
+                                <BsXOctagonFill className="connect_icon" />
+                                Chat
+                              </button>
+                            </a>
+
+                            <button
+                              className="bg-blue-gradient roommate-button connect-accept-button-chat"
+                              disabled={!isExpired2 || !isExpired}
+                              onClick={() => {
+                                handleDeleteClick(messages.id);
+                                // deleteConnect(messages.id);
+                              }}
+                            >
+                              <BsXOctagonFill className="connect_icon" />
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </li>
