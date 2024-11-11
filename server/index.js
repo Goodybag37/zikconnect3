@@ -2645,6 +2645,8 @@ app.get("/api/foodagentsapi", async (req, res) => {
         UPPER(foodagents.name) AS name, 
         foodagents.contact, 
         foodagents.location, 
+         foodagents.description, 
+
         foodagents.account_created, 
         foodagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -2693,6 +2695,7 @@ app.get("/api/foodagentsapi", async (req, res) => {
         foodagents.name,
         foodagents.contact,
         foodagents.location,
+         foodagents.description, 
         foodagents.account_created,
         foodagents.agent_date,
         foodagents.fk_user_id,
@@ -2795,6 +2798,7 @@ app.get("/api/repairagentsapi", async (req, res) => {
         UPPER(repairagents.name) AS name, 
         repairagents.contact, 
         repairagents.location, 
+         repairagents.description, 
         repairagents.account_created, 
         repairagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -2843,6 +2847,7 @@ app.get("/api/repairagentsapi", async (req, res) => {
         repairagents.name,
         repairagents.contact,
         repairagents.location,
+        repairagents.description, 
         repairagents.account_created,
         repairagents.agent_date,
         repairagents.fk_user_id,
@@ -2893,6 +2898,7 @@ app.get("/api/cybercafeagentsapi", async (req, res) => {
         UPPER(cybercafeagents.name) AS name, 
         cybercafeagents.contact, 
         cybercafeagents.location, 
+        cybercafeagents.description, 
         cybercafeagents.account_created, 
         cybercafeagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -2941,6 +2947,7 @@ app.get("/api/cybercafeagentsapi", async (req, res) => {
         cybercafeagents.name,
         cybercafeagents.contact,
         cybercafeagents.location,
+        cybercafeagents.description, 
         cybercafeagents.account_created,
         cybercafeagents.agent_date,
         cybercafeagents.fk_user_id,
@@ -2993,6 +3000,8 @@ app.get("/api/deliveryagentsapi", async (req, res) => {
         UPPER(deliveryagents.name) AS name, 
         deliveryagents.contact, 
         deliveryagents.location, 
+         deliveryagents.description, 
+
         deliveryagents.account_created, 
         deliveryagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -3041,6 +3050,7 @@ app.get("/api/deliveryagentsapi", async (req, res) => {
         deliveryagents.name,
         deliveryagents.contact,
         deliveryagents.location,
+         deliveryagents.description, 
         deliveryagents.account_created,
         deliveryagents.agent_date,
         deliveryagents.fk_user_id,
@@ -3089,7 +3099,8 @@ app.get("/api/rideragentsapi", async (req, res) => {
         rideragents.agent_id AS id, 
         UPPER(rideragents.name) AS name, 
         rideragents.contact, 
-        rideragents.location, 
+        rideragents.location,
+        rideragents.description,
         rideragents.account_created, 
         rideragents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -3138,6 +3149,7 @@ app.get("/api/rideragentsapi", async (req, res) => {
         rideragents.name,
         rideragents.contact,
         rideragents.location,
+         rideragents.description,
         rideragents.account_created,
         rideragents.agent_date,
         rideragents.fk_user_id,
@@ -3187,6 +3199,8 @@ app.get("/api/schoolfeeagentsapi", async (req, res) => {
         UPPER(schoolfeeagents.name) AS name, 
         schoolfeeagents.contact, 
         schoolfeeagents.location, 
+         schoolfeeagents.description, 
+        
         schoolfeeagents.account_created, 
         schoolfeeagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -3235,6 +3249,7 @@ app.get("/api/schoolfeeagentsapi", async (req, res) => {
         schoolfeeagents.name,
         schoolfeeagents.contact,
         schoolfeeagents.location,
+         schoolfeeagents.description, 
         schoolfeeagents.account_created,
         schoolfeeagents.agent_date,
         schoolfeeagents.fk_user_id,
@@ -3287,6 +3302,7 @@ app.get("/api/whatsapptvagentsapi", async (req, res) => {
         UPPER(whatsapptvagents.name) AS name, 
         whatsapptvagents.contact, 
         whatsapptvagents.location, 
+        whatsapptvagents.description, 
         whatsapptvagents.account_created, 
         whatsapptvagents.agent_date AS agent_date, 
         people.date AS account_creation_date,
@@ -3335,6 +3351,7 @@ app.get("/api/whatsapptvagentsapi", async (req, res) => {
         whatsapptvagents.name,
         whatsapptvagents.contact,
         whatsapptvagents.location,
+         whatsapptvagents.description,
         whatsapptvagents.account_created,
         whatsapptvagents.agent_date,
         whatsapptvagents.fk_user_id,
@@ -3670,7 +3687,7 @@ app.get("/api/agent-management", async (req, res) => {
           email,
           user_id,
           fullname,
-         
+          gps_location->>'formatted' AS formatted_location,
           status
         FROM 
           agent_approval`);
@@ -3682,7 +3699,6 @@ app.get("/api/agent-management", async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-// gps_location->>'formatted' AS formatted_location,
 
 app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude } = req.query;
@@ -5061,7 +5077,10 @@ app.get("/api/connect-buysell", async (req, res) => {
 
 // Route to check if the phone number has been used
 app.get("/api/get-used-number", async (req, res) => {
-  const phone = req.query.phoneUsed; // Access the query parameter from the request
+  const phoneN = req.query.phoneUsed;
+  const phone = `+234${phoneN}`;
+
+  console.log("Phone number being checked:", phone);
 
   try {
     const result = await pool.query(
@@ -5071,7 +5090,7 @@ app.get("/api/get-used-number", async (req, res) => {
 
     const response = result.rows;
 
-    if (response.length < 0) {
+    if (response.length > 0) {
       // If the phone number is found, send it back in the response
       res.json(response);
     } else {
@@ -5302,6 +5321,8 @@ app.post("/api/verify-phone", async (req, res) => {
   const { phoneN, code, user } = req.body;
 
   const phone = `+234${phoneN}`;
+
+  console.log(phoneN);
 
   try {
     // Check if the code is correct
