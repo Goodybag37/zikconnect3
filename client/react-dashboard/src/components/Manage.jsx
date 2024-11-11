@@ -70,10 +70,9 @@ function YourComponent() {
   const apiUrl = "http://localhost:4000";
 
   const fetchData = async () => {
+    console.log(userbread);
     try {
-      const response = await axios.get(
-        `${apiUrls}/api/agent-management?user=${userbread}`
-      );
+      const response = await axios.get(`${apiUrls}/api/agent-management`);
       setMessages(response.data.approval);
       console.log("heres the shit", userbread, response.data.approval);
     } catch (error) {

@@ -3659,10 +3659,8 @@ async function getPlaceName(longitude, latitude) {
 }
 
 app.get("/api/agent-management", async (req, res) => {
-  const { user } = req.query;
   try {
-    if (user) {
-      const result = await pool.query(`SELECT 
+    const result = await pool.query(`SELECT 
           id,          
           type,
           located,
@@ -3676,13 +3674,9 @@ app.get("/api/agent-management", async (req, res) => {
           status
         FROM 
           agent_approval`);
-      const agent_approval = result.rows;
-      res.json({ approval: agent_approval });
-      console.log("Fetched agent approvals:", agent_approval);
-    } else {
-      console.log("User parameter missing in request");
-      res.status(400).json({ error: "User parameter is required" });
-    }
+    const agent_approval = result.rows;
+    res.json({ approval: agent_approval });
+    console.log("Fetched agent approvals:", agent_approval);
   } catch (error) {
     console.error("Error fetching agent approvals:", error);
     res.status(500).json({ error: "Internal server error" });
