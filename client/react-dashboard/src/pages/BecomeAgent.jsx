@@ -46,7 +46,7 @@ function BecomeAgent() {
     error: null,
   });
 
-  const maxLength = 250;
+  const maxLength = 120;
   const maxLengthN = 11;
 
   const handleSelectChange = (event) => {

@@ -99,7 +99,7 @@ function YourComponent() {
   const isPhoneVerified = user.isPhoneVerified;
   const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
-  console.log("user bread", userbread);
+
   // const socket = io(apiUrl);
 
   const fetchData = async (page) => {
@@ -114,7 +114,7 @@ function YourComponent() {
       // socket.on("message ", (data) => {
       //   console.log(data);
       // });
-      console.log(response);
+
       const {
         repairagents: newrepairagents,
         totalPages: newTotalPages,
@@ -185,7 +185,6 @@ function YourComponent() {
   // }, [permission]);
 
   const toggleReviewForm2 = (type, ordercode) => {
-    console.log("Button clicked!");
     setReviewFormVisible((prevState) => true);
     localStorage.setItem("reviewFormVisible", true);
     if (type == "confirm") {
@@ -202,15 +201,13 @@ function YourComponent() {
       const isReviewFormVisible =
         reviewFormVisible || localStorage.getItem("reviewFormVisible");
 
-      console.log("is review form visible", isReviewFormVisible);
-
       const type = "repair";
 
       try {
         const response = await axios.get(
           `${apiUrls}/api/check-pending-connects?userId=${userId}&type=${type}`
         );
-        console.log("response.data is", response.data);
+
         const agent = response.data.agent_id;
         const orderCode = response.data.order_id;
         const countdownTime = response.data.request_time;
@@ -243,11 +240,7 @@ function YourComponent() {
             new Date(countdownTime).getTime() + 10 * 60 * 1000
           );
 
-          console.log("Original requestTime:", countdownTime);
-          console.log("Calculated endTime:", endTime);
-
           const remainingTime = endTime - new Date();
-          console.log("Remaining time (ms):", remainingTime);
 
           if (endTime) {
             const content = (
@@ -293,11 +286,7 @@ function YourComponent() {
             new Date(countdownTime).getTime() + 10 * 60 * 3000
           );
 
-          console.log("Original requestTime:", countdownTime);
-          console.log("Calculated endTime:", endTime2);
-
           const remainingTime = endTime2 - new Date();
-          console.log("Remaining time (ms):", remainingTime);
 
           if (endTime2) {
             const content2 = (
@@ -357,7 +346,7 @@ function YourComponent() {
           }
         } else if (status === "completed") {
           setShowModal3(true);
-          console.log(orderCode2);
+
           const endTime3 = new Date(
             new Date(countdownTime).getTime() + 10 * 60 * 500
           );
@@ -516,7 +505,7 @@ function YourComponent() {
 
   const handleGenerateOrderCode = () => {
     const newCode = generateUniqueCode();
-    console.log(newCode);
+
     setOrderCode(newCode);
   };
 
@@ -529,7 +518,7 @@ function YourComponent() {
 
   const confirmConnect = async (orderCode) => {
     const orderId = orderCode;
-    console.log(" i have updated", orderId);
+
     try {
       await axios.post(
         `${apiUrls}/api/complete-connect`,
@@ -555,7 +544,6 @@ function YourComponent() {
     const type = reviewType[agentId] || localStorage.getItem("reviewType");
     const userid = userbread;
     const agentType = "repair";
-    console.log("a review request came here", type, review);
 
     if (!review || !type) return;
 
@@ -571,8 +559,7 @@ function YourComponent() {
         },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
-      console.log(agentId);
-      console.log(userid);
+
       alert("Review submitted successfully!");
       setReviewText((prev) => ({
         ...prev,
@@ -598,13 +585,10 @@ function YourComponent() {
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
 
-      console.log("Server responded", result.data);
-      console.log("Response status is", result.status);
-
       if (result.status === 200 && result.data.length > 0) {
         // Handle the array response
         const response = result.data[0];
-        console.log("Agent profile:", response); // Assuming you want the first item
+        // Assuming you want the first item
         setModalContent5(
           <div>
             <h3 className="profile-head text-gradient">{response.name}</h3>
@@ -981,7 +965,6 @@ function YourComponent() {
       );
 
       const accountBalance = response.data.account_balance;
-      console.log("account balance is", accountBalance);
 
       if (accountBalance < 100) {
         const content5 = (
@@ -1023,11 +1006,10 @@ function YourComponent() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          console.log("Location granted:", latitude, longitude);
 
           // Continue with connection logic AFTER location is granted
           processConnection(agentId, latitude, longitude);
-          console.log("location is granted ");
+
           setConnecting(true);
         },
         (error) => {
@@ -1500,7 +1482,10 @@ function YourComponent() {
                         </p>
                         <p className="profileInfo"> AGENT : {agent.id} </p>
                       </div>
-                      <p className="profile-body">{agent.description}</p>
+                      <p className="profile-body">
+                        {" "}
+                        Description: {agent.description}
+                      </p>
                     </div>
                   </li>
                   <li className="roommate-list">Name: {agent.name}</li>
