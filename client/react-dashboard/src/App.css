@@ -1070,6 +1070,7 @@ select {
   border-radius: 20px;
   object-fit: cover;
   margin-left: -10px;
+  overflow-y: scroll;
 }
 
 .profilePicRoommate {
