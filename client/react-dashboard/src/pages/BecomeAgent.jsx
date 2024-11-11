@@ -148,7 +148,7 @@ function BecomeAgent() {
 
     try {
       // Prepare the data in x-www-form-urlencoded format
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append("type", selectedAgent);
       formData.append("located", located);
       formData.append("description", description);
@@ -209,11 +209,11 @@ function BecomeAgent() {
         navigate(redirectPath);
       };
       const response = await axios.post(
-        "http://localhost:4000/api/become-agent",
-        formData
-        // {
-        //   headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        // }
+        `${apiUrls}/api/become-agent`,
+        formData,
+        {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        }
       );
     } catch (error) {
       if (error.response) {
