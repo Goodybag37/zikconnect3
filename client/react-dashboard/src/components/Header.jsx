@@ -429,7 +429,7 @@ function Header(props) {
           </p>
 
           <br></br>
-          {[37, 36].includes(user.id) ? (
+          {[37, 92, 36].includes(user.id) ? (
             <p className="profileParagraph text-gradient ">
               <Link className="editPhone" to="/agentmanagement">
                 <BsFillPersonFill className="cashIcon" />
