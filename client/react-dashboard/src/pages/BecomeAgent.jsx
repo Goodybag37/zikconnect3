@@ -259,7 +259,7 @@ function BecomeAgent() {
           >
             <option value="">--Please choose an option--</option>
             <option value="repairagents">Repair Agent</option>
-            <option value="courseagents">Food Agent</option>
+            <option value="foodagents">Food Agent</option>
             <option value="cybercafeagents">Cybercafe Agent</option>
             <option value="deliveryagents">Delivery Agent</option>
             <option value="rideragents">Rider Agent</option>
