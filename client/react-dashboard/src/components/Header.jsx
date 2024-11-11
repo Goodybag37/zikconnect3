@@ -416,6 +416,7 @@ function Header(props) {
               <BsEyedropper />
             </Link>
           </p>
+
           <br />
 
           <p className="profileParagraph">
@@ -426,6 +427,18 @@ function Header(props) {
               <BsFillPlusSquareFill />
             </Link>
           </p>
+
+          <br></br>
+          {[37, 36].includes(user.id) ? (
+            <p className="profileParagraph text-gradient ">
+              <Link className="editPhone" to="/agentmanagement">
+                <BsFillPersonFill className="cashIcon" />
+                <strong>Manage Agents </strong>
+              </Link>
+            </p>
+          ) : (
+            ""
+          )}
           <br />
           <hr />
           <br />
