@@ -1246,10 +1246,7 @@ function YourComponent() {
                         </p>
                         <p className="profileInfo"> AGENT : {agent.id} </p>
                       </div>
-                      <p className="profile-body">
-                        I am an electrician who can fix your home aplliances
-                        having electrical issues
-                      </p>
+                      <p className="profile-body">{agent.description}</p>
                     </div>
                   </li>
                   <li className="roommate-list">Name: {agent.name}</li>

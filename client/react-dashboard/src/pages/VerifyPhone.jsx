@@ -70,7 +70,7 @@ function VerifyPhone() {
 
       // Send a GET request to check if the phone number has already been used
       const used = await axios.get(`${apiUrls}/api/get-used-number`, {
-        params: { phoneUsed: phone }, // Pass the phone number as a query parameter
+        params: { phoneUsed: formattedPhone }, // Pass the phone number as a query parameter
       });
 
       const usedNumber = used.data.length;
