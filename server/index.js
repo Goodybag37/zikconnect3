@@ -3678,9 +3678,15 @@ app.get("/api/agent-management", async (req, res) => {
           agent_approval`);
       const agent_approval = result.rows;
       res.json({ approval: agent_approval });
-      console.log("here is the shit", agent_approval);
+      console.log("Fetched agent approvals:", agent_approval);
+    } else {
+      console.log("User parameter missing in request");
+      res.status(400).json({ error: "User parameter is required" });
     }
-  } catch (error) {}
+  } catch (error) {
+    console.error("Error fetching agent approvals:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 app.get("/api/get-distance", async (req, res) => {

@@ -75,7 +75,7 @@ function YourComponent() {
         `${apiUrls}/api/agent-management?user=${userbread}`
       );
       setMessages(response.data.approval);
-      console.log("heres the shit", response.data.approval);
+      console.log("heres the shit", userbread, response.data.approval);
     } catch (error) {
       console.error(error);
     }
