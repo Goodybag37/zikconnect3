@@ -1245,9 +1245,9 @@ RETURNING email;
           },
           notifications: true,
           toggle_status: {
-            buysell: "unavailable",
-            event: "unavailable",
-            lodge: "unavailable",
+            buysell: "available",
+            event: "available",
+            lodge: "available",
           },
           location: {
             city: locationData?.city || null,
