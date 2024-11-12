@@ -17,7 +17,8 @@ function BecomeAgent() {
   const apiUrls = process.env.REACT_APP_API_URL;
 
   const userPhone =
-    user?.phone || JSON.parse(localStorage.getItem("user"))?.phone; // Optional chaining to avoid errors if user is null
+    user?.isPhoneVerified ||
+    JSON.parse(localStorage.getItem("user"))?.isPhoneVerified; // Optional chaining to avoid errors if user is null
 
   const fullName =
     user?.full_name || JSON.parse(localStorage.getItem("user"))?.full_name;
