@@ -29,6 +29,7 @@ import FundAccount from "../pages/FundAccount";
 import VerifyPayment from "../pages/VerifyPayment";
 import ChangePassword from "../pages/ChangePassword";
 import AgentManagement from "../pages/AgentManagement";
+import WithdrawFunds from "../pages/WithdrawFunds";
 import Settings from "../pages/Settings";
 function App() {
   const [openSidebarToggle, setOpenSidebarToggle] = useState(false);
@@ -96,6 +97,7 @@ function App() {
           <Route path="/agentmanagement" element={<AgentManagement />} />
           <Route path="/fundaccount" element={<FundAccount />} />
           <Route path="/verifypayment" element={<VerifyPayment />} />
+          <Route path="/withdrawfunds" element={<WithdrawFunds />} />
 
           <Route path="/settings" element={<Settings />} />
           <Route path="/buysells" element={<BuysellsPage />} />

@@ -11,6 +11,7 @@ import {
   BsFillPersonXFill,
 } from "react-icons/bs";
 import { FaRegCopy } from "react-icons/fa";
+import { BiMoneyWithdraw } from "react-icons/bi";
 
 function Setting() {
   const { isAuthenticated, user, login, signout } = useContext(AuthContext);
@@ -64,7 +65,7 @@ function Setting() {
       <div className="mainTitleSetting settingTitle">
         <div className="cardSetting">
           <div className="card-inners">
-            <div className="font-small">
+            <div className="font-small mt-[8rem]">
               <h4 className="text-gradient"> Full Name: {user.full_name}</h4>
               <hr className="profileRule"></hr>
               <p className="text-gradient">
@@ -89,10 +90,30 @@ function Setting() {
               <hr className="profileRule"></hr>
               <p>
                 {/* <BsFillTelephoneFill /> */}
-                <strong>Phone: {user.isPhoneVerified} </strong>
-                <Link className="editPhone" to="/verifyphone">
-                  <BsEyedropper />
-                </Link>
+                <strong>
+                  Total Referral: {profile.settings_total_referral || 0}{" "}
+                </strong>
+              </p>
+              <hr className="profileRule"></hr>
+              <p>
+                {/* <BsFillTelephoneFill /> */}
+                <strong>
+                  Referred Agents: {profile.settings_referred_agents || 0}{" "}
+                </strong>
+              </p>
+              <hr className="profileRule"></hr>
+
+              <p>
+                {/* <BsFillTelephoneFill /> */}
+                <strong className="text-gradient">
+                  Withdrawable Cash: {profile.settings_withdrawable_cash || 0}{" "}
+                  <Link
+                    className="editPhone ml-[5px] mt-[7px]"
+                    to="/withdrawfunds"
+                  >
+                    <BiMoneyWithdraw />
+                  </Link>
+                </strong>
               </p>
               <hr className="profileRule"></hr>
               <p>

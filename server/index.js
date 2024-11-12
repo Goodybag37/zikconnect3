@@ -843,7 +843,11 @@ app.get("/api/profile/", async (req, res) => {
         settings -> 'Totl Connect Made' AS settings_total_connectmade,
         settings -> 'Totl Connect Received' AS settings_total_connectreceived,
         settings -> 'Avg Completed Orders' AS settings_average_orders, 
-        settings -> 'Referral Code' as settings_referral_code   
+        settings -> 'Referral Code' as settings_referral_code,
+        settings -> 'Withdrawable Cash' as settings_withdrawable_cash,
+        settings -> 'Totl Referral' as settings_total_referral,
+        settings -> 'Referred Agents' as settings_referred_agents
+
       FROM people 
       LEFT JOIN roommates ON people.id = roommates.fk_user_id 
       LEFT JOIN lodge ON people.id = lodge.fk_user_id 
@@ -4630,6 +4634,76 @@ app.post("/api/respond-to-agent", async (req, res) => {
           ]
         );
 
+        const result4 = await pool.query(
+          `SELECT settings ->> 'Referred By' AS referral_code FROM people WHERE id = $1`,
+          [user_id]
+        );
+
+        const referral = result4.rows[0]?.referral_code;
+
+        if (referral) {
+          const result = await pool.query(
+            `
+  UPDATE people
+  SET settings = jsonb_set(
+    jsonb_set(
+      settings,
+      '{Referred Agents}', 
+      to_jsonb(COALESCE((settings ->> 'Referred Agents')::int, 0) + 1),
+      true
+    ),
+    '{Withdrawable Cash}',
+    to_jsonb(COALESCE((settings ->> 'Withdrawable Cash')::int, 0) + 300),
+    true
+  )
+  WHERE settings->>'Referral Code' = $1
+  RETURNING email;
+  `,
+            [referral]
+          );
+
+          // Extract the email from the result
+          if (result.rows.length === 0) {
+          } else {
+            const email = result.rows[0].email;
+
+            const subject = "New Referred Agent ";
+            const text = `Referred Agent`;
+            const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
+                      <strong><p style = "font-family: Times New Roman ;"> Dear User, You have successfully referred an agent on our website <br /> 
+                      A sum of 300 naira has been added to your withdrawable cash. the minimum amount for withdrawal is 900. 
+
+                      <h2> PLEASE NOTE !! <h2>
+                      <ul>
+                      <li> All our agents are well monitored and  scrutinized, any attempt to register a false agent would lead to immediate ban on  your account as well as that of the agent and your device ip, your full name, phone number, email and other sensitive details would be blacklisted from opening subsiquent accounts  </li>
+                       <li> By registering an agent with your referral code it means you can stand in for them in case they scam any student and are untracable by law enforcement. </li>
+                        <li>You must only recieve payment with the same name you used in registering your account. placing withdrawal with a false name would lead to immediate loss of funds </li>
+                        <li>The agent must offer the exact service they claim to offer on the site as any report from students who place orders will be acted upon </li>
+                        <li>Withdrawing below the minimum amount for withdrawal would lead to loss of funds </li>
+                        <li>Our withdrawal process takes within 24-72 hours depending on the time for processing by our finance team  </li>
+                        <li>To view your withdrawable cash or to withdraw, please head to your dashboard and click on profiles below the left side bar then click on the dollar icon next to withdrawable cash and include your details for processing </li>
+                      </ul>
+                       </strong>if you have further questions reach out to us at admin@zikconnect.com</strong>
+                      </strong>
+                      </p>`;
+
+            const mailOptions = {
+              from: "admin@zikconnect.com", // Sender address
+              // to: email,
+              // Recipient's email address
+              to: email,
+              subject: subject, // Subject line
+              text: text, // Plain text body
+              html: html, // HTML body
+            };
+
+            // Send email
+            await transporter.sendMail(mailOptions);
+          }
+
+          // Logs the updated email value
+        }
+
         // await pool.query("DELETE FROM approval_token WHERE token = $1", [
         //   token,
         // ]);
@@ -5469,6 +5543,169 @@ app.get("/api/messages", async (req, res) => {
   } catch (error) {
     console.error("Error fetching messages:", error);
     res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/api/withdraw-funds", async (req, res) => {
+  const {
+    bankName,
+    accountName,
+    accountNumber,
+    amount,
+    email,
+    user,
+    fullName,
+    call,
+    whatsapp,
+  } = req.body;
+
+  try {
+    // Fetch withdrawable cash from the settings
+    const result1 = await pool.query(
+      "SELECT settings ->> 'Withdrawable Cash' AS withdrawable_cash FROM people WHERE id = $1",
+      [user]
+    );
+
+    const response = parseInt(result1.rows[0]?.withdrawable_cash, 10);
+
+    // Check if the response is valid and has enough cash to withdraw
+    if (response > 900 && response >= amount) {
+      const result2 = await pool.query(
+        `
+      INSERT INTO withdrawals (
+        bank_name,
+        account_name,
+        account_number,
+        amount,
+        email,
+        user_id,
+        full_name,
+        call,
+        whatsapp
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id;
+      `,
+        [
+          bankName,
+          accountName,
+          accountNumber,
+          amount,
+          email,
+          user,
+          fullName,
+          call,
+          whatsapp,
+        ]
+      );
+      const newAmount = response - amount;
+
+      // Update the 'Withdrawable Cash' in the settings
+      const result = await pool.query(
+        `
+  UPDATE people
+  SET settings = jsonb_set(
+    settings,
+    '{Withdrawable Cash}',
+    to_jsonb($1::numeric),
+    true
+  )
+  WHERE id = $2
+  RETURNING email;
+  `,
+        [newAmount, user]
+      );
+
+      const email2 = result.rows[0].email;
+
+      console.log(email2);
+
+      const subject = "Withdrawal Pending";
+      const text = `Pending Withdrawal`;
+      const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
+                      <strong><p style = "font-family: Times New Roman ;"> Dear User, You have successfully sent a withdrawal request for from your account our finance team 
+                      would process the withdrawal and your provided account would be credited within 24-72 hours. Please stay updated as an email would be sent to you upon approval <br /> 
+                     
+
+                      <h2> PLEASE NOTE !! <h2>
+                      <ul style="color: blue ; font: 30px ">
+                       <br>
+                      <li> All our agents are well monitored and  scrutinized, any attempt to register a false agent would lead to immediate ban on  your account as well as that of the agent and your device ip, your full name, phone number, email and other sensitive details would be blacklisted from opening subsiquent accounts  </li>
+                       <br>
+                      <li> By registering an agent with your referral code it means you can stand in for them in case they scam any student and are untracable by law enforcement. </li>
+                        <br>
+                      <li>You must only recieve payment with the same name you used in registering your account. placing withdrawal with a false name would lead to immediate loss of funds </li>
+                         <br>
+                      <li>The agent must offer the exact service they claim to offer on the site as any report from students who place orders will be acted upon </li>
+                         <br>
+                      <li>Withdrawing below the minimum amount for withdrawal would lead to loss of funds </li>
+                         <br>
+                      <li>Our withdrawal process takes within 24-72 hours depending on the time for processing by our finance team  </li>
+                        <br>
+                      <li>To view your withdrawable cash or to withdraw, please head to your dashboard and click on profiles below the left side bar then click on the dollar icon next to withdrawable cash and include your details for processing </li>
+                      </ul>
+                       </strong>if you have further questions reach out to us at admin@zikconnect.com</strong>
+                      </strong>
+                      </p>`;
+
+      const mailOptions = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: email,
+        subject: subject, // Subject line
+        text: text, // Plain text body
+        html: html, // HTML body
+      };
+      await transporter.sendMail(mailOptions);
+
+      const subject2 = "Withdrawal Pending";
+      const text2 = `Pending Withdrawal`;
+      const html2 = `<h1 style="color: #15b58e ; margin-left: 20% " >Dear Admin </h1>
+                      <strong><p style = "font-family: Times New Roman ;"> A user has requested a withdrawal with the details below. Please approve and process thier request on time  <br /> 
+                     
+
+                      <h2> Details <h2>
+                      <ul style="color: blue ; font: 15px ">
+                       <li>  BANK NAME  ${bankName} </li>
+                        <li>ACCOUNT NAME :  ${accountName}</li>
+                         <li> ACCOUNT NUMBER:   ${accountNumber}</li>
+                          <li> AMOUNT:  ${amount}</li>
+                           <li>EMAIL:  ${email}</li>
+                            <li> USER ID : ${user}</li>
+                            <li>  FULL NAME : ${fullName} </li>
+                             <li> CALL:  ${call}</li>
+                              <li> <a href="https://whatsapp.com/${whatsapp}"> Whatsapp</a> </li>
+
+                                           </ul>
+                       </strong>if you have further questions reach out to us at admin@zikconnect.com</strong>
+                      </strong>
+                      </p>`;
+
+      const mailOptions2 = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: "zikconnectinfo@gmail.com",
+        subject: subject2, // Subject line
+        text: text2, // Plain text body
+        html: html2, // HTML body
+      };
+
+      // Send email
+
+      await transporter.sendMail(mailOptions2);
+
+      res.status(200).send({
+        message: "Withdrawal successful",
+        email: result.rows[0].email,
+      });
+    } else {
+      res.status(400).send({ message: "Insufficient funds for withdrawal" });
+    }
+  } catch (error) {
+    console.error("Error processing withdrawal:", error);
+    res.status(500).send("An error occurred while processing your request.");
   }
 });
 
