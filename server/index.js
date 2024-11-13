@@ -1227,7 +1227,7 @@ RETURNING email;
 
     const random_code = uuidv4().replace(/-/g, "").slice(0, 6);
 
-    await pool.query(
+    const idres = await pool.query(
       `INSERT INTO people (email, password, full_name, settings) 
        VALUES ($1, $2, $3, $4) RETURNING id`,
       [
@@ -1271,15 +1271,37 @@ RETURNING email;
         }),
       ]
     );
+    const newUserId = idres.rows[0].id;
+
+    const verificationCode = generateVerificationCode();
+
+    await pool.query(
+      `INSERT INTO email_verification (user_id, email, code, status)
+       VALUES ($1, $2, $3, 'pending')
+       ON CONFLICT (email) 
+       DO UPDATE SET code = EXCLUDED.code, status = 'pending', updated_at = CURRENT_TIMESTAMP`,
+      [newUserId, email, verificationCode]
+    );
 
     const subject = "Welcome!! ";
     const text = `Welcome to Zikconnect`;
     const html = `<h1 style="color: #15b58e ; margin-left: 20% " >WELCOME  &#x1F389;  &#x1F389;</h1>
                       <strong><p style = "font-family: Times New Roman ;"> Dear ${capitalizedFullName}, <br /> 
-                      We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students.
+                      We are super excited to have you onboard!!. Zikconnect is built specifically for Unizik Students. here is your verification code
+                         <br></br>
+
+                     <div style="border: 0.5px solid black; display:flex; align-items: center; margin-bottom: 10px; justify-content: center; padding-left: 7rem; padding-top: 2rem; width: 70%; height: 4rem; font-family: Arial, sans-serif;">
+  <span style="color: #15b58e ; font-size: 40px; font-weight: bold;">
+   ${verificationCode}
+  </span>
+
+</div>
+<p> This code would expire in 30 minutes. Ensure to use it time or you can request for another code from the site </p>
+                      
+
                       This is a platform carefully designed to enhance our student lives. After Confirming your email you would be a able 
                       to perform various functions on the site like paying your fees, renting a lodge, buying and selling properties, order food
-                      get a delivery, and lots more. You can also earn money by becoming one of our agents on the site or uploading items for buyers to purchase
+                      get a delivery, and lots more. <br></br> You can also earn  on zikconnect in two ways!!  <ul><li>300 naira for each agent you register which is withdrawable directly to your bank account</li> <li>by becoming one of our agents on the site or uploading items for buyers to purchase</li></ul> 
                       Congrats!! Once again on your journey and feel free to reach out to our agents at <strong> admin@zikconnect.com  </strong>if you have further questions</strong>
                       
                       </p>`;
@@ -5253,7 +5275,7 @@ app.post("/api/send-verification-email", async (req, res) => {
     // Respond with success message
     res.status(200).json({
       message: "Verification code sent successfully",
-      code: verificationCode, // Optional, you might not want to return this to the client
+      // Optional, you might not want to return this to the client
     });
   } catch (error) {
     console.error("Error sending email:", error);
@@ -5289,6 +5311,9 @@ app.post("/api/verify-email", async (req, res) => {
                       <strong><p style = "font-family: Times New Roman ; ">Congrats!!, <br /> 
                       You have successfully verified your email!!. Your account has been funded with a sum of  2000 Naira to aid you in navigating through our services.
                        You can now head on to your profile and start connecting with others.
+                       You can also earn  on zikconnect in two ways!!  <ul><li>300 naira for each agent you register which is withdrawable directly to your bank account</li> <li>by becoming one of our agents on the site or uploading items for buyers to purchase</li></ul> 
+                      Congrats!! Once again on your journey and feel free to reach out to our agents at <strong> admin@zikconnect.com  </strong>if you have further questions</strong>
+                      
                       Please do well to note that we take our student security and safety seriously. Any attempt to violate or harm our users on the app
                       could lead to immediate termination of your account and further actions could be taken such as involving law enforcement agents.
                       depending on the gravity of violation on our student right and safety. We hope to see you win legally!!
