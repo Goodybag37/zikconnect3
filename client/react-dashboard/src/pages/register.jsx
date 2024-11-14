@@ -37,6 +37,8 @@ const Register = () => {
 
   const [passwordError, setPasswordError] = useState("");
 
+  const refCode = localStorage.getItem("referralCode");
+
   const validatePassword = (password) => {
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d\W_]{8,}$/;
 
@@ -165,7 +167,7 @@ const Register = () => {
             type="text"
             id="email"
             placeholder="Referral Code (Optional)"
-            value={refferral}
+            value={refCode ? refCode : refferral}
             onClick={() => setCantBeChanged(false)}
             onChange={(e) => setRefferral(e.target.value)}
           />

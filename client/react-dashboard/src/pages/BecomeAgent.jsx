@@ -281,7 +281,7 @@ function BecomeAgent() {
             <option value="cybercafeagents">Cybercafe Agent</option>
             <option value="deliveryagents">Delivery Agent</option>
             <option value="rideragents">Rider Agent</option>
-            <option value="schoolfeeagents">Schoolfees Agent</option>
+            {/* <option value="schoolfeeagents">Schoolfees Agent</option> */}
             <option value="whatsapptvagents">Whatsapp Tv Agent</option>
           </select>
         </div>

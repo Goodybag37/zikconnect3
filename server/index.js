@@ -2090,7 +2090,7 @@ app.post(
         sellerContact,
         originalname,
         filename,
-        propertyStatus,
+        lodgeStatus,
         locationData,
       ]);
 
@@ -2161,7 +2161,7 @@ app.post(
         userSettings?.toggle_status?.event || "available"; // Default to "available" if not found
 
       // Step 2: Check the toggle status, set property status accordingly
-      let propertyStatus = "available";
+      let eventStatus = "available";
       if (toggleStatusBuysell === "unavailable") {
         propertyStatus = "unavailable";
       }
@@ -2256,7 +2256,7 @@ app.post(
         sellerContact,
         originalname,
         filename,
-        propertyStatus,
+        eventStatus,
         locationData,
       ]);
       await pool.query(
