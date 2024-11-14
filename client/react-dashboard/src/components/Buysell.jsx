@@ -66,7 +66,7 @@ function YourComponent() {
     error: null,
   });
   const [orderCode, setOrderCode] = useState("");
-  const usersPerPage = 10;
+  const usersPerPage = 30;
   const pagesVisited = pageNumber * usersPerPage;
 
   const { isAuthenticated, user, login } = useContext(AuthContext);
