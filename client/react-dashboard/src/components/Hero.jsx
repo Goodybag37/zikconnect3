@@ -19,7 +19,7 @@ const Hero = () => {
           <img src={discount} alt="discount" className="w-[32px] h-[32px]" />
           <p className={`${styles.paragraph} ml-2`}>
             <span className="text-white">Get</span> 2000 Naira {""}
-            <span className="text-white">On registeration!!</span>
+            <span className="text-white">On registration!!</span>
           </p>
         </div>
 

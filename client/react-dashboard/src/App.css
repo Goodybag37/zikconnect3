@@ -197,6 +197,8 @@ select {
   position: fixed;
   margin-right: 10%;
   padding: 0 40px;
+
+  font-size: small;
 }
 
 .sidebar-title {
@@ -243,7 +245,7 @@ select {
 
 .sidebar-list-item {
   padding: 20px 20px 20px 20px;
-  font-size: 18px;
+  font-size: 15px;
   border-bottom: 0.5px solid #ff6d00;
 }
 

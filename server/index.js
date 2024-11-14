@@ -1420,7 +1420,7 @@ app.get("/api/buysellapi", async (req, res) => {
       queryParams.push(`%${search}%`);
     }
 
-    queryText += ` ORDER BY id DESC`;
+    queryText += `ORDER BY id DESC`;
 
     const result = await pool.query(queryText, queryParams);
     const buysells = result.rows;
@@ -1438,6 +1438,7 @@ app.get("/api/buysellapi", async (req, res) => {
       totalItems,
       totalPages,
       buysells: paginatedRoommates,
+      allResults: buysells,
     });
   } catch (error) {
     console.log(error);
@@ -1447,7 +1448,7 @@ app.get("/api/buysellapi", async (req, res) => {
 
 app.get("/api/eventapi", async (req, res) => {
   try {
-    const { search, page = 1, pageSize = 5 } = req.query;
+    const { search, page = 1, pageSize = 20 } = req.query;
 
     let queryText = `
       SELECT 
@@ -1491,6 +1492,7 @@ app.get("/api/eventapi", async (req, res) => {
       totalItems,
       totalPages,
       events: paginatedRoommates,
+      allResults: events,
     });
   } catch (error) {
     console.log(error);
@@ -1500,7 +1502,7 @@ app.get("/api/eventapi", async (req, res) => {
 
 app.get("/api/lodgeapi", async (req, res) => {
   try {
-    const { search, page = 1, pageSize = 5 } = req.query;
+    const { search, page = 1, pageSize = 20 } = req.query;
 
     let queryText = `
       SELECT 
@@ -1544,6 +1546,7 @@ app.get("/api/lodgeapi", async (req, res) => {
       totalItems,
       totalPages,
       lodges: paginatedRoommates,
+      allResults: lodges,
     });
   } catch (error) {
     console.log(error);
