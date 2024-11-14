@@ -1179,7 +1179,7 @@ function YourComponent() {
       )}
 
       <div className="agent-footer">
-        <Link to="/uploadproperty">
+        <Link to="/uploadlodge">
           <button className="agent-button">
             <BsFileEarmarkPerson className="card_icon" />
             Upload Lodge

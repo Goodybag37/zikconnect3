@@ -17,12 +17,14 @@ const Billing = () => {
       </div>
       <div className={layout.sectionInfo}>
         <h2 className={styles.heading2}>
-          Sell <br className="sm:block hidden" /> Your Property
+          Buy and Sell <br className="sm:block hidden" /> Your Property
         </h2>
         <p className={`${styles.paragraph} text-gradient max-w-[470px] mt-5`}>
-          Easily Sell out your Properties to other students by uploading them on
-          our website. We do not mediate the sales therfore buyers pay directly
-          to the sellers without extra charges from zikconnect
+          Are you a graduating student or a fresher and you want to sell out
+          your properties to other students you can do so on zikconnect for free
+          the students contact you directly so zikconnect takes no percentage
+          from the transactions. our duty is only to ensure security across the
+          platform
         </p>
         <div className="flex flex-row flex-wrap sm:mt-10 mt-6">
           <img

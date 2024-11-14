@@ -32,14 +32,17 @@ const Hero = () => {
         </div>
 
         {/* Sub Heading */}
-        <h1 className="font-poppins font-semibold text-[40px] md:text-[68px] text-white mt-[-10px] leading-[75px] md:leading-[100px] w-full text-center md:text-left">
+        <h1 className="font-poppins font-semibold text-[40px] md:text-[68px] text-white mt-[-3rem] leading-[75px] md:leading-[100px] w-full text-center md:text-left">
           Unizik Students
         </h1>
 
         {/* Description */}
-        <p className={`${styles.paragraph} text-gradient max-w-[470px] mt-5`}>
-          A platform where students can buy and sell properties, run delivery,
-          rent a lodge, buy food, and lots more...
+        <p
+          className={`${styles.paragraph} text-gradient max-w-[470px] mt-[-1rem]`}
+        >
+          An application where students can buy and sell properties, run
+          delivery, rent a lodge, buy food, and other services offered by fellow
+          students on the platform known as agents.
         </p>
 
         <div className="getStartedContainer flex flex-row mt-8">

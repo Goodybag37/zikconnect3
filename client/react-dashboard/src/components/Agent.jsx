@@ -49,6 +49,9 @@ function Agent(props) {
     rideragents: 0,
     whatsapptvagents: 0,
     schoolfeeagents: 0,
+    buysells: 0,
+    lodges: 0,
+    events: 0,
   });
   const apiUrls = process.env.REACT_APP_API_URL;
 
@@ -177,7 +180,30 @@ function Agent(props) {
             </h3>
           </div>
           <p>Buy and sell out properties from nearby students at a go.</p>
-          <h4 className="text-gradient">0</h4>
+          <h4 className="text-gradient">{totalAgents.foodagents} sold items</h4>
+        </div>
+        <div
+          className="card cursor-pointer"
+          onClick={() => navigateTo("/buysells")}
+        >
+          <div className="card-inner">
+            <h3 className="agent-icon text-gradient">
+              <BsFillCollectionFill className="card_icon" />
+              <CustomLink
+                className="card-title"
+                to={"/events"}
+                userId={userId}
+                email={email}
+              >
+                Events
+              </CustomLink>
+            </h3>
+          </div>
+          <p>
+            Attend the latest event happening around the school and purchase
+            tickets at a go.
+          </p>
+          <h4 className="text-gradient">{totalAgents.events} sold tickets</h4>
         </div>
 
         <div
@@ -222,7 +248,7 @@ function Agent(props) {
             </h3>
           </div>
           <p> Rent a lodge at any location of your choice around school</p>
-          <h4 className="text-gradient">0</h4>
+          <h4 className="text-gradient">{totalAgents.lodges} rented lodges</h4>
         </div>
         <div
           className="card cursor-pointer"

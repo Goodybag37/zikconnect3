@@ -44,7 +44,7 @@ function Header(props) {
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId;
 
   const [copied, setCopied] = useState(false);
-  const textToCopy = profile.settings_referral_code; // Text to be copied
+  const textToCopy = `https://zikconnect.com?ref_code=${profile.settings_referral_code}`; // Text to be copied
 
   // const socket = io(apiUrls);
   const handleMessages = async () => {
