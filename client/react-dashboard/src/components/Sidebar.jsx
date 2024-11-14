@@ -120,8 +120,40 @@ function Sidebar(props) {
             userId={userId}
             email={email}
           >
-            <BsFillGearFill className="iconSidebar bg-black-gradient" /> Become
-            Agent
+            <IoPeople className="iconSidebar bg-black-gradient" /> Become Agent
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
+            to={"/uploadproperty"}
+            userId={userId}
+            email={email}
+          >
+            <FaCartPlus className="iconSidebar bg-black-gradient" /> Upload
+            Property
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
+            to={"/uploadlodge"}
+            userId={userId}
+            email={email}
+          >
+            <TbHomePlus className="iconSidebar bg-black-gradient" /> Upload
+            Lodge
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
+            to={"/uploadevent"}
+            userId={userId}
+            email={email}
+          >
+            <FaPeoplePulling className="iconSidebar bg-black-gradient" /> Upload
+            Event
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
