@@ -114,6 +114,17 @@ function Sidebar(props) {
           </CustomLink>
         </li>
         <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
+            to={"/becomeagent"}
+            userId={userId}
+            email={email}
+          >
+            <BsFillGearFill className="iconSidebar bg-black-gradient" /> Become
+            Agent
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
           <a
             className="card-title"
             href="https://wa.me/+2349169215343"
