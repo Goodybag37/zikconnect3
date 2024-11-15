@@ -443,7 +443,14 @@ function YourComponent() {
                 </p>
                 <br></br>
                 <div className="chat-call-buttons">
-                  <a href={`https://wa.me/${selectedAgent.contact}`}>
+                  <a
+                    href={`https://wa.me/${selectedAgent.contact.replace(
+                      /[\s+]/g,
+                      ""
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <button className="bg-blue-gradient roommate-button  connect-accept-button-chat-buysell">
                       <LogoWhatsapp className="connect_icon" />
                       Chat
