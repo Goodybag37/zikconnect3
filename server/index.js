@@ -3592,7 +3592,7 @@ app.post("/api/become-agent", async (req, res) => {
     JSON.stringify({ locationData })
   );
   // Check if required fields are present
-  if (!type || !fullName || !email || !user || !call || !whatsapp) {
+  if (!type || !user || !whatsapp) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
