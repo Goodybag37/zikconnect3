@@ -328,7 +328,7 @@ function BecomeAgent() {
 
         <div className="input-group">
           <input
-            maxLength={15} // Adjust the max length as needed
+            maxLength={16} // Adjust the max length as needed
             type="tel"
             id="description"
             placeholder="Whatsapp Number (10-digit)"

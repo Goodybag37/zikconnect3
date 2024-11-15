@@ -65,7 +65,7 @@ app.use(
       "https://zikconnect.com",
       "http://localhost:3000", // Your frontend domain
     ],
-    methods: ["GET", "POST", "OPTIONS"], // Specify allowed methods
+    methods: ["GET", "POST", "PUT", "OPTIONS"], // Specify allowed methods
     allowedHeaders: ["Content-Type", "Authorization"], // Specify allowed headers
   })
 );
@@ -2449,11 +2449,11 @@ const multipleUpload = multer({
 // );
 
 app.put(
-  "/api/edit-upload/:id",
+  "/api/edit-upload",
   upload.single("file"),
 
   async (req, res) => {
-    const { id, type } = req.params;
+    const { id, type } = req.query;
     // console.log("id", id);
     const { name, description, price, location } = req.body;
     const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
@@ -2568,16 +2568,34 @@ app.put(
 
 app.post("/api/delete-upload/:id", async (req, res) => {
   const { id } = req.params;
+  const { type } = req.query;
+
+  const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
+  if (!validTypes.includes(type)) {
+    return res.status(400).send({ error: "Invalid type parameter" });
+  }
 
   try {
-    const query = "SELECT unique_name FROM buysell WHERE id = $1";
+    const query = `SELECT unique_name FROM ${type} WHERE id = $1`;
+
     const resultD = await pool.query(query, [id]);
     const filename = resultD.rows[0].unique_name;
     const filePath = path.join(__dirname, "uploads", filename);
-    fs.unlinkSync(filePath);
 
-    const result = await pool.query(`DELETE FROM buysell WHERE id =$1`, [id]);
-  } catch (error) {}
+    console.log("Deleting file at:", filePath);
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        console.error("Error deleting file:", err);
+      } else {
+        console.log("File successfully deleted");
+      }
+    });
+
+    const result = await pool.query(`DELETE FROM ${type} WHERE id =$1`, [id]);
+  } catch (error) {
+    console.error("Error during deletion:", error);
+    res.status(500).send({ error: "Failed to delete the post and file" });
+  }
 });
 
 app.get("/api/get-status/:userId", async (req, res) => {

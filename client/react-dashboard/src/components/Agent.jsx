@@ -180,7 +180,7 @@ function Agent(props) {
             </h3>
           </div>
           <p>Buy and sell out properties from nearby students at a go.</p>
-          <h4 className="text-gradient">{totalAgents.foodagents} sold items</h4>
+          <h4 className="text-gradient">{totalAgents.buysells} sold items</h4>
         </div>
         <div
           className="card cursor-pointer"

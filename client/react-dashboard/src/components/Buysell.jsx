@@ -869,15 +869,19 @@ function YourComponent() {
   };
 
   const handleDeleteItem = async () => {
+    const type = "buysell";
     setIsPopupVisible(false);
     setbuysells((prevBuysells) =>
       prevBuysells.filter((buysell) => buysell.id !== itemToDelete)
     );
 
     try {
-      await axios.post(`${apiUrls}/api/delete-upload/${itemToDelete}`, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      });
+      await axios.post(
+        `${apiUrls}/api/delete-upload/${itemToDelete}?type=${type}`,
+        {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        }
+      );
     } catch (error) {
       console.log(error);
     } finally {
@@ -909,7 +913,7 @@ function YourComponent() {
 
       // Send the FormData to the server using a PUT request
       await axios.put(
-        `${apiUrls}/api/edit-upload/${itemId}&type=${type}`,
+        `${apiUrls}/api/edit-upload/?id=${itemId}&type=${type}`,
         formData
 
         // Send FormData instead of JSON
