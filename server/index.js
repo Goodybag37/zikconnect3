@@ -3592,9 +3592,6 @@ app.post("/api/become-agent", async (req, res) => {
     JSON.stringify({ locationData })
   );
   // Check if required fields are present
-  if (!type || !user || !whatsapp) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
 
   const query = `
       INSERT INTO agent_approval (type, located, description, call, whatsapp, email, user_id, fullname, gps_location)
