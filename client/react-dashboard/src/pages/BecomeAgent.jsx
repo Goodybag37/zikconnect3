@@ -186,6 +186,14 @@ function BecomeAgent() {
       //     headers: { "Content-Type": "application/x-www-form-urlencoded" },
       //   }
       // );
+      const redirect = () => {
+        // Get the redirect path from the URL parameters
+        const redirectPath =
+          new URLSearchParams(location.search).get("redirect") || "/agents";
+
+        // Navigate to the original destination or a default page
+        navigate(redirectPath);
+      };
 
       // console.log("you have been added as agent", response.data);
 
@@ -217,15 +225,7 @@ function BecomeAgent() {
           </button>
         </div>
       );
-      setShowModal(true);
-      const redirect = () => {
-        // Get the redirect path from the URL parameters
-        const redirectPath =
-          new URLSearchParams(location.search).get("redirect") || "/agents";
 
-        // Navigate to the original destination or a default page
-        navigate(redirectPath);
-      };
       const response = await axios.post(
         `${apiUrls}/api/become-agent`,
         formData,
@@ -233,6 +233,8 @@ function BecomeAgent() {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
         }
       );
+
+      setShowModal(true);
     } catch (error) {
       if (error.response) {
         setError(error.response.data.message);
