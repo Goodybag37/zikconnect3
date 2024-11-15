@@ -166,7 +166,14 @@ function YourComponent() {
                 </button>
               </a>
 
-              <a href={`https://whatsapp.com/${messages.whatsapp}`}>
+              <a
+                href={`https://wa.me/${messages.whatsapp.replace(
+                  /[\s+]/g,
+                  ""
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <button className="bg-blue-gradient roommate-button connect-accept-button-chat">
                   <BsXOctagonFill className="connect_icon" />
                   Chat

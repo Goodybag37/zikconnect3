@@ -313,7 +313,11 @@ function YourComponent() {
                 </p>
 
                 <div className="chat-call-buttons">
-                  <a href={`https://wa.me/${contact}`}>
+                  <a
+                    href={`https://wa.me/${contact.replace(/[\s+]/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <button className="bg-blue-gradient roommate-button  connect-accept-button-chat">
                       <LogoWhatsapp className="connect_icon" />
                       Chat
@@ -1517,13 +1521,20 @@ function YourComponent() {
 
                     {chatCallVisible && (
                       <div className="chat-call-buttons">
-                        <a href={`https://wa.me/${agent.contact}`}>
+                        <a
+                          href={`https://wa.me/${agent.contact.replace(
+                            /[\s+]/g,
+                            ""
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <button className="bg-blue-gradient roommate-button">
                             <LogoWhatsapp className="connect_icon" />
                             Chat
                           </button>
                         </a>
-                        <a href={`https://wa.me/${agent.contact}`}>
+                        <a href={`tel:{agent.contact}`}>
                           <button className="bg-blue-gradient roommate-button">
                             <BisPhoneCall className="connect_icon" />
                             Call

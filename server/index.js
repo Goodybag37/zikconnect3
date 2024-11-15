@@ -4183,9 +4183,10 @@ app.post("/api/send-connect-email", async (req, res) => {
       agentType == "event" ||
       agentType == "lodge"
     ) {
-      result = await pool.query("SELECT email FROM people WHERE id = $1", [
-        agentUserId,
-      ]);
+      result = await pool.query(
+        "SELECT email, full_name, phone FROM people WHERE id = $1",
+        [agentUserId]
+      );
     }
 
     // Check if any rows were returned
@@ -4195,6 +4196,10 @@ app.post("/api/send-connect-email", async (req, res) => {
 
     // Extract the email from the result
     const email = result.rows[0].email;
+
+    const phone3 = result.rows[0].phone;
+
+    const fullName = result.rows[0].full_name;
 
     // Prepare email content
     let subject = "New Connect";
@@ -4206,10 +4211,14 @@ app.post("/api/send-connect-email", async (req, res) => {
                        <br></br>
                       <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Customer Location</h2>
                       <ul><li style = "font-family: Times New Roman ; ">${locationData.display_name}</li>
+
                       <li style = "font-family: Times New Roman ; "> Type of location - ${locationData.type}</li>
                        <li style = "font-family: Times New Roman ; "> Distance between you two - ${distance}km </li>
                       <li style = "font-family: Times New Roman ; "> Duration - ${duration}minuites</li></ul>
                       <br></br>
+                      <p>phone number: ${phone3}</p>                      <p>  Customer Details</p>
+                      <ul>Full Name : ${fullName}</ul>
+                       <ul>Ensure to call customer or reach out on whatsapp      
                       <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Fraud Prevention </h2>
                       <li style = "font-size: 10px;"> <strong>Note !! Automatic locations are more Authentic (though it could be wrong sometimes) than Manual locations as it indicates that 
                       the customer inputed the location themselves rather than using their automatic gps tracker </strong> </li>
@@ -4234,17 +4243,21 @@ app.post("/api/send-connect-email", async (req, res) => {
                       <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Order Details</h2>
                       <strong>
                       <ul> 
-                      <strong> <li style = "font-family: Times New Roman ; "> Item ID - ${updatedItem.id}</li> </strong>
-                      </strong><li style = "font-family: Times New Roman ; ">Name of Item - ${updatedItem.name}</li> </strong>
-                      <strong> <li style = "font-family: Times New Roman ; "> Price - ${updatedItem.price}</li> </strong>
+                      <strong> <li style = "font-family: Times New Roman ; "> Item ID - ${locationData.id}</li> </strong>
+                      </strong><li style = "font-family: Times New Roman ; ">Name of Item - ${locationData.name}</li> </strong>
+                      <strong> <li style = "font-family: Times New Roman ; "> Price - ${locationData.price}</li> </strong>
                       </ul>
                        <br></br>
                       <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Customer Location</h2>
                        <strong><ul><li style = "font-family: Times New Roman ; ">${locationData.display_name}</li> </strong>
                        <strong><li style = "font-family: Times New Roman ; "> Type of location - ${locationData.type}</li> </strong>
-                       <strong> <li style = "font-family: Times New Roman ; "> Distance between you two - ${distance} km </li> </strong>
-                      <strong> <li style = "font-family: Times New Roman ; "> Duration - ${duration} minuites</li></ul> </strong>
+                       <strong> <li style = "font-family: Times New Roman ; "> Distance between you two - ${locationData.distance} km </li> </strong>
+                      <strong> <li style = "font-family: Times New Roman ; "> Duration - ${locationData.duration} minuites</li></ul> </strong>
                       <br></br>
+
+                       <p>phone number: ${phone3}</p>                      <p>  Customer Details</p>
+                      <ul>Full Name : ${fullName}</ul>
+                       <ul>Call Customer :       
                      
                       <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Fraud Prevention </h2>
                       <li style = "font-size: 10px; font-family: Times New Roman"> It is your obligation to deliver the item to the customer before they make payment </li>
@@ -4254,6 +4267,8 @@ app.post("/api/send-connect-email", async (req, res) => {
                      
                       <li style = "font-size: 10px; font-family: Times New Roman"> Manual Locations do not come with  distance and direction calculations</li>
            </p>
+
+           <p>  Customer location: </p>
                       </p>`;
     }
 
@@ -4271,6 +4286,7 @@ app.post("/api/send-connect-email", async (req, res) => {
     // Send email
     const info = await transporter.sendMail(mailOptions);
     // console.log("Message sent: %s", info.messageId);
+
     res
       .status(200)
       .send({ message: "Email sent successfully!", updatedMessage });
