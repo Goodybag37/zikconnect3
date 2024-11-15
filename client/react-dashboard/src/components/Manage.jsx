@@ -166,7 +166,7 @@ function YourComponent() {
                 </button>
               </a>
 
-              <a href={`https://wa.me/${messages.whatsapp}`}>
+              <a href={`https://whatsapp.com/${messages.whatsapp}`}>
                 <button className="bg-blue-gradient roommate-button connect-accept-button-chat">
                   <BsXOctagonFill className="connect_icon" />
                   Chat
