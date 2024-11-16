@@ -129,7 +129,7 @@ function BecomeAgent() {
               // Permission denied
               setPermission("denied");
               try {
-                await axios.post(`${apiUrls}/denied-location`, {
+                await axios.post(`${apiUrls}/api/denied-location`, {
                   type: "becomeaAgent",
                   user_id: userbread,
                 });
@@ -407,7 +407,8 @@ function BecomeAgent() {
         {permission === "denied" && (
           <p style={{ color: "red" }}>
             Location permission denied. Please allow location access to submit
-            the form.
+            the form. you can change browser or clear your browser data to
+            resubmit
           </p>
         )}
         {permission === "unsupported" && (
