@@ -61,7 +61,7 @@ function UploadEvent() {
               // Permission denied
               setPermission("denied");
               try {
-                await axios.post(`${apiUrls}/denied-location`, {
+                await axios.post(`${apiUrls}/api/denied-location`, {
                   type: "uploadEvent",
                   user_id: userbread,
                 });

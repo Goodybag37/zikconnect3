@@ -5770,6 +5770,7 @@ app.post("/api/withdraw-funds", async (req, res) => {
 
 app.post("/api/denied-location", async (req, res) => {
   const { user_id, type } = req.body;
+  console.log("you dey crAasw", user_id, type);
 
   try {
     // Ensure column names match the table structure

@@ -61,7 +61,7 @@ function UploadProperty() {
               // Permission denied
               setPermission("denied");
               try {
-                await axios.post(`${apiUrls}/denied-location`, {
+                await axios.post(`${apiUrls}/api/denied-location`, {
                   type: "uploadLodge",
                   user_id: userbread,
                 });
