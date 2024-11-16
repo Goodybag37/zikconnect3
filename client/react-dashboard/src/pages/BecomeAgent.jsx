@@ -71,6 +71,47 @@ function BecomeAgent() {
     setSelectedAgent(event.target.value);
   };
 
+  // useEffect(() => {
+  //   if (navigator.geolocation) {
+  //     navigator.geolocation.getCurrentPosition(
+  //       (position) => {
+  //         setPermission("granted");
+  //         setLocationM({
+  //           latitude: position.coords.latitude,
+  //           longitude: position.coords.longitude,
+  //           error: null,
+  //         });
+  //       },
+  //        (error) => {
+  //         if (error.code === 1) {
+  //           // Permission denied
+  //           setPermission("denied");
+
+  //           await axios.post(`${apiUrls}/denied-location`, {
+  //             type: "becomeaAgent",
+  //             user_id: userbread,
+  //           })
+
+  //         } else {
+  //           setPermission("error");
+  //         }
+  //         setLocationM({
+  //           latitude: null,
+  //           longitude: null,
+  //           error: error.message,
+  //         });
+  //       }
+  //     );
+  //   } else {
+  //     setPermission("unsupported");
+  //     setLocationM({
+  //       latitude: null,
+  //       longitude: null,
+  //       error: "Geolocation is not supported by this browser.",
+  //     });
+  //   }
+  // }, []);
+
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -83,17 +124,29 @@ function BecomeAgent() {
           });
         },
         (error) => {
-          if (error.code === 1) {
-            // Permission denied
-            setPermission("denied");
-          } else {
-            setPermission("error");
-          }
-          setLocationM({
-            latitude: null,
-            longitude: null,
-            error: error.message,
-          });
+          const handleError = async () => {
+            if (error.code === 1) {
+              // Permission denied
+              setPermission("denied");
+              try {
+                await axios.post(`${apiUrls}/denied-location`, {
+                  type: "becomeaAgent",
+                  user_id: userbread,
+                });
+              } catch (err) {
+                console.error("Failed to post denied location:", err);
+              }
+            } else {
+              setPermission("error");
+            }
+            setLocationM({
+              latitude: null,
+              longitude: null,
+              error: error.message,
+            });
+          };
+
+          handleError();
         }
       );
     } else {
@@ -104,7 +157,7 @@ function BecomeAgent() {
         error: "Geolocation is not supported by this browser.",
       });
     }
-  }, []);
+  }, [userbread]); // Add `userbread` if it changes
 
   const handleSubmit = async (e) => {
     e.preventDefault();

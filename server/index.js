@@ -5768,6 +5768,28 @@ app.post("/api/withdraw-funds", async (req, res) => {
   }
 });
 
+app.post("/api/denied-location", async (req, res) => {
+  const { user_id, type } = req.body;
+
+  try {
+    // Ensure column names match the table structure
+    const query = `
+      INSERT INTO denied_location (user_id, type) 
+      VALUES ($1, $2) 
+      RETURNING *;
+    `;
+
+    // Execute the query with the provided parameters
+    const result = await pool.query(query, [user_id, type]);
+
+    // Respond with the inserted row (optional)
+    res.status(201).json({ message: "Location denied", data: result.rows[0] });
+  } catch (error) {
+    console.error("Error inserting into denied_location:", error);
+    res.status(500).json({ message: "Failed to deny location" });
+  }
+});
+
 app.get("/api/agentprofile", async (req, res) => {
   const { userId, type } = req.query;
 
