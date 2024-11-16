@@ -56,17 +56,29 @@ function UploadProperty() {
           });
         },
         (error) => {
-          if (error.code === 1) {
-            // Permission denied
-            setPermission("denied");
-          } else {
-            setPermission("error");
-          }
-          setLocationM({
-            latitude: null,
-            longitude: null,
-            error: error.message,
-          });
+          const handleError = async () => {
+            if (error.code === 1) {
+              // Permission denied
+              setPermission("denied");
+              try {
+                await axios.post(`${apiUrls}/denied-location`, {
+                  type: "uploadLodge",
+                  user_id: userbread,
+                });
+              } catch (postError) {
+                console.error("Error posting denied location:", postError);
+              }
+            } else {
+              setPermission("error");
+            }
+            setLocationM({
+              latitude: null,
+              longitude: null,
+              error: error.message,
+            });
+          };
+
+          handleError();
         }
       );
     } else {
@@ -77,7 +89,7 @@ function UploadProperty() {
         error: "Geolocation is not supported by this browser.",
       });
     }
-  }, []);
+  }, []); // Add dependencies if needed
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
