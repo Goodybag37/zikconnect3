@@ -273,8 +273,7 @@ function UploadEvent() {
 
         <div className="input-group">
           <input
-            type="Date"
-            maxLength={maxLengthL}
+            type="date"
             id="event_date"
             placeholder="Event Date"
             value={eventDate}

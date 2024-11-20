@@ -1254,7 +1254,7 @@ function YourComponent() {
                     </div>
                   </li>
                   <li className="roommate-list">Name: {agent.name}</li>
-                  <li className="roommate-list">Location: {agent.location}</li>
+                  <li className="roommate-list">At: {agent.location}</li>
                   <li className="roommate-list roommate-list-button">
                     {!chatCallVisible && (
                       <button

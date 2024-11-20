@@ -22,7 +22,7 @@ function UploadProperty() {
   const location = useLocation();
   const [selectedFile, setSelectedFile] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
-  const maxFileSize = 5 * 1024 * 1024; // Add state for file
+
   const [permission, setPermission] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState("");
@@ -97,21 +97,25 @@ function UploadProperty() {
     if (selectedFile) {
       const fileSize = selectedFile.size;
       const fileType = selectedFile.type;
+      const maxFileSize = fileType.startsWith("video/")
+        ? 20 * 1024 * 1024
+        : 5 * 1024 * 1024; // 20MB for videos, 5MB for images
 
       // Check file size
       if (fileSize > maxFileSize) {
-        setErrorMessage("File size exceeds the maximum allowed size of 5MB.");
+        setErrorMessage("File size exceeds the maximum allowed size of 20MB.");
         setSelectedFile(null); // Reset the file
         return;
       }
 
       // Check file type (only allow PNG and JPG)
       if (
-        fileType.toLowerCase() !== "image/png" &&
-        fileType.toLowerCase() !== "image/jpeg" &&
-        fileType.toLowerCase() !== "image/webp" &&
-        fileType.toLowerCase() !== "image/heif" &&
-        fileType.toLowerCase() !== "image/heic"
+        // fileType.toLowerCase() !== "image/png" &&
+        // fileType.toLowerCase() !== "image/jpeg" &&
+        // fileType.toLowerCase() !== "image/webp" &&
+        // fileType.toLowerCase() !== "image/heif" &&
+        // fileType.toLowerCase() !== "image/heic" &&
+        fileType.toLowerCase() !== "video/mp4"
       ) {
         setErrorMessage("Only (PNG/JPG/WEBP/HEIC/HEIF) formats are allowed.");
         setSelectedFile(null); // Reset the file
@@ -299,6 +303,7 @@ function UploadProperty() {
           <input
             type="file"
             id="file"
+            accept=".mp4"
             placeholder="Choose a file"
             onClick={() => {
               setErrorMessage("");
@@ -313,7 +318,7 @@ function UploadProperty() {
           {errorMessage ? (
             <p className="errorMessage"> {errorMessage} </p>
           ) : (
-            "Picture of item"
+            "Video of Lodge"
           )}
         </p>
 

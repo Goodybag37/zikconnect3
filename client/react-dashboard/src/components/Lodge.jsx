@@ -733,18 +733,103 @@ function YourComponent() {
     fetchData(pageNumber, searchQuery);
   }, [pageNumber, searchQuery]);
 
+  // const handleShowPicture = async (itemId) => {
+  //   try {
+  //     const response = await axios.get(`${apiUrls}/api/lodge/${itemId}`, {
+  //       responseType: "blob", // Important: Fetch the image as a Blob
+  //       validateStatus: (status) => status < 500,
+  //     });
+
+  //     if (response.status === 404) {
+  //       // Check if the Blob is empty, indicating no image was found
+  //       setModalContent(
+  //         <div>
+  //           <p>No image found for this item.</p>
+  //           <button
+  //             style={{
+  //               marginTop: "20px",
+  //               background: "#ff0000",
+  //               color: "#fff",
+  //               border: "none",
+  //               padding: "10px",
+  //               maxHeight: "100vh",
+  //               borderRadius: "5px",
+  //               cursor: "pointer",
+  //             }}
+  //             onClick={() => setShowModal(false)} // Close the modal when clicked
+  //           >
+  //             Close
+  //           </button>
+  //         </div>
+  //       );
+  //     } else {
+  //       // If the image exists, display it
+  //       const imageUrl = URL.createObjectURL(response.data);
+
+  //       setModalContent(
+  //         <div style={{ position: "relative" }}>
+  //           <img
+  //             src={imageUrl}
+  //             alt="Item"
+  //             style={{
+  //               width: "100%",
+  //               height: "auto",
+  //               maxWidth: "100%",
+  //               objectFit: "contain",
+  //             }}
+  //           />
+  //           <button
+  //             style={{
+  //               position: "absolute",
+  //               top: "10px",
+  //               right: "10px",
+  //               background: "#ff0000",
+  //               color: "#fff",
+  //               border: "none",
+  //               padding: "10px",
+  //               borderRadius: "5px",
+  //               cursor: "pointer",
+  //             }}
+  //             onClick={() => setShowModal(false)} // Close the modal when clicked
+  //           >
+  //             Close
+  //           </button>
+  //         </div>
+  //       );
+  //     }
+
+  //     setShowModal(true); // Show the modal with the image
+  //   } catch (error) {
+  //     console.error("Error fetching image:", error);
+  //   }
+  // };
+
   const handleShowPicture = async (itemId) => {
     try {
       const response = await axios.get(`${apiUrls}/api/lodge/${itemId}`, {
-        responseType: "blob", // Important: Fetch the image as a Blob
+        responseType: "blob", // Fetch the media as a Blob
         validateStatus: (status) => status < 500,
       });
 
+      const mimeType = response.data.type || "application/octet-stream";
+
+      // If the MIME type is 'application/octet-stream', try to infer it from the file extension
+      if (mimeType === "application/octet-stream") {
+        const fileExtension = itemId.split(".").pop().toLowerCase(); // Assuming itemId contains the file name with extension
+        if (fileExtension === "mp4") {
+          mimeType = "video/mp4";
+        } else if (fileExtension === "webm") {
+          mimeType = "video/webm";
+        } else {
+          mimeType = "unknown";
+        }
+      }
+
       if (response.status === 404) {
-        // Check if the Blob is empty, indicating no image was found
+        // If no media found
         setModalContent(
           <div>
-            <p>No image found for this item.</p>
+            <p>No media found for this item.</p>
             <button
               style={{
                 marginTop: "20px",
@@ -756,51 +841,109 @@ function YourComponent() {
                 borderRadius: "5px",
                 cursor: "pointer",
               }}
-              onClick={() => setShowModal(false)} // Close the modal when clicked
+              onClick={() => setShowModal(false)} // Close the modal
             >
               Close
             </button>
           </div>
         );
       } else {
-        // If the image exists, display it
-        const imageUrl = URL.createObjectURL(response.data);
+        // Detect MIME type from the response
+        const mimeType = response.data.type;
+        const mediaUrl = URL.createObjectURL(response.data);
 
-        setModalContent(
-          <div style={{ position: "relative" }}>
-            <img
-              src={imageUrl}
-              alt="Item"
-              style={{
-                width: "100%",
-                height: "auto",
-                maxWidth: "100%",
-                objectFit: "contain",
-              }}
-            />
-            <button
-              style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                background: "#ff0000",
-                color: "#fff",
-                border: "none",
-                padding: "10px",
-                borderRadius: "5px",
-                cursor: "pointer",
-              }}
-              onClick={() => setShowModal(false)} // Close the modal when clicked
-            >
-              Close
-            </button>
-          </div>
-        );
+        if (mimeType.startsWith("image/")) {
+          // Render image
+          setModalContent(
+            <div style={{ position: "relative" }}>
+              <img
+                src={mediaUrl}
+                alt="Media"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  maxWidth: "100%",
+                  objectFit: "contain",
+                }}
+              />
+              <button
+                style={{
+                  position: "absolute",
+                  top: "10px",
+                  right: "10px",
+                  background: "#ff0000",
+                  color: "#fff",
+                  border: "none",
+                  padding: "10px",
+                  borderRadius: "5px",
+                  cursor: "pointer",
+                }}
+                onClick={() => setShowModal(false)} // Close the modal
+              >
+                Close
+              </button>
+            </div>
+          );
+        } else if (mimeType.startsWith("video/")) {
+          // Render video
+          setModalContent(
+            <div style={{ position: "relative" }}>
+              <video
+                src={mediaUrl}
+                controls
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  maxWidth: "100%",
+                  objectFit: "contain",
+                }}
+              />
+              <button
+                style={{
+                  position: "absolute",
+                  top: "10px",
+                  right: "10px",
+                  background: "#ff0000",
+                  color: "#fff",
+                  border: "none",
+                  padding: "10px",
+                  borderRadius: "5px",
+                  cursor: "pointer",
+                }}
+                onClick={() => setShowModal(false)} // Close the modal
+              >
+                Close
+              </button>
+            </div>
+          );
+        } else {
+          // Fallback for unsupported media types
+          setModalContent(
+            <div>
+              <p>Unsupported media format.</p>
+              <button
+                style={{
+                  marginTop: "20px",
+                  background: "#ff0000",
+                  color: "#fff",
+                  border: "none",
+                  padding: "10px",
+                  maxHeight: "100vh",
+                  borderRadius: "5px",
+                  cursor: "pointer",
+                }}
+                onClick={() => setShowModal(false)} // Close the modal
+              >
+                Close
+              </button>
+            </div>
+          );
+        }
       }
 
-      setShowModal(true); // Show the modal with the image
+      setShowModal(true); // Show the modal
     } catch (error) {
-      console.error("Error fetching image:", error);
+      console.error("Error fetching media:", error);
     }
   };
 

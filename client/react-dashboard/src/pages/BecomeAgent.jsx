@@ -50,6 +50,7 @@ function BecomeAgent() {
 
   const maxLength = 250;
   const maxLengthN = 16;
+  const maxLengthL = 30;
 
   const handlePhoneChange = (e) => {
     let input = e.target.value;
@@ -357,7 +358,7 @@ function BecomeAgent() {
 
         <div className="input-group input-email">
           <input
-            maxLength={maxLength}
+            maxLength={maxLengthL}
             type="text" // Changed to 'email' for validation
             id="located"
             placeholder="location around Unizik"
