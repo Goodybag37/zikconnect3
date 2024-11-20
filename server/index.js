@@ -1604,6 +1604,52 @@ app.get("/api/buysell/:id", async (req, res) => {
   }
 });
 
+// app.get("/api/lodge/:id", async (req, res) => {
+//   const id = req.params.id;
+//   try {
+//     // Query to get file metadata
+//     const result = await pool.query(
+//       "SELECT original_name, unique_name FROM lodge WHERE id = $1",
+//       [id]
+//     );
+
+//     if (result.rows.length > 0) {
+//       const { original_name, unique_name } = result.rows[0];
+
+//       if (!unique_name) {
+//         // Return a 404 response indicating no image found for the item
+//         return res.status(404).send("No image found for this item");
+//       }
+
+//       // Define the file path
+//       const filePath = path.join(__dirname, "uploads", unique_name);
+
+//       // Check if the file exists
+//       if (fs.existsSync(filePath)) {
+//         // Set the appropriate content type based on file extension
+//         const ext = path.extname(original_name).toLowerCase();
+//         let contentType = "application/octet-stream"; // Default for binary files
+
+//         if (ext === ".png") contentType = "image/png";
+//         else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+//         else if (ext === ".webp") contentType = "image/webp";
+
+//         res.setHeader("Content-Type", contentType);
+
+//         // Pipe the file to the response
+//         fs.createReadStream(filePath).pipe(res);
+//       } else {
+//         res.status(404).send("File not found");
+//       }
+//     } else {
+//       res.status(404).send("Record not found");
+//     }
+//   } catch (error) {
+//     console.error("Error fetching file:", error);
+//     res.status(500).send("Server error");
+//   }
+// });
+
 app.get("/api/lodge/:id", async (req, res) => {
   const id = req.params.id;
   try {
@@ -1617,8 +1663,8 @@ app.get("/api/lodge/:id", async (req, res) => {
       const { original_name, unique_name } = result.rows[0];
 
       if (!unique_name) {
-        // Return a 404 response indicating no image found for the item
-        return res.status(404).send("No image found for this item");
+        // Return a 404 response indicating no media found for the item
+        return res.status(404).send("No media found for this item");
       }
 
       // Define the file path
@@ -1630,9 +1676,15 @@ app.get("/api/lodge/:id", async (req, res) => {
         const ext = path.extname(original_name).toLowerCase();
         let contentType = "application/octet-stream"; // Default for binary files
 
+        // Handle image types
         if (ext === ".png") contentType = "image/png";
         else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
         else if (ext === ".webp") contentType = "image/webp";
+        // Handle video types
+        else if (ext === ".mp4") contentType = "video/mp4";
+        else if (ext === ".webm") contentType = "video/webm";
+        else if (ext === ".ogg") contentType = "video/ogg";
+        // You can add more video formats if necessary
 
         res.setHeader("Content-Type", contentType);
 
@@ -1784,7 +1836,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 1024 * 1024 * 10, // Limit file size to 10MB
+    fileSize: 1024 * 1024 * 20, // Limit file size to 10MB
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -1793,6 +1845,7 @@ const upload = multer({
       "image/webp",
       "image/heif",
       "image/heic",
+      "video/mp4",
     ];
     if (!allowedTypes.includes(file.mimetype)) {
       const error = new Error("Incorrect file type");
@@ -2038,7 +2091,7 @@ app.post(
 
         // Delete the original HEIC file
         fs.unlinkSync(inputPath);
-      } else {
+      } else if (mimetype.startsWith("image/")) {
         // Optimize other formats with Sharp
         const inputPath = req.file.path;
         const outputPath = path.join(
@@ -2059,6 +2112,11 @@ app.post(
 
         // Delete the original file
         fs.unlinkSync(inputPath);
+      } else if (mimetype.startsWith("video/")) {
+        // Skip Sharp processing for videos and retain the original file
+        console.log("File is a video. Skipping image processing.");
+      } else {
+        throw new Error(`Unsupported file type: ${mimetype}`);
       }
       // Fetch seller details
       const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
