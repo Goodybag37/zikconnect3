@@ -862,6 +862,7 @@ function YourComponent() {
                 style={{
                   width: "100%",
                   height: "auto",
+                  maxHeight: "100vh",
                   maxWidth: "100%",
                   objectFit: "contain",
                 }}
@@ -894,6 +895,7 @@ function YourComponent() {
                 style={{
                   width: "100%",
                   height: "auto",
+                  maxHeight: "100vh",
                   maxWidth: "100%",
                   objectFit: "contain",
                 }}
@@ -1228,7 +1230,7 @@ function YourComponent() {
                     className="roommateButtonPicture "
                   >
                     <BsPeopleFill className="connect_icon" />
-                    See Picture
+                    See Video
                   </button>
                   {selectedAgent && (
                     <BsArchiveFill
