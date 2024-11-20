@@ -777,6 +777,7 @@ function YourComponent() {
                 border: "none",
                 padding: "10px",
                 borderRadius: "5px",
+                maxHeight: "100vh",
                 cursor: "pointer",
               }}
               onClick={() => setShowModal(false)} // Close the modal when clicked

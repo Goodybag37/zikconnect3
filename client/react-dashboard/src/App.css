@@ -1126,7 +1126,7 @@ select {
   padding-left: 0.7rem;
   text-align: left;
   padding-right: 4px;
-  overflow-y: auto;
+  max-width: 9rem;
 }
 .paginationBttns {
   width: 80px;

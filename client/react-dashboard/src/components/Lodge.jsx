@@ -752,6 +752,7 @@ function YourComponent() {
                 color: "#fff",
                 border: "none",
                 padding: "10px",
+                maxHeight: "100vh",
                 borderRadius: "5px",
                 cursor: "pointer",
               }}
