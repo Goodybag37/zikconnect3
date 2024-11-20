@@ -98,12 +98,12 @@ function UploadProperty() {
       const fileSize = selectedFile.size;
       const fileType = selectedFile.type;
       const maxFileSize = fileType.startsWith("video/")
-        ? 20 * 1024 * 1024
+        ? 30 * 1024 * 1024
         : 5 * 1024 * 1024; // 20MB for videos, 5MB for images
 
       // Check file size
       if (fileSize > maxFileSize) {
-        setErrorMessage("File size exceeds the maximum allowed size of 20MB.");
+        setErrorMessage("File size exceeds the maximum allowed size of 30MB.");
         setSelectedFile(null); // Reset the file
         return;
       }
