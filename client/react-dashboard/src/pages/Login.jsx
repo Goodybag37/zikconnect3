@@ -116,8 +116,9 @@ const Login = () => {
 
             <button
               onClick={() => {
+                console.log("Confirm button clicked");
+                handleForgotPassword();
                 setShowModal(false);
-                handleForgotPassword;
               }}
               className="bg-blue-gradient roommate-button connect-accept-button"
             >
@@ -138,6 +139,7 @@ const Login = () => {
     setModalContent(content);
   };
   const handleForgotPassword = async () => {
+    console.log("something reach here ");
     try {
       const response = await axios.post(`${apiUrls}/api/forgot-password`, {
         email,

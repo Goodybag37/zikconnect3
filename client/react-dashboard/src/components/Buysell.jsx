@@ -802,6 +802,7 @@ function YourComponent() {
               style={{
                 width: "100%",
                 height: "auto",
+                maxHeight: "100vh",
                 maxWidth: "100%",
                 objectFit: "contain",
               }}

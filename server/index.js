@@ -879,6 +879,7 @@ app.get("/api/profile/", async (req, res) => {
 
 app.post("/api/forgot-password", async (req, res) => {
   const { email } = req.body;
+  console.log("Request came around ");
   try {
     // Check if the email exists in the database
     const exists = await pool.query(
@@ -896,10 +897,6 @@ app.post("/api/forgot-password", async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPass, 10);
 
     // Update the password in the database
-    await pool.query("UPDATE people SET password = $1 WHERE email = $2", [
-      hashedPassword,
-      email,
-    ]);
 
     // Prepare email content
     const subject = "New Password";
@@ -927,6 +924,12 @@ app.post("/api/forgot-password", async (req, res) => {
 
     // Send the email
     await transporter.sendMail(mailOptions);
+    console.log("email was sent but didii");
+
+    await pool.query("UPDATE people SET password = $1 WHERE email = $2", [
+      hashedPassword,
+      email,
+    ]);
 
     // Respond to the client
     res
@@ -1159,6 +1162,7 @@ app.post("/api/register", async (req, res) => {
     const result = await pool.query("SELECT email FROM people WHERE email=$1", [
       email,
     ]);
+
     const existingUser = result.rows[0];
 
     if (existingUser) {
