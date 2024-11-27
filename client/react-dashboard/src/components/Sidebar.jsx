@@ -10,6 +10,7 @@ import { FaPeoplePulling } from "react-icons/fa6";
 import { FaCartPlus } from "react-icons/fa";
 import { BsFillGearFill, BsBrowserEdge } from "react-icons/bs";
 import { BiSupport } from "react-icons/bi";
+import { CgDanger } from "react-icons/cg";
 
 function Sidebar(props) {
   const [mail, setMail] = useState();
@@ -166,6 +167,16 @@ function Sidebar(props) {
             <BiSupport className="iconSidebar bg-black-gradient" /> Support
           </a>
         </li>
+
+        {/* <li className="sidebar-list-item">
+          <a
+            className="card-title"
+            href="https://wa.me/+2349169215343"
+            email={email}
+          >
+            <CgDanger className="iconSidebar " /> DANGER !!
+          </a>
+        </li> */}
       </ul>
     </aside>
   );

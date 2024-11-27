@@ -1137,8 +1137,35 @@ const haversineDistance = (lat1, lon1, lat2, lon2) => {
   return distance; // Return distance in kilometers
 };
 
+app.post("/api/subscribe", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Check if the email already exists in the database
+    const result = await pool.query(
+      "SELECT email FROM subscribers WHERE email = $1",
+      [email]
+    );
+
+    if (result.rows.length > 0) {
+      // If email already exists, return an error
+      return res.status(400).json({ message: "Already subscribed" });
+    }
+
+    // Insert the email into the subscribers table
+    await pool.query("INSERT INTO subscribers (email) VALUES ($1)", [email]);
+
+    // Respond with success
+    res.status(201).json({ message: "Subscription successful!" });
+  } catch (error) {
+    // Log the error and respond with an error message
+    console.error("Error in subscription process:", error.message);
+    res.status(500).json({ error: "Failed to subscribe. Please try again." });
+  }
+});
+
 app.post("/api/register", async (req, res) => {
-  const { email, password, fullname, upline } = req.body;
+  const { email, password, fullname, upline, subscribeToNewsletter } = req.body;
 
   try {
     const ip2 = req.ip;
@@ -1287,6 +1314,24 @@ RETURNING email;
       [newUserId, email, verificationCode]
     );
 
+    if (subscribeToNewsletter) {
+      console.log("Successfully ");
+
+      try {
+        // Use ON CONFLICT to avoid duplicates
+        await pool.query(
+          "INSERT INTO subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING",
+          [email]
+        );
+
+        console.log("Successfully subscribed to newsletter or already exists");
+      } catch (error) {
+        console.error("Error handling newsletter subscription:", error.message);
+        return res
+          .status(500)
+          .json({ message: "Failed to subscribe to newsletter." });
+      }
+    }
     const subject = "Welcome!! ";
     const text = `Welcome to Zikconnect`;
     const html = `<h1 style="color: #15b58e ; margin-left: 20% " >WELCOME  &#x1F389;  &#x1F389;</h1>
