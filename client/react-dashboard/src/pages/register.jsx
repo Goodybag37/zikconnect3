@@ -21,6 +21,8 @@ const Register = () => {
   const [loading, setLoading] = useState(false); // Add loading state
   const navigate = useNavigate();
   const location = useLocation();
+  const [newsletterSubscription, setNewsletterSubscription] = useState(true);
+
   const apiUrls = process.env.REACT_APP_API_URL;
   const apiUrl = "http://localhost:4000";
   const [cantBeChanged, setCantBeChanged] = useState(false);
@@ -77,6 +79,7 @@ const Register = () => {
       formData.append("password", password);
       formData.append("fullname", fullname);
       formData.append("upline", refferral);
+      formData.append("subscribeToNewsletter", newsletterSubscription);
 
       // Send the data
       const response = await axios.post(`${apiUrls}/api/register`, formData, {
@@ -208,6 +211,17 @@ const Register = () => {
             <li className={isValid.digit ? "valid" : ""}>At least one digit</li>
           </ul>
         )}
+        <div className=" ml-[-15px] mb-[30px] font-small">
+          <label htmlFor="subscribeNewsletter" className="">
+            <input
+              type="checkbox"
+              id="subscribeNewsletter"
+              defaultChecked={true} // Default state as checked
+              onChange={(e) => setNewsletterSubscription(e.target.checked)}
+            />
+            Get updates on recent events and products
+          </label>
+        </div>
         <button className="login-button " type="submit" disabled={loading}>
           {loading ? "Registering..." : "Register"}
         </button>
