@@ -2037,11 +2037,33 @@ select {
   font-weight: bolder;
 }
 
+.item-image {
+  display: block;
+  width: 200px;
+  height: auto;
+}
+
 .ticker-item {
   padding: 10px 20px;
   color: rgb(32, 30, 30);
   white-space: nowrap;
   font-size: 18px;
+}
+
+.video-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.circle-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 300px;
+  border: 2px solid red;
+  border-radius: 50%;
+  pointer-events: none; /* Prevent interaction with the overlay */
 }
 
 @keyframes ticker {

@@ -107,6 +107,16 @@ function Sidebar(props) {
         <li className="sidebar-list-item">
           <CustomLink
             className="card-title"
+            to={"/markets"}
+            userId={userId}
+            email={email}
+          >
+            <BsBrowserEdge className="iconSidebar bg-black-gradient" /> Market
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
             to={"/settings"}
             userId={userId}
             email={email}
