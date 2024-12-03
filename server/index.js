@@ -30,8 +30,10 @@ import https from "https"; // Required to create the server
 // import { Server } from "socket.io";
 import Bull from "bull";
 import Redis from "redis";
+import { markAsUntransferable } from "worker_threads";
 
 const app = express();
+
 // const server = http.createServer(app); // Create an HTTP server
 // const io = new Server(server, {
 //   cors: {
@@ -496,6 +498,9 @@ const __dirname = path.dirname(__filename);
 app.use(
   express.static(path.join(__dirname, "../client/react-dashboard/build"))
 );
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.use(bodyParser.urlencoded({ extended: true }));
 // app.use(fileUpload());
 
@@ -1495,6 +1500,106 @@ app.get("/api/buysellapi", async (req, res) => {
   }
 });
 
+app.get("/api/marketapi", async (req, res) => {
+  try {
+    const { search, page = 1, pageSize = 5 } = req.query;
+
+    let queryText = `
+      SELECT 
+        id, 
+        name, 
+        description, 
+        contact, 
+        fk_user_id, 
+        TO_CHAR(date, 'FMMonth DD, YYYY') AS formatted_date, 
+        price AS formatted_price, 
+        location, 
+        seller_name,
+        unique_name,
+        original_name,
+        status 
+      FROM market 
+      WHERE 1=1
+    `;
+
+    const queryParams = [];
+
+    // Add search condition if a search term is provided
+    if (search) {
+      queryText += ` AND (name ILIKE $1 OR description ILIKE $1 OR location ILIKE $1 OR seller_name ILIKE $1)`;
+      queryParams.push(`%${search}%`);
+    }
+
+    queryText += ` ORDER BY id DESC`;
+
+    const result = await pool.query(queryText, queryParams);
+    const markets = result.rows;
+
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = page * pageSize;
+
+    const paginatedMarkets = markets.slice(startIndex, endIndex);
+    const totalItems = markets.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    // Process each item to include the thumbnail URL
+    for (const item of paginatedMarkets) {
+      const { unique_name } = item;
+      let thumbnailUrl = ""; // Default empty thumbnail URL
+
+      if (unique_name) {
+        const uploadsDir = path.join(__dirname, "uploads");
+        const thumbnailsDir = path.join(uploadsDir, "thumbnails");
+        const originalFilePath = path.join(uploadsDir, unique_name);
+        const webpThumbnailPath = path.join(
+          thumbnailsDir,
+          `${unique_name.split(".")[0]}.webp`
+        );
+
+        // Ensure thumbnails directory exists
+        if (!fs.existsSync(thumbnailsDir)) {
+          fs.mkdirSync(thumbnailsDir);
+        }
+
+        // Check if WebP thumbnail already exists
+        if (
+          !fs.existsSync(webpThumbnailPath) &&
+          fs.existsSync(originalFilePath)
+        ) {
+          // Create WebP thumbnail
+          await sharp(originalFilePath)
+            .resize(150, 150) // Resize to 150x150 pixels
+            .toFormat("webp") // Convert to WebP format
+            .toFile(webpThumbnailPath);
+        }
+
+        // Set thumbnail URL if thumbnail exists
+        if (fs.existsSync(webpThumbnailPath)) {
+          thumbnailUrl = `/uploads/thumbnails/${
+            unique_name.split(".")[0]
+          }.webp`; // Correct WebP URL
+        }
+      }
+
+      // Attach the thumbnail URL to the item
+      item.thumbnailUrl = thumbnailUrl;
+    }
+
+    // Send the response
+    res.json({
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      markets: paginatedMarkets,
+      allResults: markets, // Optional: Includes all results without pagination
+    });
+  } catch (error) {
+    console.error("Error in /api/marketapi:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 app.get("/api/eventapi", async (req, res) => {
   try {
     const { search, page = 1, pageSize = 20 } = req.query;
@@ -1694,6 +1799,100 @@ app.get("/api/buysell/:id", async (req, res) => {
 //     res.status(500).send("Server error");
 //   }
 // });
+
+app.get("/api/market/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    // Query to get file metadata
+    const result = await pool.query(
+      "SELECT original_name, unique_name FROM market WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length > 0) {
+      const { original_name, unique_name } = result.rows[0];
+
+      if (!unique_name) {
+        // Return a 404 response indicating no image found for the item
+        return res.status(404).send("No image found for this item");
+      }
+
+      // Define the file path
+      const filePath = path.join(__dirname, "uploads", unique_name);
+
+      // Check if the file exists
+      if (fs.existsSync(filePath)) {
+        // Set the appropriate content type based on file extension
+        const ext = path.extname(original_name).toLowerCase();
+        let contentType = "application/octet-stream"; // Default for binary files
+
+        if (ext === ".png") contentType = "image/png";
+        else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+        else if (ext === ".webp") contentType = "image/webp";
+
+        res.setHeader("Content-Type", contentType);
+
+        // Pipe the file to the response
+        fs.createReadStream(filePath).pipe(res);
+      } else {
+        res.status(404).send("File not found");
+      }
+    } else {
+      res.status(404).send("Record not found");
+    }
+  } catch (error) {
+    console.error("Error fetching file:", error);
+    res.status(500).send("Server error");
+  }
+});
+
+app.get("/api/market-face/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    // Query to get file metadata
+    const result = await pool.query(
+      "SELECT  face_unique_name FROM market WHERE id = $1",
+      [id]
+    );
+
+    if (result.rows.length > 0) {
+      const { face_unique_name } = result.rows[0];
+
+      if (!face_unique_name) {
+        // Return a 404 response indicating no image found for the item
+        return res.status(404).send("No image found for this item");
+      }
+
+      // Define the file path
+      const filePath = path.join(__dirname, "uploads", face_unique_name);
+
+      fs.createReadStream(filePath).pipe(res);
+
+      // Check if the file exists
+      // if (fs.existsSync(filePath)) {
+      //   // Set the appropriate content type based on file extension
+      //   const ext = path.extname(original_name).toLowerCase();
+      //   let contentType = "application/octet-stream"; // Default for binary files
+
+      //   if (ext === ".png") contentType = "image/png";
+      //   else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+      //   else if (ext === ".webp") contentType = "image/webp";
+
+      //   res.setHeader("Content-Type", contentType);
+
+      //   // Pipe the file to the response
+      //
+      // } else {
+      //   res.status(404).send("File not found");
+      // }
+    } else {
+      res.status(404).send("Record not found");
+    }
+  } catch (error) {
+    console.error("Error fetching file:", error);
+    res.status(500).send("Server error");
+  }
+});
 
 app.get("/api/lodge/:id", async (req, res) => {
   const id = req.params.id;
@@ -2048,6 +2247,182 @@ app.post(
       );
 
       res.send("File uploaded successfully");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred");
+    }
+  }
+);
+
+app.post(
+  "/api/upload-brand",
+  upload.fields([{ name: "file" }, { name: "faceImage" }]), // Accept both main file and faceImage
+  async (req, res) => {
+    try {
+      const {
+        name,
+        description,
+        userbread,
+        price,
+        located,
+        longitude,
+        latitude,
+      } = req.body;
+
+      const emailer = await pool.query(
+        "SELECT email FROM people WHERE id = $1",
+        [userbread]
+      );
+      const email = emailer.rows[0].email;
+
+      const subject = "Request Approved";
+      const text = `Your request has been approved `;
+      const html = `
+        <h1 style="color: #15b58e ; margin-left: 20% " >CONGRATS !!! &#x1F389; </h1>
+                     <p> Dear Esteemed User,</p>
+                     <br> </br><p> Your request to upload your business has been approved !!&#x1F389; We are glad to have you on board as one of our partners helping Zikconnect to render 
+                     services to our beloved students &#x1F60A;. Welcome to the inner circle!!.&#x1F680; <p/> <br> </br>
+
+
+                      <h2 style = "font-family: Times New Roman ;  margin-left: 20% ; color: #15b58e"> Please Note !! </h2>
+                      <ul>   <li style = "font-size: 10px; font-family: Times New Roman"> You have a very sensitive profile. Keep it clean!!. </li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Your clients can rate, review and report you, 
+                      and this would be visible for other clients to see on your profile.</li>
+                      <li style = "font-size: 10px; font-family: Times New Roman"> Therefore you must treat every order with optimum efficiency 
+                      to keep a positive profile and give you a competing advantage against other agents </li>
+                       <li style = "font-size: 10px; font-family: Times New Roman"> When an order comes in, You have 10 minutes to accept or reject the order or it would be automatically
+                        be rejected after the time elapses. rejecting orders will reduce your completion rate
+                        which would give clients an inpression that you are unresponsive therefore stopping them from clicking your ad</li>
+                        <li style = "font-size: 10px; font-family: Times New Roman; color: red;"> A single report on your account with valid proof of
+                         fraudulent engagement will lead to permernent termination of your account/agent profile.  </li>
+                         <li> We also use sophisticated algorithms to store our agents identity, exact location and other sensitive details to protect our students therefore we can go further to involve security agencies if the scammed victim requests. </li>
+                         
+</ul>
+
+<br></br>
+
+ <strong> <p > Greedy people miss out on a long term fortune for a short term  rotten peanut </p> </strong>
+                     
+                     
+                     
+            `;
+
+      // Define email options
+      const mailOptions = {
+        from: "Zikconnect admin@zikconnect.com", // Sender address
+        // to: email,
+        // Recipient's email address
+        to: email,
+        subject: subject, // Subject line
+        text: text, // Plain text body
+        html: html, // HTML body
+      };
+
+      // Send email
+      const info = await transporter.sendMail(mailOptions);
+
+      console.log("req.body:", req.body);
+      console.log("req.files:", req.files);
+
+      if (!req.files || !req.files.file || !req.files.faceImage) {
+        console.error("Missing file or faceImage:", req.files);
+        return res.status(400).send("File or faceImage is missing");
+      }
+
+      // Retrieve uploaded files
+      const uploadedFile = req.files["file"]?.[0];
+      const faceImageFile = req.files["faceImage"]?.[0];
+
+      if (!uploadedFile || !faceImageFile) {
+        return res.status(400).send("Both file and faceImage are required");
+      }
+
+      const { originalname, filename, mimetype } = uploadedFile;
+      const faceUniqueName = faceImageFile.filename; // File name of faceImage
+
+      // Retrieve user settings
+      const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+      const settingsResult = await pool.query(settingsQuery, [userbread]);
+      const userSettings = settingsResult.rows[0]?.settings || {};
+
+      // Geolocation data
+      const response = await axios.get(
+        `https://api.opencagedata.com/geocode/v1/json`,
+        {
+          params: {
+            q: `${latitude},${longitude}`,
+            key: OPENCAGE_TOKEN,
+            pretty: 1,
+            no_annotations: 1,
+          },
+        }
+      );
+      const formatted = response.data.results[0]?.formatted || "";
+      const locationData = {
+        locationData: {
+          lat: latitude,
+          lon: longitude,
+          display_name: formatted,
+        },
+      };
+
+      const toggleStatusBuysell =
+        userSettings?.toggle_status?.buysell || "available";
+
+      let propertyStatus =
+        toggleStatusBuysell === "unavailable" ? "unavailable" : "available";
+
+      // Seller details
+      const sellerQuery = "SELECT full_name, phone FROM people WHERE id = $1";
+      const sellerResult = await pool.query(sellerQuery, [userbread]);
+      const sellerName = sellerResult.rows[0]?.full_name || "Unknown";
+      const sellerContact = sellerResult.rows[0]?.phone || "Unknown";
+
+      // Update user's account balance
+      await pool.query(
+        `
+        UPDATE people
+        SET 
+          settings = jsonb_set(
+            settings, 
+            '{account_balance}', 
+            to_jsonb((settings->>'account_balance')::int - 500)
+          ),
+          account_balance = account_balance - 500
+        WHERE 
+          id = $1;
+        `,
+        [userbread]
+      );
+
+      // Insert into buysell table
+      const insertQuery = `
+        INSERT INTO market 
+        (name, description, fk_user_id, price, location, seller_name, contact, original_name, unique_name, status, exact_location, face_unique_name)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `;
+      await pool.query(insertQuery, [
+        name,
+        description,
+        userbread,
+        price,
+        located,
+        sellerName,
+        sellerContact,
+        originalname,
+        filename,
+        propertyStatus,
+        locationData,
+        faceUniqueName, // Store only the file name of faceImage
+      ]);
+
+      // Update exact_location in buysell
+      await pool.query(
+        "UPDATE market SET exact_location = $1 WHERE fk_user_id = $2",
+        [locationData, userbread]
+      );
+
+      res.send("File and face data uploaded successfully");
     } catch (error) {
       console.error(error);
       res.status(500).send("An error occurred");
@@ -3865,7 +4240,7 @@ app.get("/api/agent-management", async (req, res) => {
 });
 
 app.get("/api/get-distance", async (req, res) => {
-  const { itemId, latitude, longitude } = req.query;
+  const { itemId, latitude, longitude, agentType } = req.query;
 
   try {
     let locationData = { lat: null, lon: null, display_name: null };
@@ -3908,46 +4283,53 @@ app.get("/api/get-distance", async (req, res) => {
       console.error("Nominatim API request failed:", error.message);
       // Optionally return a default response or an empty object
     }
+    if (
+      agentType == "buysell" ||
+      agentType == "event" ||
+      agentType == "market" ||
+      agentType == "lodge"
+    ) {
+      const agentLocation = await pool.query(
+        `SELECT exact_location FROM ${agentType} WHERE id = $1`,
+        [itemId]
+      );
 
-    const agentLocation = await pool.query(
-      `SELECT exact_location FROM buysell WHERE id = $1`,
-      [itemId]
-    );
+      if (agentLocation.rows.length === 0) {
+        throw new Error("Agent location not found in the database");
+      }
 
-    if (agentLocation.rows.length === 0) {
-      throw new Error("Agent location not found in the database");
+      const agentLatitude =
+        agentLocation.rows[0]?.exact_location?.locationData?.lat ?? 0;
+      const agentLongitude =
+        agentLocation.rows[0]?.exact_location?.locationData?.lon ?? 0;
+
+      const agentDisplayName =
+        agentLocation.rows[0]?.exact_location?.locationData?.display_name ??
+        null;
+
+      if (agentLatitude === 0 || agentLongitude === 0) {
+        throw new Error("Agent latitude or longitude is invalid");
+      }
+
+      const start = [locationData.lon, locationData.lat]; // Start point from OpenStreetMap response
+      const end = [agentLongitude, agentLatitude]; // End point from database
+
+      if (!start || !end) {
+        throw new Error("Start or end points for location are missing");
+      }
+
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?access_token=${MAPBOX_API_TOKEN}&geometries=geojson`;
+      const response2 = await axios.get(url);
+      const route = response2.data.routes[0];
+      const distance = Math.round(route.distance / 1000);
+      const duration = Math.round(route.duration / 60);
+
+      res.json({
+        distance: distance,
+        duration: duration,
+        display_name: agentDisplayName,
+      });
     }
-
-    const agentLatitude =
-      agentLocation.rows[0]?.exact_location?.locationData?.lat ?? 0;
-    const agentLongitude =
-      agentLocation.rows[0]?.exact_location?.locationData?.lon ?? 0;
-
-    const agentDisplayName =
-      agentLocation.rows[0]?.exact_location?.locationData?.display_name ?? null;
-
-    if (agentLatitude === 0 || agentLongitude === 0) {
-      throw new Error("Agent latitude or longitude is invalid");
-    }
-
-    const start = [locationData.lon, locationData.lat]; // Start point from OpenStreetMap response
-    const end = [agentLongitude, agentLatitude]; // End point from database
-
-    if (!start || !end) {
-      throw new Error("Start or end points for location are missing");
-    }
-
-    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[0]},${start[1]};${end[0]},${end[1]}?access_token=${MAPBOX_API_TOKEN}&geometries=geojson`;
-    const response2 = await axios.get(url);
-    const route = response2.data.routes[0];
-    const distance = Math.round(route.distance / 1000);
-    const duration = Math.round(route.duration / 60);
-
-    res.json({
-      distance: distance,
-      duration: duration,
-      display_name: agentDisplayName,
-    });
   } catch (error) {
     console.error("Error in get-distance route:", error.message);
     // Respond with an empty object or a default response
@@ -4052,7 +4434,8 @@ app.post("/api/send-connect-email", async (req, res) => {
     if (
       agentType == "buysell" ||
       agentType == "lodge" ||
-      agentType == "event"
+      agentType == "event" ||
+      agentType == "market"
     ) {
       const status = "available";
       // SQL query to remove the NOT NULL constraint from a column
@@ -4092,7 +4475,7 @@ app.post("/api/send-connect-email", async (req, res) => {
       // } // 30 minutes delay
 
       agentLocation = await pool.query(
-        `SELECT exact_location FROM buysell WHERE id = $1`,
+        `SELECT exact_location FROM ${agentType} WHERE id = $1`,
         [agentId]
       );
     } else {
@@ -4288,6 +4671,7 @@ app.post("/api/send-connect-email", async (req, res) => {
     if (
       agentType == "buysell" ||
       agentType == "event" ||
+      agentType == "market" ||
       agentType == "lodge"
     ) {
       result = await pool.query(
@@ -4338,6 +4722,7 @@ app.post("/api/send-connect-email", async (req, res) => {
     if (
       agentType == "buysell" ||
       agentType == "event" ||
+      agentType == "market" ||
       agentType == "lodge"
     ) {
       subject = "New Order";

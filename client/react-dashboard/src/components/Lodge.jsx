@@ -366,10 +366,11 @@ function YourComponent() {
       let distance = null;
       let duration = null;
       let display_name = null;
+      const agentType = "lodge";
       if (locationM === undefined || locationM === null) {
         try {
           const response = await axios.get(
-            `${apiUrls}/api/get-distance?itemId=${agentId}&latitude=${latitude}&longitude=${longitude}`
+            `${apiUrls}/api/get-distance?itemId=${agentId}&latitude=${latitude}&longitude=${longitude}&agentType=${agentType}`
           );
           distance = response.data.distance;
           duration = response.data.duration;

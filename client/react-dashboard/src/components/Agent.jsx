@@ -52,6 +52,7 @@ function Agent(props) {
     buysell: 0,
     lodge: 0,
     event: 0,
+    market: 0,
   });
   const apiUrls = process.env.REACT_APP_API_URL;
 
@@ -204,6 +205,29 @@ function Agent(props) {
             tickets at a go.
           </p>
           <h4 className="text-gradient">{totalAgents.event} sold tickets</h4>
+        </div>
+        <div
+          className="card cursor-pointer"
+          onClick={() => navigateTo("/markets")}
+        >
+          <div className="card-inner">
+            <h3 className="agent-icon text-gradient">
+              <BsFillCollectionFill className="card_icon" />
+              <CustomLink
+                className="card-title"
+                to={"/markets"}
+                userId={userId}
+                email={email}
+              >
+                Zik Market
+              </CustomLink>
+            </h3>
+          </div>
+          <p>
+            Market your business especially those that do not fall under the
+            other categories
+          </p>
+          <h4 className="text-gradient">{totalAgents.market} Orders</h4>
         </div>
 
         <div

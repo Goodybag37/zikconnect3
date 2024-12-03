@@ -4,6 +4,7 @@ import Agents from "../pages/Agents";
 import Home from "../pages/Home";
 import Roommates from "../pages/Roommates";
 import BuysellsPage from "../pages/Buysells";
+import Markets from "../pages/Markets3";
 
 import Foods from "../pages/Foods";
 import Repairs from "../pages/Repairs";
@@ -23,6 +24,7 @@ import VerifyEmail from "../pages/VerifyEmail";
 import VerifyId from "../pages/VerifyId";
 import ProtectedRoutes from "./ProtectedRoutes";
 import UploadProperty from "../pages/UploadProperty";
+import UploadBrand from "../pages/UploadBrand";
 import UploadLodge from "../pages/UploadLodge";
 import UploadEvent from "../pages/UploadEvent";
 import FundAccount from "../pages/FundAccount";
@@ -31,6 +33,9 @@ import ChangePassword from "../pages/ChangePassword";
 import AgentManagement from "../pages/AgentManagement";
 import WithdrawFunds from "../pages/WithdrawFunds";
 import Settings from "../pages/Settings";
+import FaceCapture from "./FaceCapture";
+import ThankYou from "./ThankYou";
+
 function App() {
   const [openSidebarToggle, setOpenSidebarToggle] = useState(false);
   const OpenSidebar = () => {
@@ -79,7 +84,10 @@ function App() {
           <Route path="/uploadlodge" element={<UploadLodge />} />
           <Route path="/uploadproperty" element={<UploadProperty />} />
           <Route path="/uploadevent" element={<UploadEvent />} />
+          <Route path="/uploadbrand" element={<UploadBrand />} />
           <Route path="/changepassword" element={<ChangePassword />} />
+          <Route path="/capture-face" element={<FaceCapture />} />
+          <Route path="/thank-you" element={<ThankYou />} />
         </Route>
 
         <Route path="/verifyphone" element={<VerifyPhone />} />
@@ -101,6 +109,7 @@ function App() {
 
           <Route path="/settings" element={<Settings />} />
           <Route path="/buysells" element={<BuysellsPage />} />
+          <Route path="/markets" element={<Markets />} />
           <Route path="/roommates" element={<Roommates />} />
           <Route path="/foods" element={<Foods />} />
           <Route path="/repairs" element={<Repairs />} />

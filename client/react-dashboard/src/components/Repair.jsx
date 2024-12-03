@@ -251,6 +251,24 @@ function YourComponent() {
                 <p className="popup-paragraph">
                   You have a pending connect from agent{agent}. The order will
                   expire in{" "}
+                  <div className="chat-call-buttons">
+                    <a
+                      href={`https://wa.me/${contact.replace(/[\s+]/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <button className="bg-blue-gradient roommate-button  connect-accept-button-chat">
+                        <LogoWhatsapp className="connect_icon" />
+                        Chat
+                      </button>
+                    </a>
+                    <a href={`tel:${contact}`}>
+                      <button className="bg-blue-gradient roommate-button connect-accept-button">
+                        <BisPhoneCall className="connect_icon" />
+                        Call
+                      </button>
+                    </a>
+                  </div>
                   <CountdownTimer
                     endTime={endTime}
                     onEnd={() => {
@@ -1182,8 +1200,7 @@ function YourComponent() {
 
     const selectedAgent = repairagents.find((agent) => agent.id === agentId);
     setSelectedAgent(selectedAgent);
-    const selected = selectedAgent.contact;
-    console.log(selected);
+    const contact = selectedAgent.contact;
 
     const endTime = new Date(new Date().getTime() + 10 * 60 * 1000);
     localStorage.setItem("countdownEndTime", endTime.toISOString());
@@ -1206,6 +1223,25 @@ function YourComponent() {
             </p>
           </>
         )}
+
+        <div className="chat-call-buttons">
+          <a
+            href={`https://wa.me/${contact.replace(/[\s+]/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <button className="bg-blue-gradient roommate-button  connect-accept-button-chat">
+              <LogoWhatsapp className="connect_icon" />
+              Chat
+            </button>
+          </a>
+          <a href={`tel:${contact}`}>
+            <button className="bg-blue-gradient roommate-button connect-accept-button">
+              <BisPhoneCall className="connect_icon" />
+              Call
+            </button>
+          </a>
+        </div>
         <CountdownTimer
           endTime={endTime}
           onEnd={() => {
