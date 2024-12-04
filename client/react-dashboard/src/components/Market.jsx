@@ -149,7 +149,7 @@ function YourComponent() {
       const updatedMarkets = newMarkets.map((market) => ({
         ...market,
         thumbnailUrl: market.thumbnailUrl
-          ? `${apiUrl}${market.thumbnailUrl}`
+          ? `${apiUrls}${market.thumbnailUrl}`
           : null,
       }));
       setmarkets(updatedMarkets);
