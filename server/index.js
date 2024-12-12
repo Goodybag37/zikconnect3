@@ -3052,7 +3052,7 @@ app.post("/api/delete-upload/:id", async (req, res) => {
   const { id } = req.params;
   const { type } = req.query;
 
-  const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
+  const validTypes = ["buysell", "event", "lodge", "roommates", "market"]; // Add valid table names
   if (!validTypes.includes(type)) {
     return res.status(400).send({ error: "Invalid type parameter" });
   }
@@ -3118,7 +3118,7 @@ app.post("/api/update-status/:type", async (req, res) => {
   const { type } = req.params;
 
   try {
-    const validTypes = ["buysell", "event", "lodge", "roommates"]; // Add valid table names
+    const validTypes = ["buysell", "event", "lodge", "roommates", "market"]; // Add valid table names
     if (!validTypes.includes(type)) {
       return res.status(400).send({ error: "Invalid type parameter" });
     }
