@@ -146,7 +146,14 @@ function YourComponent() {
       console.log(response);
       const { buysells: newBuysells, totalPages: newTotalPages } =
         response.data;
-      setbuysells(newBuysells);
+
+      const updatedBuysells = newBuysells.map((buysell) => ({
+        ...buysell,
+        thumbnailUrl: buysell.thumbnailUrl
+          ? `${apiUrls}${buysell.thumbnailUrl}`
+          : null,
+      }));
+      setbuysells(updatedBuysells);
 
       await fetchSettingStatus(userbread); // Only if fetchSettingStatus is async
 
@@ -1069,6 +1076,17 @@ function YourComponent() {
                       </p>
                     </div>
                     <p className="profile-body">
+                      {buysell.thumbnailUrl ? (
+                        <img
+                          src={buysell.thumbnailUrl}
+                          alt={buysell.name}
+                          className="item-image"
+                        />
+                      ) : (
+                        <div className="placeholder-image">
+                          No Image Available
+                        </div>
+                      )}
                       {buysell.status == "order"
                         ? "In order.."
                         : buysell.description}{" "}

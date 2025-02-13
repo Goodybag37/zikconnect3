@@ -1460,6 +1460,7 @@ app.get("/api/buysellapi", async (req, res) => {
         price AS formatted_price, 
         location, 
         seller_name,
+         unique_name,
         original_name,
         status 
       FROM buysell 
@@ -1485,6 +1486,48 @@ app.get("/api/buysellapi", async (req, res) => {
     const paginatedRoommates = buysells.slice(startIndex, endIndex);
     const totalItems = buysells.length;
     const totalPages = Math.ceil(totalItems / pageSize);
+
+    for (const item of paginatedRoommates) {
+      const { unique_name } = item;
+      let thumbnailUrl = ""; // Default empty thumbnail URL
+
+      if (unique_name) {
+        const uploadsDir = path.join(__dirname, "uploads");
+        const thumbnailsDir = path.join(uploadsDir, "thumbnails");
+        const originalFilePath = path.join(uploadsDir, unique_name);
+        const webpThumbnailPath = path.join(
+          thumbnailsDir,
+          `${unique_name.split(".")[0]}.webp`
+        );
+
+        // Ensure thumbnails directory exists
+        if (!fs.existsSync(thumbnailsDir)) {
+          fs.mkdirSync(thumbnailsDir);
+        }
+
+        // Check if WebP thumbnail already exists
+        if (
+          !fs.existsSync(webpThumbnailPath) &&
+          fs.existsSync(originalFilePath)
+        ) {
+          // Create WebP thumbnail
+          await sharp(originalFilePath)
+            .resize(150, 150) // Resize to 150x150 pixels
+            .toFormat("webp") // Convert to WebP format
+            .toFile(webpThumbnailPath);
+        }
+
+        // Set thumbnail URL if thumbnail exists
+        if (fs.existsSync(webpThumbnailPath)) {
+          thumbnailUrl = `/uploads/thumbnails/${
+            unique_name.split(".")[0]
+          }.webp`; // Correct WebP URL
+        }
+      }
+
+      // Attach the thumbnail URL to the item
+      item.thumbnailUrl = thumbnailUrl;
+    }
 
     res.json({
       page,
