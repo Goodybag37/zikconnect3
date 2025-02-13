@@ -159,28 +159,62 @@ function UploadBrand() {
     }
   };
 
+  // Prepare the data in x-www-form-urlencoded format
+  // const formData = new FormData();
+  // formData.append("user", userbread);
+  // formData.append("located", located);
+  // formData.append("description", description);
+  // formData.append("name", name);
+  // formData.append("price", price);
+  // formData.append("longitude", locationM.longitude);
+  // formData.append("latitude", locationM.latitude);
+
+  // if (selectedFile) {
+  //   formData.append("file", selectedFile); // Ensure selectedFile is a File object
+  // } else {
+  //   throw new Error("No file selected");
+  // }
+
+  // // Send the data
+  // const response = await axios.post(
+  //   `${apiUrls}/api/upload-property`,
+  //   formData
+  //   // {
+  //   //   headers: { "Content-Type": "multipart/form-data" },
+  //   // }
+  // );
+
+  // // Get the redirect path from the URL parameters
+  // const redirectPath =
+  //   new URLSearchParams(location.search).get("redirect") || "/buysells";
+
+  // // Navigate to the original destination or a default page
+  // navigate(redirectPath);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (loading) return; // Prevent multiple submissions
+
     setError("");
     setLoading(true);
 
     try {
-      // Check account balance
+      // Fetch account balance
       const balanceResponse = await axios.get(
         `${apiUrls}/api/get-account-balance?userId=${userbread}`
       );
       const accountBalance = balanceResponse.data.account_balance;
 
       if (accountBalance == null) {
-        console.error("Error: account_balance is undefined.");
         setError("Unable to retrieve account balance. Please try again.");
         setLoading(false);
         return;
       }
 
-      console.log("Account balance is", accountBalance);
       if (accountBalance < 500) {
-        const content5 = (
+        setShowModal(true);
+        setModalContent(
           <>
             <div className="verifyPopup">
               <h2 className="popupHeading inline">Low Balance</h2>
@@ -201,54 +235,9 @@ function UploadBrand() {
             </Link>
           </>
         );
-
-        setShowModal(true);
-        setModalContent(content5);
         setLoading(false);
         return;
       }
-    } catch (error) {
-      console.error("Error fetching account balance:", error);
-      setError("Failed to fetch account balance. Please try again.");
-      setLoading(false);
-      return;
-    }
-
-    // console.log(`Submitting email: ${email}`); // Debugging line
-    // console.log(`Submitting password: ${password}`); // Debugging line
-
-    try {
-      // Prepare the data in x-www-form-urlencoded format
-      // const formData = new FormData();
-      // formData.append("user", userbread);
-      // formData.append("located", located);
-      // formData.append("description", description);
-      // formData.append("name", name);
-      // formData.append("price", price);
-      // formData.append("longitude", locationM.longitude);
-      // formData.append("latitude", locationM.latitude);
-
-      // if (selectedFile) {
-      //   formData.append("file", selectedFile); // Ensure selectedFile is a File object
-      // } else {
-      //   throw new Error("No file selected");
-      // }
-
-      // // Send the data
-      // const response = await axios.post(
-      //   `${apiUrls}/api/upload-property`,
-      //   formData
-      //   // {
-      //   //   headers: { "Content-Type": "multipart/form-data" },
-      //   // }
-      // );
-
-      // // Get the redirect path from the URL parameters
-      // const redirectPath =
-      //   new URLSearchParams(location.search).get("redirect") || "/buysells";
-
-      // // Navigate to the original destination or a default page
-      // navigate(redirectPath);
 
       const formData = {
         userbread,
@@ -261,14 +250,11 @@ function UploadBrand() {
         selectedFile,
       };
 
+      setLoading(false); // Ensure loading state resets
       navigate("/capture-face", { state: formData });
     } catch (error) {
-      if (error.response) {
-        setError(error.response.data.message);
-      } else {
-        setError("An unexpected error occurred. Please try again.");
-      }
-    } finally {
+      console.error("Error fetching account balance:", error);
+      setError("Failed to fetch account balance. Please try again.");
       setLoading(false);
     }
   };

@@ -625,7 +625,7 @@ function YourComponent() {
                     <a href={`tel:${messages.sender_phone}`}>
                       <button
                         className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                        disabled={isExpired2}
+                        // disabled={isExpired2}
                       >
                         <BsPatchCheckFill className="connect_icon" />
                         Call
@@ -634,7 +634,7 @@ function YourComponent() {
                     <a href={`https://wa.me/${messages.sender_phone}`}>
                       <button
                         className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                        disabled={isExpired2}
+                        // disabled={isExpired2}
                       >
                         <BsXOctagonFill className="connect_icon" />
                         Chat
@@ -711,7 +711,7 @@ function YourComponent() {
                             <a href={`tel:${messages.agent_phone}`}>
                               <button
                                 className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                                disabled={isExpired2 || !isExpired}
+                                // disabled={isExpired2 || !isExpired}
                               >
                                 <BsPatchCheckFill className="connect_icon" />
                                 Call
@@ -721,7 +721,7 @@ function YourComponent() {
                             <a href={`https://wa.me/${messages.agent_phone}`}>
                               <button
                                 className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                                disabled={isExpired2 || !isExpired}
+                                // disabled={isExpired2 || !isExpired}
                               >
                                 <BsXOctagonFill className="connect_icon" />
                                 Chat
@@ -745,7 +745,7 @@ function YourComponent() {
                             <a href={`tel:${messages.agent_phone}`}>
                               <button
                                 className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                                disabled={isExpired2 || !isExpired}
+                                // disabled={isExpired2 || !isExpired}
                               >
                                 <BsPatchCheckFill className="connect_icon" />
                                 Call
@@ -756,7 +756,7 @@ function YourComponent() {
                             >
                               <button
                                 className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                                disabled={isExpired2 || !isExpired}
+                                // disabled={isExpired2 || !isExpired}
                               >
                                 <BsXOctagonFill className="connect_icon" />
                                 Chat
