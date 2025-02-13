@@ -14,6 +14,7 @@ const FaceCapture = () => {
   const userbread =
     user?.userId || JSON.parse(localStorage.getItem("user"))?.userId; // Optional chaining to avoid errors if user is null
   const emailbread = user.email;
+  const [loading, setLoading] = useState(false);
 
   const apiUrl = "http://localhost:4000";
   const apiUrls = process.env.REACT_APP_API_URL;
@@ -66,7 +67,18 @@ const FaceCapture = () => {
     }
   };
 
+  const stopVideoStream = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+
   const handleCaptureSubmit = async () => {
+    if (loading) return; // Prevent multiple submissions
+    setLoading(true);
+
     if (!capturedImage) {
       alert("Please capture your face before submitting.");
       return;
@@ -99,6 +111,7 @@ const FaceCapture = () => {
       }
 
       await axios.post(`${apiUrls}/api/upload-brand`, completeFormData);
+      stopVideoStream();
 
       navigate("/thank-you");
     } catch (error) {
@@ -174,9 +187,11 @@ const FaceCapture = () => {
       <button
         onClick={handleCaptureSubmit}
         className="submit-button bg-blue-gradient roommate-button"
+        disabled={loading}
       >
-        Submit Form
+        {loading ? "Submitting..." : "Submit"}
       </button>
+
       <canvas ref={canvasRef} style={{ display: "none" }} />
     </div>
   );
