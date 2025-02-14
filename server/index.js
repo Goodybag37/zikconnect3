@@ -1475,7 +1475,14 @@ app.get("/api/buysellapi", async (req, res) => {
       queryParams.push(`%${search}%`);
     }
 
-    queryText += `ORDER BY id DESC`;
+    queryText += ` ORDER BY RANDOM() LIMIT $${queryParams.length + 1} OFFSET $${
+      queryParams.length + 2
+    };`;
+
+    // Pagination
+    const limit = parseInt(pageSize, 10) || 5;
+    const offset = (parseInt(page, 10) - 1) * limit;
+    queryParams.push(limit, offset);
 
     const result = await pool.query(queryText, queryParams);
     const buysells = result.rows;
@@ -1563,6 +1570,8 @@ app.get("/api/marketapi", async (req, res) => {
         status 
       FROM market 
       WHERE 1=1
+
+      
     `;
 
     const queryParams = [];
@@ -1573,7 +1582,14 @@ app.get("/api/marketapi", async (req, res) => {
       queryParams.push(`%${search}%`);
     }
 
-    queryText += ` ORDER BY id DESC`;
+    queryText += ` ORDER BY RANDOM() LIMIT $${queryParams.length + 1} OFFSET $${
+      queryParams.length + 2
+    };`;
+
+    // Pagination
+    const limit = parseInt(pageSize, 10) || 5;
+    const offset = (parseInt(page, 10) - 1) * limit;
+    queryParams.push(limit, offset);
 
     const result = await pool.query(queryText, queryParams);
     const markets = result.rows;

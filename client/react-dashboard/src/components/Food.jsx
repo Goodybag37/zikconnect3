@@ -963,7 +963,8 @@ function YourComponent() {
         <h2 className=" text-gradient popup-heading">Connect Request</h2>
         <p className="popup-paragraph">
           You have made a new connect. The agent will have 10 minutes to
-          respond. Please wait for their confirmation.
+          respond. Please chat or call the agent immediately to place your
+          order.
         </p>
         <h4 className="popup-heading">Details</h4>
         <p className="popup-paragraph">Order Number: {newCode}</p>
@@ -973,6 +974,28 @@ function YourComponent() {
             <p className="popup-paragraph">
               Agent Full Name: {selectedAgent.name}
             </p>
+
+            <div className="chat-call-buttons">
+              <a
+                href={`https://wa.me/${selectedAgent.contact.replace(
+                  /[\s+]/g,
+                  ""
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <button className="bg-blue-gradient roommate-button">
+                  <LogoWhatsapp className="connect_icon" />
+                  Chat
+                </button>
+              </a>
+              <a href={`tel:${selectedAgent.contact}`}>
+                <button className="bg-blue-gradient roommate-button">
+                  <BisPhoneCall className="connect_icon" />
+                  Call
+                </button>
+              </a>
+            </div>
           </>
         )}
         <CountdownTimer
