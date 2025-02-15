@@ -36,6 +36,9 @@ function YourComponent() {
   const [userIn, setUserIn] = useState("");
   const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [isPopupVisible2, setIsPopupVisible2] = useState(false);
+  const [isPopupVisible3, setIsPopupVisible3] = useState(false);
+  const [declined, setDeclined] = useState();
+  const [accepted, setAccepted] = useState();
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({
     name: "",
@@ -112,6 +115,7 @@ function YourComponent() {
         { messageId, decision },
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
+      setIsPopupVisible3(false);
     } catch (error) {
       console.error("Error confirming connect:", error);
     }
@@ -127,6 +131,7 @@ function YourComponent() {
       setMessages((prevMessages) =>
         prevMessages.filter((msg) => msg.id !== messageId)
       );
+      setIsPopupVisible2(false);
     } catch (error) {
       console.error("Error rejecting connect:", error);
     }
@@ -197,7 +202,11 @@ function YourComponent() {
                 <strong>DESCRIPTION:</strong> {messages.description}
                 <hr />
                 <button
-                  onClick={() => approveAgent(messages.id)}
+                  onClick={() => {
+                    setApproved(messages.id);
+                    setIsPopupVisible3(true);
+                    // declineAgent(messages.id)}}
+                  }}
                   className="bg-blue-gradient roommate-button connect-accept-button-chat"
                   disabled={isAccepted}
                 >
@@ -205,7 +214,11 @@ function YourComponent() {
                   Approve
                 </button>
                 <button
-                  onClick={() => declineAgent(messages.id)}
+                  onClick={() => {
+                    setDeclined(messages.id);
+                    setIsPopupVisible2(true);
+                    // declineAgent(messages.id)}}
+                  }}
                   className="bg-blue-gradient roommate-button connect-accept-button"
                 >
                   <BsXOctagonFill className="connect_icon" />
@@ -256,6 +269,55 @@ function YourComponent() {
           </div>
         )}
       </div>
+      {isPopupVisible2 && (
+        <Popup
+          header="Decline Agent"
+          message="Are you sure you want to decline this agent?"
+          buttons={[
+            {
+              label: (
+                <>
+                  <BsPatchCheckFill className="connect_icon" /> Confirm
+                </>
+              ),
+              onClick: () => declineAgent(declined), // Fix: Wrap in an arrow function
+            },
+            {
+              label: (
+                <>
+                  <BsXOctagonFill className="connect_icon" /> Cancel
+                </>
+              ),
+              onClick: () => setIsPopupVisible2(false), // Fix: Wrap in an arrow function
+            },
+          ]}
+        />
+      )}
+
+      {isPopupVisible3 && (
+        <Popup
+          header="Approve Agent"
+          message="Are you sure you want to approve this agent? "
+          buttons={[
+            {
+              label: (
+                <>
+                  <BsPatchCheckFill className="connect_icon" /> Confirm
+                </>
+              ),
+              onClick: () => approveAgent(approved),
+            },
+            {
+              label: (
+                <>
+                  <BsXOctagonFill className="connect_icon" /> Cancel
+                </>
+              ),
+              onClick: () => setIsPopupVisible2(false),
+            },
+          ]}
+        />
+      )}
 
       {isPopupVisible && (
         <Popup onClose={cancelDelete} onConfirm={handleDeleteItem} />
