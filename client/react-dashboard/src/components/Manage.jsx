@@ -110,7 +110,7 @@ function YourComponent() {
 
   const approveAgent = async (messageId, orderId) => {
     const decision = "approved";
-    setConfirming(true);
+
     try {
       await axios.post(
         `${apiUrls}/api/respond-to-agent`,
@@ -126,7 +126,7 @@ function YourComponent() {
 
   const declineAgent = async (messageId) => {
     const decision = "declined";
-    setConfirming(true);
+
     try {
       await axios.post(`${apiUrls}/api/respond-to-agent`, {
         messageId,
@@ -296,7 +296,10 @@ function YourComponent() {
                   {confirming ? "Confirming..." : "Confirm"}
                 </>
               ),
-              onClick: () => declineAgent(declined), // Fix: Wrap in an arrow function
+              onClick: () => {
+                setConfirming(true);
+                declineAgent(declined);
+              }, // Fix: Wrap in an arrow function
             },
             {
               label: (
@@ -321,7 +324,10 @@ function YourComponent() {
                   <BsPatchCheckFill className="connect_icon" /> Confirm
                 </>
               ),
-              onClick: () => approveAgent(approved),
+              onClick: () => {
+                setConfirming(true);
+                approveAgent(approved);
+              },
             },
             {
               label: (
