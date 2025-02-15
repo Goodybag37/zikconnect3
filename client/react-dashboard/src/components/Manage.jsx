@@ -38,7 +38,8 @@ function YourComponent() {
   const [isPopupVisible2, setIsPopupVisible2] = useState(false);
   const [isPopupVisible3, setIsPopupVisible3] = useState(false);
   const [declined, setDeclined] = useState();
-  const [accepted, setAccepted] = useState();
+  const [approved, setApproved] = useState();
+  const [confirming, setConfirming] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({
     name: "",
@@ -109,6 +110,7 @@ function YourComponent() {
 
   const approveAgent = async (messageId, orderId) => {
     const decision = "approved";
+    setConfirming(true);
     try {
       await axios.post(
         `${apiUrls}/api/respond-to-agent`,
@@ -116,6 +118,7 @@ function YourComponent() {
         { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
       );
       setIsPopupVisible3(false);
+      setConfirming(false);
     } catch (error) {
       console.error("Error confirming connect:", error);
     }
@@ -123,6 +126,7 @@ function YourComponent() {
 
   const declineAgent = async (messageId) => {
     const decision = "declined";
+    setConfirming(true);
     try {
       await axios.post(`${apiUrls}/api/respond-to-agent`, {
         messageId,
@@ -132,6 +136,7 @@ function YourComponent() {
         prevMessages.filter((msg) => msg.id !== messageId)
       );
       setIsPopupVisible2(false);
+      setConfirming(false);
     } catch (error) {
       console.error("Error rejecting connect:", error);
     }
@@ -205,10 +210,15 @@ function YourComponent() {
                   onClick={() => {
                     setApproved(messages.id);
                     setIsPopupVisible3(true);
+
                     // declineAgent(messages.id)}}
                   }}
                   className="bg-blue-gradient roommate-button connect-accept-button-chat"
-                  disabled={isAccepted}
+                  disabled={
+                    !messages.status ||
+                    messages.status === "approved" ||
+                    messages.status === "declined"
+                  }
                 >
                   <BsPatchCheckFill className="connect_icon" />
                   Approve
@@ -220,6 +230,11 @@ function YourComponent() {
                     // declineAgent(messages.id)}}
                   }}
                   className="bg-blue-gradient roommate-button connect-accept-button"
+                  disabled={
+                    !messages.status ||
+                    messages.status === "approved" ||
+                    messages.status === "declined"
+                  }
                 >
                   <BsXOctagonFill className="connect_icon" />
                   Decline
@@ -277,7 +292,8 @@ function YourComponent() {
             {
               label: (
                 <>
-                  <BsPatchCheckFill className="connect_icon" /> Confirm
+                  <BsPatchCheckFill className="connect_icon" />{" "}
+                  {confirming ? "Confirming..." : "Confirm"}
                 </>
               ),
               onClick: () => declineAgent(declined), // Fix: Wrap in an arrow function
@@ -313,7 +329,7 @@ function YourComponent() {
                   <BsXOctagonFill className="connect_icon" /> Cancel
                 </>
               ),
-              onClick: () => setIsPopupVisible2(false),
+              onClick: () => setIsPopupVisible3(false),
             },
           ]}
         />
