@@ -293,7 +293,7 @@ function YourComponent() {
               label: (
                 <>
                   <BsPatchCheckFill className="connect_icon" />{" "}
-                  {confirming ? "Confirming..." : "Confirm"}
+                  {confirming ? "Declined" : "Confirm"}
                 </>
               ),
               onClick: () => {
@@ -321,7 +321,8 @@ function YourComponent() {
             {
               label: (
                 <>
-                  <BsPatchCheckFill className="connect_icon" /> Confirm
+                  <BsPatchCheckFill className="connect_icon" />{" "}
+                  {confirming ? "Approved" : "Confirm"}
                 </>
               ),
               onClick: () => {
