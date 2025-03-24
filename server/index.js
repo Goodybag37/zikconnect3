@@ -1447,7 +1447,7 @@ app.get("/api/roommates/:id", async (req, res) => {
 
 app.get("/api/buysellapi", async (req, res) => {
   try {
-    const { search, page = 1, pageSize = 5 } = req.query;
+    const { search, page = 1, pageSize = 20 } = req.query;
 
     let queryText = `
       SELECT 
@@ -1467,22 +1467,44 @@ app.get("/api/buysellapi", async (req, res) => {
     WHERE status IN ('available', 'order', 'unavailable')
     `;
 
+    // const queryParams = [];
+    // let paramIndex = 1; // Keep track of parameter index for SQL placeholders
+
+    // // Add search filter if provided
+    // if (search) {
+    //   queryText += ` AND (name ILIKE $${paramIndex} OR description ILIKE $${paramIndex} OR location ILIKE $${paramIndex} OR seller_name ILIKE $${paramIndex})`;
+    //   queryParams.push(`%${search}%`);
+    //   paramIndex++;
+    // }
+
+    // // Order by date
+    // queryText += " ORDER BY date DESC";
+
+    // // Pagination (PostgreSQL-based)
+    // const limit = parseInt(pageSize, 10) || 5;
+    // const offset = (parseInt(page, 10) - 1) * limit;
+    // queryText += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    // queryParams.push(limit, offset);
+
+    // const result = await pool.query(queryText, queryParams);
+    // const buysells = result.rows;
+
+    // const startIndex = (page - 1) * pageSize;
+    // const endIndex = page * pageSize;
+
+    // const paginatedRoommates = buysells.slice(startIndex, endIndex);
+    // const totalItems = buysells.length;
+    // const totalPages = Math.ceil(totalItems / pageSize);
+
     const queryParams = [];
 
     // Add search condition if a search term is provided
     if (search) {
-      queryText += ` AND (name ILIKE $1 OR description ILIKE $1 OR location ILIKE $1 OR seller_name ILIKE $1)`;
+      queryText += `AND (name ILIKE $1 OR description ILIKE $1 OR location ILIKE $1 OR seller_name ILIKE $1)`;
       queryParams.push(`%${search}%`);
     }
 
-    queryText += ` ORDER BY RANDOM() LIMIT $${queryParams.length + 1} OFFSET $${
-      queryParams.length + 2
-    };`;
-
-    // Pagination
-    const limit = parseInt(pageSize, 10) || 5;
-    const offset = (parseInt(page, 10) - 1) * limit;
-    queryParams.push(limit, offset);
+    queryText += `ORDER BY id DESC`;
 
     const result = await pool.query(queryText, queryParams);
     const buysells = result.rows;
@@ -1552,7 +1574,7 @@ app.get("/api/buysellapi", async (req, res) => {
 
 app.get("/api/marketapi", async (req, res) => {
   try {
-    const { search, page = 1, pageSize = 5 } = req.query;
+    const { search, page = 1, pageSize = 20 } = req.query;
 
     let queryText = `
       SELECT 
@@ -1578,18 +1600,11 @@ app.get("/api/marketapi", async (req, res) => {
 
     // Add search condition if a search term is provided
     if (search) {
-      queryText += ` AND (name ILIKE $1 OR description ILIKE $1 OR location ILIKE $1 OR seller_name ILIKE $1)`;
+      queryText += `AND (name ILIKE $1 OR description ILIKE $1 OR location ILIKE $1 OR seller_name ILIKE $1)`;
       queryParams.push(`%${search}%`);
     }
 
-    queryText += ` ORDER BY RANDOM() LIMIT $${queryParams.length + 1} OFFSET $${
-      queryParams.length + 2
-    };`;
-
-    // Pagination
-    const limit = parseInt(pageSize, 10) || 5;
-    const offset = (parseInt(page, 10) - 1) * limit;
-    queryParams.push(limit, offset);
+    queryText += `ORDER BY id DESC`;
 
     const result = await pool.query(queryText, queryParams);
     const markets = result.rows;
@@ -1661,7 +1676,7 @@ app.get("/api/marketapi", async (req, res) => {
 
 app.get("/api/eventapi", async (req, res) => {
   try {
-    const { search, page = 1, pageSize = 20 } = req.query;
+    const { search, page = 1, pageSize = 10 } = req.query;
 
     let queryText = `
       SELECT 
