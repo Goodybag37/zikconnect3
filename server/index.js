@@ -1303,7 +1303,7 @@ RETURNING email;
           "Referral Code": random_code,
           "Referred By": upline ? upline : null,
           "Totl Referral": 0,
-          account_balance: 2000,
+          account_balance: 0,
         }),
       ]
     );
@@ -2272,9 +2272,9 @@ app.post(
     settings = jsonb_set(
       settings, 
       '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
+      to_jsonb((settings->>'account_balance')::int - 200)  -- The new value as JSONB
     ),
-    account_balance = account_balance - 300
+    account_balance = account_balance - 200
   WHERE 
     id = $1;
   `,
@@ -2445,9 +2445,9 @@ app.post(
           settings = jsonb_set(
             settings, 
             '{account_balance}', 
-            to_jsonb((settings->>'account_balance')::int - 500)
+            to_jsonb((settings->>'account_balance')::int - 200)
           ),
-          account_balance = account_balance - 500
+          account_balance = account_balance - 200
         WHERE 
           id = $1;
         `,
@@ -2610,9 +2610,9 @@ app.post(
     settings = jsonb_set(
       settings, 
       '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
+      to_jsonb((settings->>'account_balance')::int - 200)  -- The new value as JSONB
     ),
-    account_balance = account_balance - 300
+    account_balance = account_balance - 200
   WHERE 
     id = $1;
   `,
@@ -2775,9 +2775,9 @@ app.post(
     settings = jsonb_set(
       settings, 
       '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 500)  -- The new value as JSONB
+      to_jsonb((settings->>'account_balance')::int -200)  -- The new value as JSONB
     ),
-    account_balance = account_balance - 500
+    account_balance = account_balance - 200
   WHERE 
     id = $1;
   `,
@@ -4228,9 +4228,9 @@ app.post("/api/become-agent", async (req, res) => {
     settings = jsonb_set(
       settings, 
       '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 1000)  -- The new value as JSONB
+      to_jsonb((settings->>'account_balance')::int - 300)  -- The new value as JSONB
     ),
-    account_balance = account_balance - 1000
+    account_balance = account_balance - 300
   WHERE 
     id = $1;
   `,
@@ -4469,25 +4469,25 @@ app.post("/api/send-connect-email", async (req, res) => {
     //   { headers: { "User-Agent": "zikconnect.com/1.0 (admin@zikconnect.com)" } }
     // );
 
-    const response = await axios.get(
-      `https://api.opencagedata.com/geocode/v1/json`,
-      {
-        params: {
-          q: `${latitude},${longitude}`,
-          key: OPENCAGE_TOKEN,
-          pretty: 1,
-          no_annotations: 1,
-        },
-      }
-    );
+    // const response = await axios.get(
+    //   `https://api.opencagedata.com/geocode/v1/json`,
+    //   {
+    //     params: {
+    //       q: `${latitude},${longitude}`,
+    //       key: OPENCAGE_TOKEN,
+    //       pretty: 1,
+    //       no_annotations: 1,
+    //     },
+    //   }
+    // );
 
-    const formatted = response.data.results[0]?.formatted || "";
+    // const formatted = response.data.results[0]?.formatted || "";
 
-    if (!response || !response.data) {
-      throw new Error(
-        "Failed to retrieve location data from OpenStreetMap API"
-      );
-    }
+    // if (!response || !response.data) {
+    //   throw new Error(
+    //     "Failed to retrieve location data from OpenStreetMap API"
+    //   );
+    // }
     let agentLocation = {};
 
     if (
@@ -4563,7 +4563,8 @@ app.post("/api/send-connect-email", async (req, res) => {
     locationData = {
       lat: latitude,
       lon: longitude,
-      display_name: formatted,
+      // display_name: formatted,
+      display_namme: "Awka",
       type: type,
     };
 
@@ -4627,10 +4628,10 @@ app.post("/api/send-connect-email", async (req, res) => {
           true -- Create the key if it doesn't exist
       ),
       '{account_balance}', -- The path to the key you want to decrement
-      to_jsonb((settings ->> 'account_balance')::int - 100), -- Decrement the value by 100
+      to_jsonb((settings ->> 'account_balance')::int - 0), -- Decrement the value by 100
       true -- Create the key if it doesn't exist
   ),
-  account_balance = account_balance - 100
+  account_balance = account_balance - 0
   WHERE id = $1;`, // Placeholder for the userId
       [userId] // Pass userId as a parameter here
     );
@@ -4646,10 +4647,10 @@ app.post("/api/send-connect-email", async (req, res) => {
           true -- Create the key if it doesn't exist
       ),
       '{account_balance}', -- The path to the key you want to decrement
-      to_jsonb((settings ->> 'account_balance')::int - 100), -- Decrement the value by 100
+      to_jsonb((settings ->> 'account_balance')::int - 0), -- Decrement the value by 100
       true -- Create the key if it doesn't exist
   ),
-  account_balance = account_balance - 100
+  account_balance = account_balance - 0
   WHERE id = $1;`, // Placeholder for the userId
       [agentUserId] // Pass userId as a parameter here
     );
@@ -5893,7 +5894,7 @@ app.post("/api/verify-email", async (req, res) => {
       const text = `Welcome to Zikconnect`;
       const html = `<h1 style="color: #15b58e ; margin-left: 20% " >ZIKCONNECT</h1>
                       <strong><p style = "font-family: Times New Roman ; ">Congrats!!, <br /> 
-                      You have successfully verified your email!!. Your account has been funded with a sum of  2000 Naira to aid you in navigating through our services.
+                      You have successfully verified your email!!. 
                        You can now head on to your profile and start connecting with others.
                        You can also earn  on zikconnect in two ways!!  <ul><li>300 naira for each agent you register which is withdrawable directly to your bank account</li> <li>by becoming one of our agents on the site or uploading items for buyers to purchase</li></ul> 
                       Congrats!! Once again on your journey and feel free to reach out to our agents at <strong> admin@zikconnect.com  </strong>if you have further questions</strong>
@@ -6049,11 +6050,11 @@ app.post("/api/verify-phone", async (req, res) => {
       settings,
       '{account_balance}', 
       to_jsonb(
-        (COALESCE((settings ->> 'account_balance')::int, 0) + 500)::text
+        (COALESCE((settings ->> 'account_balance')::int, 0) + 50)::text
       ),
       true
     ),
-    account_balance = account_balance + 500
+    account_balance = account_balance + 50
   WHERE settings->>'Referral Code' = $1
   RETURNING email;
   `,

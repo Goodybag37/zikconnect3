@@ -179,7 +179,7 @@ function UploadProperty() {
       }
 
       console.log("Account balance is", accountBalance);
-      if (accountBalance < 300) {
+      if (accountBalance < 200) {
         const content5 = (
           <>
             <div className="verifyPopup">

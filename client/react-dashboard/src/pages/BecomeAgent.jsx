@@ -180,7 +180,7 @@ function BecomeAgent() {
       }
 
       console.log("Account balance is", accountBalance);
-      if (accountBalance < 1000) {
+      if (accountBalance < 300) {
         const content5 = (
           <>
             <div className="verifyPopup">
@@ -191,7 +191,7 @@ function BecomeAgent() {
               />
             </div>
             <p className="popup-paragraph">
-              You need at least 1000 naira to become an agent. Please fund your
+              You need at least 300 naira to become an agent. Please fund your
               account and try again.
             </p>
             <Link to="/fundaccount">
