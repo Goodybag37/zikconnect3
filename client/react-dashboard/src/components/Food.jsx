@@ -740,7 +740,7 @@ function YourComponent() {
 
       const accountBalance = response.data.account_balance;
 
-      if (accountBalance < 100) {
+      if (accountBalance < 0) {
         const content5 = (
           <>
             <div className="verifyPopup">
@@ -751,7 +751,7 @@ function YourComponent() {
               />
             </div>
             <p className="popup-paragraph">
-              You have hit a low account balance. You need at least 100 naira to
+              You have hit a low account balance. You need at least 0 naira to
               connect with an agent. Please fund your account to continue.
             </p>
             <Link to="/fundaccount">
