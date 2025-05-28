@@ -185,7 +185,7 @@ function Agent(props) {
         </div>
         <div
           className="card cursor-pointer"
-          onClick={() => navigateTo("/buysells")}
+          onClick={() => navigateTo("/events")}
         >
           <div className="card-inner">
             <h3 className="agent-icon text-gradient">
