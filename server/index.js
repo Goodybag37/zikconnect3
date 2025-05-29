@@ -6084,7 +6084,7 @@ app.post("/api/verify-phone", async (req, res) => {
         const subject = "Referral Bonus";
         const text = `Welcome to Zikconnect`;
         const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
-                      <strong><p style = "font-family: Times New Roman ;">Dear User, Your account has been credited with 500 naira as the user you registered has verified their phone number. 
+                      <strong><p style = "font-family: Times New Roman ;">Dear User, Your account has been credited with 50 naira as the user you registered has verified their phone number. 
                       Please head on to your dashboard to view the bonus. Thank you for trusting us  </strong>if you have further questions please contact us on admin@zikconnect.com</strong>
                       </strong>
                       </p>`;

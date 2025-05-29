@@ -83,6 +83,7 @@ function YourComponent() {
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingP, setLoadingP] = useState({});
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedFile, setSelectedFile] = useState(null);
@@ -824,6 +825,10 @@ function YourComponent() {
       }
 
       setShowModal(true); // Show the modal with the image
+      setLoadingP((prev) => ({
+        ...prev,
+        [itemId]: false,
+      }));
     } catch (error) {
       console.error("Error fetching image:", error);
     }
@@ -1093,11 +1098,17 @@ function YourComponent() {
                   </button>
 
                   <button
-                    onClick={() => handleShowPicture(event.id)}
+                    onClick={() => {
+                      setLoadingP((prev) => ({
+                        ...prev,
+                        [event.id]: true,
+                      }));
+                      handleShowPicture(event.id);
+                    }}
                     className="roommateButtonPicture "
                   >
                     <BsPeopleFill className="connect_icon" />
-                    See Flier
+                    {loadingP[event.id] ? "Loading..." : "See Flier"}
                   </button>
                   {selectedAgent && (
                     <BsArchiveFill

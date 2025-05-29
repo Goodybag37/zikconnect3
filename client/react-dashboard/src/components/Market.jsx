@@ -90,6 +90,7 @@ function YourComponent() {
   const maxFileSize = 5 * 1024 * 1024; // Add state for file
   const [itemToDelete, setItemToDelete] = useState(null);
   const [toggled, setToggled] = useState(true);
+  const [loadingP, setLoadingP] = useState({});
   const [viewMode, setViewMode] = useState("general");
   const [askToggle, setAskToggle] = useState(true); // "general" or "profile"
   const [type, setType] = useState("Automatic");
@@ -833,6 +834,10 @@ function YourComponent() {
       }
 
       setShowModal(true); // Show the modal with the image
+      setLoadingP((prev) => ({
+        ...prev,
+        [itemId]: false,
+      }));
     } catch (error) {
       console.error("Error fetching image:", error);
     }
@@ -1127,11 +1132,17 @@ function YourComponent() {
                   </button>
 
                   <button
-                    onClick={() => handleShowPicture(market.id)}
+                    onClick={() => {
+                      setLoadingP((prev) => ({
+                        ...prev,
+                        [market.id]: true,
+                      }));
+                      handleShowPicture(market.id);
+                    }}
                     className="roommateButtonPicture "
                   >
                     <BsPeopleFill className="connect_icon" />
-                    See Picture
+                    {loadingP[market.id] ? "Loading..." : "See Picture"}
                   </button>
                   {selectedAgent && (
                     <BsArchiveFill
