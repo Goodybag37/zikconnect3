@@ -11,8 +11,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
     "@meronex/icons": "^4.0.0",
+    "@mui/material": "^7.1.1",
+    "@mui/x-data-grid": "^8.5.1",
     "@paystack/inline-js": "^2.22.0",
+    "@tanstack/react-table": "^8.21.3",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",

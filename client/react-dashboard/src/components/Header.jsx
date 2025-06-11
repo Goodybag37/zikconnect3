@@ -430,12 +430,21 @@ function Header(props) {
 
           <br></br>
           {[37, 92, 36].includes(user.id) ? (
-            <p className="profileParagraph text-gradient ">
-              <Link className="editPhone" to="/agentmanagement">
-                <BsFillPersonFill className="cashIcon" />
-                <strong>Manage Agents </strong>
-              </Link>
-            </p>
+            <div>
+              <p className="profileParagraph text-gradient ">
+                <Link className="editPhone" to="/agentmanagement">
+                  <BsFillPersonFill className="cashIcon" />
+                  <strong>Manage Agents </strong>
+                </Link>
+              </p>
+              <br></br>
+              <p className="profileParagraph text-gradient ">
+                <Link className="editPhone" to="/fundings">
+                  <BsFillPersonFill className="cashIcon" />
+                  <strong>Manage Fundings </strong>
+                </Link>
+              </p>
+            </div>
           ) : (
             ""
           )}

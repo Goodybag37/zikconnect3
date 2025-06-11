@@ -96,6 +96,11 @@ function FundAccount() {
       // formData.append("amount", amount);
 
       console.log("email is ", email);
+      const fund = await axios.post(`${apiUrl}/api/funding`, {
+        email,
+        userbread,
+        amount,
+      });
       // Initialize the transaction by calling your backend
       const response = await axios.post(`${apiUrls}/api/paystack/initialize`, {
         email,
