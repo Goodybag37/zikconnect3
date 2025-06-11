@@ -67,7 +67,7 @@ app.use(
       "https://zikconnect.com",
       "http://localhost:3000", // Your frontend domain
     ],
-    methods: ["GET", "POST", "PUT", "OPTIONS"], // Specify allowed methods
+    methods: ["GET", "POST", "PUT", "OPTIONS", "DELETE"], // Specify allowed methods
     allowedHeaders: ["Content-Type", "Authorization"], // Specify allowed headers
   })
 );
@@ -282,12 +282,6 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
         const email = customer.email;
 
         try {
-          // Update transaction status in the database
-          await pool.query(
-            "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
-            ["success", reference]
-          );
-
           // Update the user's account balance
           await pool.query(
             `
@@ -303,6 +297,12 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
             WHERE email = $2;
             `,
             [amount / 100, email]
+          );
+
+          // Update transaction status in the database
+          await pool.query(
+            "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
+            ["success", reference]
           );
 
           // Send confirmation email
@@ -357,37 +357,41 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
   paystackReq.end();
 });
 
-app.post("/api/paystack-webhook", cors(), async (req, res) => {
-  const { event, data } = req.body;
+app.post(
+  "/api/paystack-webhook",
+  cors(),
+  bodyParser.raw({ type: "application/json" }),
+  async (req, res) => {
+    const { event, data } = req.body;
 
-  if (event === "charge.success" && data.status === "success") {
-    const reference = data.reference;
+    if (event === "charge.success" && data.status === "success") {
+      const reference = data.reference;
 
-    const transactionCheck = await pool.query(
-      "SELECT status FROM transactions WHERE reference = $1",
-      [reference]
-    );
-
-    if (
-      transactionCheck.rows.length > 0 &&
-      transactionCheck.rows[0].status === "success"
-    ) {
-      return res
-        .status(200)
-        .json({ success: true, message: "Transaction already processed." });
-    }
-
-    try {
-      const response = await pool.query(
-        "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2 RETURNING *",
-        ["success", reference]
+      const transactionCheck = await pool.query(
+        "SELECT status FROM transactions WHERE reference = $1",
+        [reference]
       );
 
-      const updatedReference = response.rows[0];
+      if (
+        transactionCheck.rows.length > 0 &&
+        transactionCheck.rows[0].status === "success"
+      ) {
+        return res
+          .status(200)
+          .json({ success: true, message: "Transaction already processed." });
+      }
 
-      // Update the user's account balance
-      await pool.query(
-        `
+      try {
+        const response = await pool.query(
+          "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2 RETURNING *",
+          ["success", reference]
+        );
+
+        const updatedReference = response.rows[0];
+
+        // Update the user's account balance
+        await pool.query(
+          `
         UPDATE people
         SET
           account_balance = account_balance + $1,
@@ -399,42 +403,43 @@ app.post("/api/paystack-webhook", cors(), async (req, res) => {
           )
         WHERE email = $2;
         `,
-        [updatedReference.amount / 100, updatedReference.email]
-      );
+          [updatedReference.amount / 100, updatedReference.email]
+        );
 
-      // Send confirmation email
-      const subject = "Payment Successful!";
-      const text = "SUCCESS";
-      const html = `<h1 style="color: #15b58e; margin-left: 20%">SUCCESS 🎉</h1>
+        // Send confirmation email
+        const subject = "Payment Successful!";
+        const text = "SUCCESS";
+        const html = `<h1 style="color: #15b58e; margin-left: 20%">SUCCESS 🎉</h1>
                     <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${
                       updatedReference.amount / 100
                     } connects</strong>. Please use it carefully and avoid abuse on the site.</p>`;
 
-      const mailOptions = {
-        from: "Zikconnect admin@zikconnect.com",
-        to: updatedReference.email,
-        subject: subject,
-        text: text,
-        html: html,
-      };
+        const mailOptions = {
+          from: "Zikconnect admin@zikconnect.com",
+          to: updatedReference.email,
+          subject: subject,
+          text: text,
+          html: html,
+        };
 
-      // Send email
-      await transporter.sendMail(mailOptions);
+        // Send email
+        await transporter.sendMail(mailOptions);
 
-      // Single 200 OK response to Paystack
-      return res.sendStatus(200);
-    } catch (error) {
-      console.error("Error processing webhook:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to process webhook",
-      });
+        // Single 200 OK response to Paystack
+        return res.sendStatus(200);
+      } catch (error) {
+        console.error("Error processing webhook:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to process webhook",
+        });
+      }
+    } else {
+      // Respond with 400 for unrecognized events
+      return res.sendStatus(400);
     }
-  } else {
-    // Respond with 400 for unrecognized events
-    return res.sendStatus(400);
   }
-});
+);
 
 let itemStatus = {}; // Store the status of items
 
@@ -4307,6 +4312,115 @@ app.get("/api/agent-management", async (req, res) => {
 
     const agent_approval = result.rows;
     res.json({ approval: agent_approval });
+  } catch (error) {
+    console.error("Error fetching agent approvals:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/funding", async (req, res) => {
+  const { email, userId, amount } = req.body;
+
+  try {
+    // Select individual columns, not a composite row
+    const moreInfo = await pool.query(
+      "SELECT id, phone, account_balance FROM people WHERE email = $1",
+      [email]
+    );
+
+    if (moreInfo.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const { id, phone, account_balance } = moreInfo.rows[0];
+
+    await pool.query(
+      "INSERT INTO funding (email, user_id, amount, account_balance, phone) VALUES ($1, $2, $3, $4, $5)",
+      [email, id, amount, account_balance, phone]
+    );
+
+    res.status(201).json({ message: "Funding record created successfully" });
+  } catch (error) {
+    console.error("Error processing funding request:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/approve-funding", async (req, res) => {
+  const { id, email, amount } = req.body;
+  try {
+    await pool.query(
+      `
+            UPDATE people
+            SET 
+              account_balance = account_balance + $1,
+              settings = jsonb_set(
+                settings, 
+                '{account_balance}', 
+                to_jsonb(account_balance + $1), 
+                true 
+              )
+            WHERE email = $2;
+            `,
+      [amount, email]
+    );
+
+    // Send confirmation email
+    const subject = "Payment Successful!";
+    const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${amount} connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
+
+    const mailOptions = {
+      from: "admin@zikconnect.com",
+      to: email,
+      subject,
+      html,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    await pool.query("UPDATE funding set status = 'successful' WHERE id = $1", [
+      id,
+    ]);
+  } catch (error) {}
+});
+
+app.delete("/api/delete-funding/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    await pool.query("DELETE FROM funding WHERE id = $1", [id]);
+
+    // ✅ Send success response
+    res.status(200).json({ message: "Funding deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting record", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/fundings", async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT 
+      id,          
+      email,
+      user_id,
+      account_balance,
+      phone,
+      amount,
+      date,
+      status
+      
+    FROM 
+      funding
+
+      WHERE status = 'pending'
+
+    ORDER BY id DESC`); // Order by id in descending order
+
+    const fundings = result.rows;
+
+    console.log("i got this ", fundings);
+    res.json({ data: fundings });
   } catch (error) {
     console.error("Error fetching agent approvals:", error);
     res.status(500).json({ error: "Internal server error" });

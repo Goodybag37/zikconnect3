@@ -12,6 +12,7 @@ import Profiles from "../pages/Profiles";
 import Cybercafes from "../pages/Cybercafes";
 import Deliveries from "../pages/Deliveries";
 import EventsPage from "../pages/Events";
+import Fundings from "../pages/Fundings";
 import Riders from "../pages/Riders";
 import Lodges from "../pages/Lodges";
 import Schoolfees from "../pages/Schoolfees";
@@ -109,6 +110,7 @@ function App() {
 
           <Route path="/settings" element={<Settings />} />
           <Route path="/buysells" element={<BuysellsPage />} />
+          <Route path="/fundings" element={<Fundings />} />
           <Route path="/markets" element={<Markets />} />
           <Route path="/roommates" element={<Roommates />} />
           <Route path="/foods" element={<Foods />} />
