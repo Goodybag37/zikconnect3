@@ -96,7 +96,7 @@ function FundAccount() {
       // formData.append("amount", amount);
 
       console.log("email is ", email);
-      const fund = await axios.post(`${apiUrl}/api/funding`, {
+      const fund = await axios.post(`${apiUrls}/api/funding`, {
         email,
         userbread,
         amount,
