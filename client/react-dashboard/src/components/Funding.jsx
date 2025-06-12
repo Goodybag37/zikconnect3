@@ -86,12 +86,14 @@ const Funding = () => {
               }
               disabled={isApproved}
               style={{
-                padding: "6px 12px",
+                padding: "5px 3px",
                 backgroundColor: isApproved ? "#ccc" : "#4caf50",
                 color: "#fff",
                 border: "none",
                 borderRadius: "4px",
-                marginRight: "10px",
+                marginRight: "20px",
+                fontSize: "7px",
+
                 cursor: isApproved ? "not-allowed" : "pointer",
               }}
             >
@@ -116,21 +118,20 @@ const Funding = () => {
     <Box
       sx={{
         flexGrow: 1,
-        width: { xs: "100%", md: "calc(100vw - 240px)" },
+        width: { xs: "100vw", md: "calc(100vw - 240px)" },
         marginLeft: { xs: 0, md: "240px" },
         marginTop: "64px", // header height
         padding: { xs: 1, md: 3 },
         height: "calc(100vh - 64px)", // fills space below header
         boxSizing: "border-box",
         overflowX: "auto",
-
         WebkitOverflowScrolling: "touch",
         backgroundColor: "#0000",
       }}
     >
       <Box
         sx={{
-          minWidth: "800px", // ✅ ensure scrollable
+          minWidth: "1000px", // ✅ ensure scrollable
           // width: "100%",
           height: "100%",
           minHeight: "400px",
@@ -146,10 +147,11 @@ const Funding = () => {
           pageSize={5}
           rowsPerPageOptions={[5, 10]}
           disableSelectionOnClick
+          isRowSelectable={() => false} // 🔒 Disables row selection entirely
           sx={{
             width: "100%",
+            minWidth: "1000px", // ✅ matches wrapper
             height: "100%",
-
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#f9f9f9",
             },
