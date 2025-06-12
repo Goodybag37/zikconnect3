@@ -4385,12 +4385,21 @@ app.post("/api/approve-funding", async (req, res) => {
       text,
     };
 
-    await resend.emails.send(mailOptions);
+    try {
+      await resend.emails.send(mailOptions);
+    } catch (emailErr) {
+      console.error("Resend API failed:", emailErr);
+    }
 
     await pool.query("UPDATE funding set status = 'successful' WHERE id = $1", [
       id,
     ]);
-  } catch (error) {}
+
+    res.status(200).json({ message: "Funding approved" }); // ✅ SEND RESPONSE
+  } catch (error) {
+    console.error("approve-funding failed:", error);
+    res.status(500).json({ error: "Internal Server Error" }); // ✅ SEND ERROR
+  }
 });
 
 app.delete("/api/delete-funding/:id", async (req, res) => {
