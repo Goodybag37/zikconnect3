@@ -4353,29 +4353,38 @@ app.post("/api/funding", async (req, res) => {
 });
 
 app.post("/api/approve-funding", async (req, res) => {
-  const { id, email, amount } = req.body;
+  let { id, email, amount } = req.body;
+
+  // Sanitize input
+  id = parseInt(id);
+  amount = parseFloat(amount);
+
+  if (!email || isNaN(amount) || isNaN(id)) {
+    return res.status(400).json({ error: "Invalid input data" });
+  }
+
   try {
     await pool.query(
       `
-            UPDATE people
-            SET 
-              account_balance = account_balance + $1,
-              settings = jsonb_set(
-                settings, 
-                '{account_balance}', 
-                to_jsonb(account_balance + $1), 
-                true 
-              )
-            WHERE email = $2;
-            `,
+      UPDATE people
+      SET 
+        account_balance = account_balance + $1,
+        settings = jsonb_set(
+          settings, 
+          '{account_balance}', 
+          to_jsonb(account_balance + $1), 
+          true 
+        )
+      WHERE email = $2;
+      `,
       [amount, email]
     );
 
-    // Send confirmation email
+    // Email details
     const subject = "Payment Successful!";
-    const text = `Dear User, you have successfully funded your Zikconnect account with ${amount} connects. Please use it carefully. We are excited to have you onboard!`;
+    const text = `Dear User, you have successfully funded your Zikconnect account with ${amount} connects.`;
     const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                        <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${amount} connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
+      <p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${amount} connects</strong>.</p>`;
 
     const mailOptions = {
       from: "admin@zikconnect.com",
@@ -4391,14 +4400,14 @@ app.post("/api/approve-funding", async (req, res) => {
       console.error("Resend API failed:", emailErr);
     }
 
-    await pool.query("UPDATE funding set status = 'successful' WHERE id = $1", [
+    await pool.query("UPDATE funding SET status = 'successful' WHERE id = $1", [
       id,
     ]);
 
-    res.status(200).json({ message: "Funding approved" }); // ✅ SEND RESPONSE
+    res.status(200).json({ message: "Funding approved" });
   } catch (error) {
     console.error("approve-funding failed:", error);
-    res.status(500).json({ error: "Internal Server Error" }); // ✅ SEND ERROR
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
