@@ -26,6 +26,8 @@ import { fileURLToPath } from "url";
 import heicConvert from "heic-convert";
 import sharp from "sharp";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
 import https from "https"; // Required to create the server
 // import { Server } from "socket.io";
 import Bull from "bull";
@@ -152,6 +154,22 @@ app.use((req, res, next) => {
     next();
   }
 });
+
+let transporter = nodemailer.createTransport({
+  host: "mail.privateemail.com", // SMTP server
+  port: 465, // For SSL
+  secure: true, // Use SSL
+  auth: {
+    user: "admin@zikconnect.com", // Your full email address
+    pass: "Good3767589", // Your email account pas
+  },
+  // Use IPv4
+  lookup: (hostname, options, callback) => {
+    require("dns").lookup(hostname, { family: 4 }, callback);
+  },
+});
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
@@ -312,14 +330,20 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
                           amount / 100
                         } connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
 
+          const text = `Dear User, you have successfully funded your Zikconnect account with ${
+            amount / 100
+          } connects. Please use it carefully. We are excited to have you onboard!`;
+
           const mailOptions = {
             from: "admin@zikconnect.com",
             to: email,
             subject,
             html,
+            text,
           };
 
-          await transporter.sendMail(mailOptions);
+          // await transporter.sendMail(mailOptions);
+          await resend.emails.send(mailOptions);
 
           // Final response after successful updates and email
           return res.json({
@@ -423,7 +447,8 @@ app.post(
         };
 
         // Send email
-        await transporter.sendMail(mailOptions);
+        // await transporter.sendMail(mailOptions);
+        await resend.emails.send(mailOptions);
 
         // Single 200 OK response to Paystack
         return res.sendStatus(200);
@@ -483,19 +508,6 @@ let itemStatus = {}; // Store the status of items
 //     require("dns").lookup(hostname, { family: 4 }, callback);
 //   },
 // });
-let transporter = nodemailer.createTransport({
-  host: "mail.privateemail.com", // SMTP server
-  port: 465, // For SSL
-  secure: true, // Use SSL
-  auth: {
-    user: "admin@zikconnect.com", // Your full email address
-    pass: "Good3767589", // Your email account pas
-  },
-  // Use IPv4
-  lookup: (hostname, options, callback) => {
-    require("dns").lookup(hostname, { family: 4 }, callback);
-  },
-});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -889,7 +901,7 @@ app.get("/api/profile/", async (req, res) => {
 
 app.post("/api/forgot-password", async (req, res) => {
   const { email } = req.body;
-  console.log("Request came around ");
+
   try {
     // Check if the email exists in the database
     const exists = await pool.query(
@@ -933,8 +945,8 @@ app.post("/api/forgot-password", async (req, res) => {
     };
 
     // Send the email
-    await transporter.sendMail(mailOptions);
-    console.log("email was sent but didii");
+    // await transporter.sendMail(mailOptions);
+    await resend.emails.send(mailOptions);
 
     await pool.query("UPDATE people SET password = $1 WHERE email = $2", [
       hashedPassword,
@@ -1260,7 +1272,8 @@ RETURNING email;
         };
 
         // Send email
-        await transporter.sendMail(mailOptions);
+        // await transporter.sendMail(mailOptions);
+        await resend.emails.send(mailOptions);
       }
 
       // Logs the updated email value
@@ -1325,16 +1338,12 @@ RETURNING email;
     );
 
     if (subscribeToNewsletter) {
-      console.log("Successfully ");
-
       try {
         // Use ON CONFLICT to avoid duplicates
         await pool.query(
           "INSERT INTO subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING",
           [email]
         );
-
-        console.log("Successfully subscribed to newsletter or already exists");
       } catch (error) {
         console.error("Error handling newsletter subscription:", error.message);
         return res
@@ -1376,7 +1385,7 @@ RETURNING email;
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await resend.emails.send(mailOptions);
     // Insert the new user into the database
 
     // Query to retrieve the newly inserted user
@@ -2398,10 +2407,7 @@ app.post(
       };
 
       // Send email
-      const info = await transporter.sendMail(mailOptions);
-
-      console.log("req.body:", req.body);
-      console.log("req.files:", req.files);
+      const info = await resend.emails.send(mailOptions);
 
       if (!req.files || !req.files.file || !req.files.faceImage) {
         console.error("Missing file or faceImage:", req.files);
@@ -2613,7 +2619,6 @@ app.post(
         fs.unlinkSync(inputPath);
       } else if (mimetype.startsWith("video/")) {
         // Skip Sharp processing for videos and retain the original file
-        console.log("File is a video. Skipping image processing.");
       } else {
         throw new Error(`Unsupported file type: ${mimetype}`);
       }
@@ -3143,12 +3148,10 @@ app.post("/api/delete-upload/:id", async (req, res) => {
     const filename = resultD.rows[0].unique_name;
     const filePath = path.join(__dirname, "uploads", filename);
 
-    console.log("Deleting file at:", filePath);
     fs.unlink(filePath, (err) => {
       if (err) {
         console.error("Error deleting file:", err);
       } else {
-        console.log("File successfully deleted");
       }
     });
 
@@ -4258,8 +4261,8 @@ app.post("/api/become-agent", async (req, res) => {
     );
 
     // Ensure mailOptions and mailOptions2 are properly defined
-    const info = await transporter.sendMail(mailOptions); // Email to user
-    const info2 = await transporter.sendMail(mailOptions2); // Email to admin
+    const info = await resend.emails.send(mailOptions); // Email to user
+    const info2 = await resend.emails.send(mailOptions2); // Email to admin
 
     // Log success message with info
 
@@ -4367,6 +4370,7 @@ app.post("/api/approve-funding", async (req, res) => {
 
     // Send confirmation email
     const subject = "Payment Successful!";
+    const text = `Dear User, you have successfully funded your Zikconnect account with ${amount} connects. Please use it carefully. We are excited to have you onboard!`;
     const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
                         <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${amount} connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
 
@@ -4375,9 +4379,10 @@ app.post("/api/approve-funding", async (req, res) => {
       to: email,
       subject,
       html,
+      text,
     };
 
-    await transporter.sendMail(mailOptions);
+    await resend.emails.send(mailOptions);
 
     await pool.query("UPDATE funding set status = 'successful' WHERE id = $1", [
       id,
@@ -4419,7 +4424,6 @@ app.get("/api/fundings", async (req, res) => {
 
     const fundings = result.rows;
 
-    console.log("i got this ", fundings);
     res.json({ data: fundings });
   } catch (error) {
     console.error("Error fetching agent approvals:", error);
@@ -4842,16 +4846,19 @@ app.post("/api/send-connect-email", async (req, res) => {
 
     const updatedMessage = updatedMessageResponse.rows[0]; // This will include phone and full name
 
-    setTimeout(async () => {
-      await pool.query(
-        `
+    setTimeout(
+      async () => {
+        await pool.query(
+          `
             DELETE FROM connect
             WHERE request_time = $1
             AND status = 'pending'
           `,
-        [requestTime]
-      );
-    }, 10 * 60 * 1000);
+          [requestTime]
+        );
+      },
+      10 * 60 * 1000
+    );
     let result = await pool.query(
       "SELECT email FROM agents WHERE agent_id = $1",
       [agentId]
@@ -4965,7 +4972,7 @@ app.post("/api/send-connect-email", async (req, res) => {
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await resend.emails.send(mailOptions);
 
     res
       .status(200)
@@ -5111,8 +5118,8 @@ app.post("/api/respond-to-connect", async (req, res) => {
       };
 
       // Send email
-      const info = await transporter.sendMail(mailOptions);
-      const info2 = await transporter.sendMail(mailOptions2);
+      const info = await resend.emails.send(mailOptions);
+      const info2 = await resend.emails.send(mailOptions2);
     }
 
     res.status(200).json({ message: "Response recorded." });
@@ -5279,8 +5286,8 @@ app.get("/api/respond-to-connect", async (req, res) => {
       };
 
       // Send email
-      const info = await transporter.sendMail(mailOptions);
-      const info2 = await transporter.sendMail(mailOptions2);
+      const info = await resend.emails.send(mailOptions);
+      const info2 = await resend.emails.send(mailOptions2);
     }
 
     res.status(200).json({ message: "Response recorded." });
@@ -5434,7 +5441,7 @@ app.post("/api/respond-to-agent", async (req, res) => {
             };
 
             // Send email
-            await transporter.sendMail(mailOptions);
+            await resend.emails.send(mailOptions);
           }
 
           // Logs the updated email value
@@ -5488,7 +5495,7 @@ app.post("/api/respond-to-agent", async (req, res) => {
         };
 
         // Send email
-        const info = await transporter.sendMail(mailOptions);
+        const info = await resend.emails.send(mailOptions);
         res.send("you have successfully added the agent");
       } else if (decision === "declined") {
         await pool.query(
@@ -5527,7 +5534,7 @@ We are sorry for any inconvenience caused. you still have access to our other se
         };
 
         // Send email
-        const info = await transporter.sendMail(mailOptions);
+        const info = await resend.emails.send(mailOptions);
       } else {
         res.status(400).send({ error: "Status is not approved." });
         return;
@@ -5686,8 +5693,8 @@ app.post("/api/confirm-connect", async (req, res) => {
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
-    const info2 = await transporter.sendMail(mailOptions2);
+    const info = await resend.emails.send(mailOptions);
+    const info2 = await resend.emails.send(mailOptions2);
 
     if (result.rowCount > 0) {
       // console.log("connected");
@@ -5975,7 +5982,7 @@ app.post("/api/send-verification-email", async (req, res) => {
       html: html, // HTML body
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await resend.emails.send(mailOptions);
 
     // Store the verification code in the database
     await pool.query(
@@ -6045,7 +6052,7 @@ app.post("/api/verify-email", async (req, res) => {
         html: html, // HTML body
       };
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await resend.emails.send(mailOptions);
 
       await pool.query(
         `DELETE FROM email_verification WHERE status = 'verified'`
@@ -6214,7 +6221,7 @@ app.post("/api/verify-phone", async (req, res) => {
         };
 
         // Send email
-        await transporter.sendMail(mailOptions);
+        await resend.emails.send(mailOptions);
       }
 
       // Logs the updated email value
@@ -6357,8 +6364,6 @@ app.post("/api/withdraw-funds", async (req, res) => {
 
       const email2 = result.rows[0].email;
 
-      console.log(email2);
-
       const subject = "Withdrawal Pending";
       const text = `Pending Withdrawal`;
       const html = `<h1 style="color: #15b58e ; margin-left: 20% " >Congrats &#x1F389;  &#x1F389;</h1>
@@ -6396,7 +6401,7 @@ app.post("/api/withdraw-funds", async (req, res) => {
         text: text, // Plain text body
         html: html, // HTML body
       };
-      await transporter.sendMail(mailOptions);
+      await resend.emails.send(mailOptions);
 
       const subject2 = "Withdrawal Pending";
       const text2 = `Pending Withdrawal`;
@@ -6450,7 +6455,6 @@ app.post("/api/withdraw-funds", async (req, res) => {
 
 app.post("/api/denied-location", async (req, res) => {
   const { user_id, type } = req.body;
-  console.log("you dey crAasw", user_id, type);
 
   try {
     // Ensure column names match the table structure
