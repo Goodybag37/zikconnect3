@@ -172,7 +172,7 @@ let transporter = nodemailer.createTransport({
   },
 });
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend("re_g2Nobpis_PmtM3dZPbfinA6zxmXdjNRaM");
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const MAPBOX_API_TOKEN = process.env.MAPBOX_PUBLIC_KEY;
