@@ -304,10 +304,12 @@ function YourComponent() {
         `${apiUrls}/api/get-account-balance?userId=${userbread}`
       );
 
-      const accountBalance = response.data.account_balance;
+      const accountBalance = Number(response?.data?.account_balance) || 0;
+      const connectBalance = Number(response?.data?.free_connect) || 0;
+
       console.log("Account balance is", accountBalance);
 
-      if (accountBalance < 100) {
+      if (connectBalance < 50 && accountBalance < 50) {
         const content5 = (
           <>
             <div className="verifyPopup">
@@ -318,8 +320,9 @@ function YourComponent() {
               />
             </div>
             <p className="popup-paragraph">
-              You have hit a low account balance. You need at least 100 naira to
-              connect with an agent. Please fund your account to continue.
+              You have reached your free connect limit. You need at least 50
+              naira to connect with an agent. Please fund your account to
+              continue.
             </p>
             <Link to="/fundaccount">
               <button className="bg-blue-gradient roommate-button connect-accept-button">
@@ -336,7 +339,7 @@ function YourComponent() {
           ...prevState,
           [itemId]: "",
         }));
-        return;
+        return; // prevent further processing
       }
     } catch (error) {
       console.error("Error fetching account balance:", error);
