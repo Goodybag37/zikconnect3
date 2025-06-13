@@ -4563,13 +4563,18 @@ app.get("/api/get-account-balance", async (req, res) => {
       [userId]
     );
 
+    const result2 = await pool.query(
+      `SELECT free_connect FROM people WHERE id = $1`,
+      [userId]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
     const accountBalance = result.rows[0].account_balance;
-
-    res.json({ account_balance: accountBalance });
+    const connectBalance = result2.rows[0].free_connect;
+    res.json({ account_balance: accountBalance, free_connect: connectBalance });
   } catch (error) {
     console.error("Error in /api/get-account-balance:", error.message);
     res.status(500).send("Server Error");
@@ -4592,22 +4597,55 @@ app.post("/api/send-connect-email", async (req, res) => {
   const requestTime = new Date(); // Current time
 
   const result = await pool.query(
-    `SELECT account_balance FROM people WHERE id = $1`,
+    `SELECT free_connect FROM people WHERE id = $1`,
     [userId]
   );
 
+  const result2 = await pool.query(
+    `SELECT account_balance FROM people WHERE id = $1`,
+    [userId]
+  );
   const result3 = await pool.query(
     "SELECT full_name from people WHERE id = $1",
     [agentUserId]
   );
   const agentFullname = result3.rows[0].full_name;
 
-  const accountBalance = result.rows[0];
-  if (accountBalance < 100) {
-    return res.status(400).json({
-      message:
-        "Your Account Balance is low you need at least N100 to connect with an agent please fund your account and continue",
-    });
+  const connectBalance = result.rows[0]?.free_connect;
+  const accountBalance = result2.rows[0]?.account_balance;
+
+  if (connectBalance < 50) {
+    if (accountBalance < 50) {
+      return res.status(400).json({
+        message:
+          "You have exhausted your free connect limit. You need at least 50 naira in your account balance to connect with an agent. Please fund your account to continue.",
+      });
+    } else {
+      await pool.query(
+        `
+      UPDATE people
+      SET 
+        account_balance = account_balance - 50,
+        settings = jsonb_set(
+          settings,
+          '{account_balance}',
+          to_jsonb((settings->>'account_balance')::int - 50),
+          true
+        )
+      WHERE id = $1;
+      `,
+        [userId]
+      );
+    }
+  } else {
+    await pool.query(
+      `
+    UPDATE people
+    SET free_connect = free_connect - 50
+    WHERE id = $1;
+    `,
+      [userId]
+    );
   }
 
   const message = "connect request";
@@ -4780,13 +4818,7 @@ app.post("/api/send-connect-email", async (req, res) => {
           '{Totl Connect Made}', -- The path to the key you want to increment
           to_jsonb((settings ->> 'Totl Connect Made')::int + 1), -- Increment the current value by 1
           true -- Create the key if it doesn't exist
-      ),
-      '{account_balance}', -- The path to the key you want to decrement
-      to_jsonb((settings ->> 'account_balance')::int - 0), -- Decrement the value by 100
-      true -- Create the key if it doesn't exist
-  ),
-  account_balance = account_balance - 0
-  WHERE id = $1;`, // Placeholder for the userId
+      ) WHERE id = $1;`, // Placeholder for the userId
       [userId] // Pass userId as a parameter here
     );
 
