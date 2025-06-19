@@ -320,6 +320,58 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
             [amount / 100, email]
           );
 
+          // Get the "Referred By" code from a user based on their email
+          const response = await pool.query(
+            "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+            [email]
+          );
+          const referrer = response.rows[0]?.referred_by;
+
+          if (!referrer) {
+            console.log("No referrer code found for this user.");
+          } else {
+            // Find the role of the person who owns that referral code
+            const roleQuery = await pool.query(
+              "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+              [referrer]
+            );
+            const role = roleQuery.rows[0]?.role;
+            const roleEmail = roleQuery.rows[0]?.email;
+            const roleId = roleQuery.rows[0]?.id;
+
+            if (role == "worker") {
+              const result = await pool.query(
+                "UPDATE worker_performance SET total_referral_fundings = total_referral_fundings + $1 AND referral_who_funded = referral_who_funded + 1 WHERE user_id = $2 returning total_referral_fundings, referral_who_funded ",
+                [amount / 100, roleId]
+              );
+              const totlRef = result.rows[0]?.referral_who_funded;
+              const totlFund = result.rows[0]?.total_referral_fundings;
+
+              // Send confirmation email
+              const subject = "Referral Funding ";
+              const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn.
+                         please strive to complete your tasks to enjoy full reward of your hardwork from the company!. </p>`;
+
+              const text = `Dear Worker, you referral has funded with ${
+                amount / 100
+              } `;
+
+              const mailOptions = {
+                from: "admin@zikconnect.com",
+                to: roleEmail,
+                subject,
+                html,
+                text,
+              };
+
+              // await transporter.sendMail(mailOptions);
+              await resend.emails.send(mailOptions);
+            }
+
+            console.log("Referrer's role is:", role);
+          }
+
           // Update transaction status in the database
           await pool.query(
             "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
@@ -2203,9 +2255,10 @@ app.post(
         req.body;
       // const fkUserId = parseInt(fk_user_id, 10);
 
-      const settingsQuery = "SELECT settings FROM people WHERE id = $1";
+      const settingsQuery = "SELECT settings, email FROM people WHERE id = $1";
       const settingsResult = await pool.query(settingsQuery, [user]);
       const userSettings = settingsResult.rows[0]?.settings || {};
+      const userEmail = settingsResult.rows[0]?.email;
 
       const response = await axios.get(
         `https://api.opencagedata.com/geocode/v1/json`,
@@ -2336,6 +2389,79 @@ app.post(
         "UPDATE buysell SET exact_location = $1 WHERE fk_user_id = $2 ",
         [locationData, user]
       );
+
+      try {
+        const subject = "Uploaded Property ";
+        const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear User, You have successfully uploaded your property 
+                        on our buy and sell section. When you get an order you would recieve an email and in case you dont, customers who click on your order would access your phone number directly
+                         so stay active for new orders. Alternatively you can check your list of connects you received  by going to 
+                        to the website then click on connects on the sidebar and you would see a list of connects you have recieved as well as the customer details to contact them directly. </p>`;
+
+        const text = `Dear User, you have just uploaded a property on buy and sell `;
+
+        const mailOptions = {
+          from: "admin@zikconnect.com",
+          to: userEmail,
+          subject,
+          html,
+          text,
+        };
+
+        await resend.emails.send(mailOptions);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("An error occurred");
+      }
+
+      // Get the "Referred By" code from a user based on their email
+      const responses = await pool.query(
+        "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+        [userEmail]
+      );
+      const referrer = responses.rows[0]?.referred_by;
+
+      if (!referrer) {
+        console.log("No referrer code found for this user.");
+      } else {
+        // Find the role of the person who owns that referral code
+        const roleQuery = await pool.query(
+          "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+          [referrer]
+        );
+        const role = roleQuery.rows[0]?.role;
+        const roleEmail = roleQuery.rows[0]?.email;
+        const roleId = roleQuery.rows[0]?.id;
+
+        if (role == "worker") {
+          const result = await pool.query(
+            "UPDATE worker_performance SET referred_buysell = referred_buysell + 1  WHERE user_id = $1 returning referred_buysell ",
+            [roleId]
+          );
+          const totlRef = result.rows[0]?.referred_buysell;
+
+          // Send confirmation email
+          const subjectWorker = "Referred Buy and sell ";
+          const htmlWorker = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just uploaded thier property 
+                        on our buy and sell section this makes a total of ${totlRef} users who have uploaded property on buy and sell under you. Great Job working for the company</p>`;
+
+          const textWorker = `Dear Worker, you referral has uploaded thier property on buysell `;
+
+          const mailOptions = {
+            from: "admin@zikconnect.com",
+            to: roleEmail,
+            subjectWorker,
+            htmlWorker,
+            textWorker,
+          };
+
+          // await transporter.sendMail(mailOptions);
+          await resend.emails.send(mailOptions);
+        }
+
+        console.log("Referrer's role is:", role);
+      }
 
       res.send("File uploaded successfully");
     } catch (error) {
@@ -2510,6 +2636,55 @@ app.post(
         [locationData, userbread]
       );
 
+      // Get the "Referred By" code from a user based on their email
+      const responses = await pool.query(
+        "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+        [email]
+      );
+      const referrer = responses.rows[0]?.referred_by;
+
+      if (!referrer) {
+        console.log("No referrer code found for this user.");
+      } else {
+        // Find the role of the person who owns that referral code
+        const roleQuery = await pool.query(
+          "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+          [referrer]
+        );
+        const role = roleQuery.rows[0]?.role;
+        const roleEmail = roleQuery.rows[0]?.email;
+        const roleId = roleQuery.rows[0]?.id;
+
+        if (role == "worker") {
+          const result = await pool.query(
+            "UPDATE worker_performance SET referred_market = referred_market + 1  WHERE user_id = $1 returning referred_market ",
+            [roleId]
+          );
+          const totlRef = result.rows[0]?.referred_market;
+
+          // Send confirmation email
+          const subjectWorker = "Referred Brand ";
+          const htmlWorker = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just uploaded thier brand 
+                        on zik market. this makes a total of ${totlRef} users who have uploaded brand  on zik market under you. Great Job working for the company</p>`;
+
+          const textWorker = `Dear Worker, you referral has uploaded thier property on buysell `;
+
+          const mailOptions = {
+            from: "admin@zikconnect.com",
+            to: roleEmail,
+            subjectWorker,
+            htmlWorker,
+            textWorker,
+          };
+
+          // await transporter.sendMail(mailOptions);
+          await resend.emails.send(mailOptions);
+        }
+
+        console.log("Referrer's role is:", role);
+      }
+
       res.send("File and face data uploaded successfully");
     } catch (error) {
       console.error(error);
@@ -2532,6 +2707,7 @@ app.post(
       const settingsQuery = "SELECT settings FROM people WHERE id = $1";
       const settingsResult = await pool.query(settingsQuery, [user]);
       const userSettings = settingsResult.rows[0]?.settings || {};
+      const userEmail = settingsResult.rows[0]?.email;
 
       const response = await axios.get(
         `https://api.opencagedata.com/geocode/v1/json`,
@@ -2671,6 +2847,79 @@ app.post(
         [locationData, user]
       );
 
+      try {
+        const subject = "Uploaded Lodge ";
+        const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear User, You have successfully uploaded your property 
+                        on our lodge section. When you get an order you would recieve an email and in case you dont, customers who click on your order would access your phone number directly
+                         so stay active for new orders. Alternatively you can check your list of connects you received  by going to 
+                        to the website then click on connects on the sidebar and you would see a list of connects you have recieved as well as the customer details to contact them directly. </p>`;
+
+        const text = `Dear User, you have just uploaded a property on lodge section `;
+
+        const mailOptions = {
+          from: "admin@zikconnect.com",
+          to: userEmail,
+          subject,
+          html,
+          text,
+        };
+
+        await resend.emails.send(mailOptions);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("An error occurred");
+      }
+
+      // Get the "Referred By" code from a user based on their email
+      const responses = await pool.query(
+        "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+        [userEmail]
+      );
+      const referrer = responses.rows[0]?.referred_by;
+
+      if (!referrer) {
+        console.log("No referrer code found for this user.");
+      } else {
+        // Find the role of the person who owns that referral code
+        const roleQuery = await pool.query(
+          "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+          [referrer]
+        );
+        const role = roleQuery.rows[0]?.role;
+        const roleEmail = roleQuery.rows[0]?.email;
+        const roleId = roleQuery.rows[0]?.id;
+
+        if (role == "worker") {
+          const result = await pool.query(
+            "UPDATE worker_performance SET referred_lodge = referred_lodge + 1  WHERE user_id = $1 returning referred_lodge ",
+            [roleId]
+          );
+          const totlRef = result.rows[0]?.referred_lodge;
+
+          // Send confirmation email
+          const subjectWorker = "Referred Lodge ";
+          const htmlWorker = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just uploaded a lodge 
+                        on lodge section. This makes a total of ${totlRef} users who have uploaded a lodge  under you. Great Job working for the company</p>`;
+
+          const textWorker = `Dear Worker, you referral has uploaded thier property on lodge `;
+
+          const mailOptions = {
+            from: "admin@zikconnect.com",
+            to: roleEmail,
+            subjectWorker,
+            htmlWorker,
+            textWorker,
+          };
+
+          // await transporter.sendMail(mailOptions);
+          await resend.emails.send(mailOptions);
+        }
+
+        console.log("Referrer's role is:", role);
+      }
+
       res.send("File uploaded successfully");
     } catch (error) {
       console.error(error);
@@ -2701,6 +2950,7 @@ app.post(
       const settingsQuery = "SELECT settings FROM people WHERE id = $1";
       const settingsResult = await pool.query(settingsQuery, [user]);
       const userSettings = settingsResult.rows[0]?.settings || {};
+      const userEmail = settingsResult.rows[0]?.email;
 
       const response = await axios.get(
         `https://api.opencagedata.com/geocode/v1/json`,
@@ -2835,6 +3085,78 @@ app.post(
         "UPDATE event SET exact_location = $1 WHERE fk_user_id = $2 ",
         [locationData, user]
       );
+
+      try {
+        const subject = "Uploaded Event";
+        const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear User, You have successfully uploaded your upcoming event 
+                        on our event section. When you get an order you would recieve an email and in case you dont, customers who click on your order would access your phone number directly
+                         so stay active for new orders. Alternatively you can check your list of connects you received  by going to 
+                        to the website then click on connects on the sidebar and you would see a list of connects you have recieved as well as the customer details to contact them directly. </p>`;
+
+        const text = `Dear User, you have just uploaded your event on our events section `;
+
+        const mailOptions = {
+          from: "admin@zikconnect.com",
+          to: userEmail,
+          subject,
+          html,
+          text,
+        };
+
+        await resend.emails.send(mailOptions);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send("An error occurred");
+      }
+      // Get the "Referred By" code from a user based on their email
+      const responses = await pool.query(
+        "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+        [userEmail]
+      );
+      const referrer = responses.rows[0]?.referred_by;
+
+      if (!referrer) {
+        console.log("No referrer code found for this user.");
+      } else {
+        // Find the role of the person who owns that referral code
+        const roleQuery = await pool.query(
+          "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+          [referrer]
+        );
+        const role = roleQuery.rows[0]?.role;
+        const roleEmail = roleQuery.rows[0]?.email;
+        const roleId = roleQuery.rows[0]?.id;
+
+        if (role == "worker") {
+          const result = await pool.query(
+            "UPDATE worker_performance SET referred_event = referred_event + 1  WHERE user_id = $1 returning referred_event ",
+            [roleId]
+          );
+          const totlRef = result.rows[0]?.referred_event;
+
+          // Send confirmation email
+          const subjectWorker = "Referred Event ";
+          const htmlWorker = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just uploaded an event 
+                        on the event section. This makes a total of ${totlRef} users who have uploaded an event  under you. Great Job working for the company</p>`;
+
+          const textWorker = `Dear Worker, you referral has uploaded thier event on event section  `;
+
+          const mailOptions = {
+            from: "admin@zikconnect.com",
+            to: roleEmail,
+            subjectWorker,
+            htmlWorker,
+            textWorker,
+          };
+
+          // await transporter.sendMail(mailOptions);
+          await resend.emails.send(mailOptions);
+        }
+
+        console.log("Referrer's role is:", role);
+      }
       res.send("File uploaded successfully");
     } catch (error) {
       console.error(error);
@@ -4379,6 +4701,56 @@ app.post("/api/approve-funding", async (req, res) => {
       `,
       [amount, email]
     );
+
+    // Get the "Referred By" code from a user based on their email
+    const response = await pool.query(
+      "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+      [email]
+    );
+    const referrer = response.rows[0]?.referred_by;
+
+    if (!referrer) {
+      console.log("No referrer code found for this user.");
+    } else {
+      // Find the role of the person who owns that referral code
+      const roleQuery = await pool.query(
+        "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+        [referrer]
+      );
+      const role = roleQuery.rows[0]?.role;
+      const roleEmail = roleQuery.rows[0]?.email;
+      const roleId = roleQuery.rows[0]?.id;
+
+      if (role == "worker") {
+        const result = await pool.query(
+          "UPDATE worker_performance SET total_referral_fundings = total_referral_fundings + $1 AND referral_who_funded = referral_who_funded + 1 WHERE user_id = $2 returning total_referral_fundings, referral_who_funded ",
+          [amount, roleId]
+        );
+        const totlRef = result.rows[0]?.referral_who_funded;
+        const totlFund = result.rows[0]?.total_referral_fundings;
+
+        // Send confirmation email
+        const subject = "Referral Funding ";
+        const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn.
+                         please strive to complete your tasks to enjoy full reward of your hardwork from the company!. </p>`;
+
+        const text = `Dear Worker, you referral has funded with ${amount} `;
+
+        const mailOptions = {
+          from: "admin@zikconnect.com",
+          to: roleEmail,
+          subject,
+          html,
+          text,
+        };
+
+        // await transporter.sendMail(mailOptions);
+        await resend.emails.send(mailOptions);
+      }
+
+      console.log("Referrer's role is:", role);
+    }
 
     // Email details
     const subject = "Payment Successful!";
