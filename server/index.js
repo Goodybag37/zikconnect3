@@ -1384,6 +1384,37 @@ RETURNING email;
 
     const verificationCode = generateVerificationCode();
 
+    try {
+      // Get the "Referred By" code from a user based on their email
+      const responses = await pool.query(
+        "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+        [email]
+      );
+      const referrer = responses.rows[0]?.referred_by;
+
+      if (!referrer) {
+        console.log("No referrer code found for this user.");
+      } else {
+        // Find the role of the person who owns that referral code
+        const roleQuery = await pool.query(
+          "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+          [referrer]
+        );
+        const role = roleQuery.rows[0]?.role;
+
+        const roleId = roleQuery.rows[0]?.id;
+
+        if (role == "worker") {
+          const result = await pool.query(
+            "UPDATE worker_performance SET total_referral = total_referral + 1  WHERE user_id = $1 ",
+            [roleId]
+          );
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
     await pool.query(
       `INSERT INTO email_verification (user_id, email, code, status)
        VALUES ($1, $2, $3, 'pending')
@@ -1451,34 +1482,6 @@ RETURNING email;
     const newUser = userResult.rows[0];
 
     let status = newUser.email_status === "verified" ? true : false;
-    // Get the "Referred By" code from a user based on their email
-    const responses = await pool.query(
-      "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
-      [email]
-    );
-    const referrer = responses.rows[0]?.referred_by;
-
-    if (!referrer) {
-      console.log("No referrer code found for this user.");
-    } else {
-      // Find the role of the person who owns that referral code
-      const roleQuery = await pool.query(
-        "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
-        [referrer]
-      );
-      const role = roleQuery.rows[0]?.role;
-      const roleEmail = roleQuery.rows[0]?.email;
-      const roleId = roleQuery.rows[0]?.id;
-
-      if (role == "worker") {
-        const result = await pool.query(
-          "UPDATE worker_performance SET total_referral = total_referral + 1  WHERE user_id = $1 ",
-          [roleId]
-        );
-      }
-
-      console.log("Referrer's role is:", role);
-    }
 
     // Registration successful, return user data to frontend
     res.status(200).json({
