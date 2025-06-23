@@ -18,7 +18,6 @@ const Funding = () => {
       try {
         const res = await axios.get(`${apiUrls}/api/fundings`);
 
-        console.log("something came", res.data.data);
         setData(res.data.data);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -119,44 +118,49 @@ const Funding = () => {
       sx={{
         flexGrow: 1,
         width: { xs: "100vw", md: "calc(100vw - 240px)" },
+        marginTop: "64px",
         marginLeft: { xs: 0, md: "240px" },
-        marginTop: "64px", // header height
         padding: { xs: 1, md: 3 },
-        height: "calc(100vh - 64px)", // fills space below header
+        height: "calc(100vh - 64px)",
         boxSizing: "border-box",
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
+        overflow: "hidden", // ✅ important to let inner box scroll
         backgroundColor: "#0000",
       }}
     >
       <Box
         sx={{
-          minWidth: "1000px", // ✅ ensure scrollable
-          // width: "100%",
           height: "100%",
-          minHeight: "400px",
-          backgroundColor: "#fff",
-          border: "1px solid #ddd",
-          borderRadius: "8px",
+          overflowX: "auto", // ✅ horizontal scroll here
+          backgroundColor: "#f7f7f7",
+          padding: 2,
+          boxSizing: "border-box",
         }}
       >
-        <DataGrid
-          rows={data}
-          columns={columns}
-          getRowId={(row) => row.id}
-          pageSize={5}
-          rowsPerPageOptions={[5, 10]}
-          disableSelectionOnClick
-          isRowSelectable={() => false} // 🔒 Disables row selection entirely
+        <Box
           sx={{
-            width: "100%",
-            minWidth: "1000px", // ✅ matches wrapper
-            height: "100%",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "#f9f9f9",
-            },
+            minWidth: "1000px", // ✅ trigger horizontal scroll
+            width: "fit-content", // ✅ ensures grid doesn’t shrink
           }}
-        />
+        >
+          <DataGrid
+            rows={data}
+            columns={columns}
+            getRowId={(row) => row.id}
+            pageSize={5}
+            rowsPerPageOptions={[5, 10]}
+            disableSelectionOnClick
+            isRowSelectable={() => false}
+            autoHeight={false} // ✅ needed for scroll
+            sx={{
+              backgroundColor: "#fff",
+              border: "1px solid #ddd",
+              borderRadius: 2,
+              "& .MuiDataGrid-columnHeaders": {
+                backgroundColor: "#f9f9f9",
+              },
+            }}
+          />
+        </Box>
       </Box>
     </Box>
   );

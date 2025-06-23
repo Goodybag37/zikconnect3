@@ -444,6 +444,21 @@ function Header(props) {
                   <strong>Manage Fundings </strong>
                 </Link>
               </p>
+
+              <br></br>
+              <p className="profileParagraph text-gradient ">
+                <Link className="editPhone" to="/workers">
+                  <BsFillPersonFill className="cashIcon" />
+                  <strong>Manage Workers </strong>
+                </Link>
+              </p>
+              <br></br>
+              <p className="profileParagraph text-gradient ">
+                <Link className="editPhone" to="/peoples">
+                  <BsFillPersonFill className="cashIcon" />
+                  <strong>Manage People </strong>
+                </Link>
+              </p>
             </div>
           ) : (
             ""

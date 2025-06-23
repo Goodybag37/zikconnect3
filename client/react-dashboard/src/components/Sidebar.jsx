@@ -148,6 +148,17 @@ function Sidebar(props) {
         <li className="sidebar-list-item">
           <CustomLink
             className="card-title"
+            to={"/uploadbrand"}
+            userId={userId}
+            email={email}
+          >
+            <FaCartPlus className="iconSidebar bg-black-gradient" /> Upload
+            Market
+          </CustomLink>
+        </li>
+        <li className="sidebar-list-item">
+          <CustomLink
+            className="card-title"
             to={"/uploadlodge"}
             userId={userId}
             email={email}

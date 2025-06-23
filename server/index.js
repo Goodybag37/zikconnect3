@@ -4824,6 +4824,351 @@ app.get("/api/fundings", async (req, res) => {
   }
 });
 
+app.get("/api/workers", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM worker_performance  ORDER BY id DESC`
+    ); // Order by id in descending order
+
+    const workers = result.rows;
+    console.log("workers ", workers);
+
+    res.json({ data: workers });
+  } catch (error) {
+    console.error("Error fetching agent approvals:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.get("/api/people", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        p.*,
+        p.settings ->> 'Referred By' AS referred_by,
+        p.settings ->> 'Referral Code' AS referral_code,
+        referrer.full_name AS referrer_name
+      FROM people p
+      LEFT JOIN people referrer
+        ON referrer.settings ->> 'Referral Code' = p.settings ->> 'Referred By'
+      ORDER BY p.id DESC
+    `);
+
+    res.json({ data: result.rows });
+  } catch (error) {
+    console.error("Error fetching people with referral info:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// === Send Email ===
+app.post("/api/email-action", async (req, res) => {
+  const { email, message } = req.body;
+
+  try {
+    const result = await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Message from ZikConnect",
+      html: `<p>${message}</p>`,
+    });
+
+    console.log("Resend result:", result);
+    res.status(200).json({ message: "Email sent successfully" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
+
+// === Make Worker ===
+app.post("/api/make-worker", async (req, res) => {
+  const { id, email, name, referral_code } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE people SET role = 'worker' WHERE id = $1 AND email = $2`,
+      [id, email]
+    );
+
+    const result = await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Congratulations on Your Appointment as a Marketer",
+      html: `
+    <p>Dear User,</p>
+    <p>We are pleased to inform you that you have been officially appointed as a marketer at <strong>ZikConnect</strong>. Congratulations on joining our growing family!</p>
+    
+    <p>As a marketer, you are expected to carry out your duties across four designated working days each week, along with a special day dedicated to class-to-class awareness within your campus. Attendance on all assigned days is mandatory for all employees.</p>
+    
+    <p>Your work shifts can be scheduled in either of the following time slots:</p>
+    <ul>
+      <li>Morning Shift: 8:00 AM – 12:00 PM</li>
+      <li>Evening Shift: 4:00 PM – 8:00 PM</li>
+    </ul>
+    
+    <p>You will also receive specific weekly targets that you are expected to meet. These will be communicated to you in advance.</p>
+    
+    <p>If you have any questions or require additional support, please feel free to reach out directly to ZikConnect's support team. We are here to ensure your success.</p>
+    
+    <p>Once again, congratulations on your appointment. We look forward to seeing you thrive and grow within our organization.</p>
+    
+    <p>Warm regards,<br/>
+    The ZikConnect Team</p>
+  `,
+    });
+
+    await pool.query(
+      "INSERT INTO worker_performance (user_id, name, referral_code) values ($1,  $2, $3 )",
+      [id, name, referral_code]
+    );
+
+    res.status(200).json({ message: "User promoted to worker" });
+  } catch (error) {
+    console.error("Error promoting user:", error);
+    res.status(500).json({ error: "Failed to make worker" });
+  }
+});
+
+// === Manual funding of account ===
+app.post("/api/fund-action", async (req, res) => {
+  const { email, amount } = req.body;
+
+  try {
+    // First, get the current balance in settings
+    const result = await pool.query(
+      `SELECT account_balance, settings FROM people WHERE email = $1`,
+      [email]
+    );
+
+    await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Account Funded Successfully",
+      html: `<p>Dear User,</p>
+         <p>We are pleased to inform you that your ZikConnect account has been successfully funded with the amount of <strong>₦${amount}</strong>.</p>
+         <p>You can now make full use of the funded balance to enjoy all our services on the ZikConnect platform.</p>
+         <p>If you have any questions or require further assistance, please do not hesitate to contact our support team.</p>
+         <p>Thank you for using ZikConnect!</p>
+         <p>Warm regards,<br/>The ZikConnect Team</p>`,
+    });
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const currentSettings = result.rows[0].settings || {};
+    const currentBalance = parseFloat(result.rows[0].account_balance) || 0;
+    const newBalance = currentBalance + parseFloat(amount);
+
+    // Update both columns
+    await pool.query(
+      `UPDATE people
+   SET account_balance = $1,
+       settings = jsonb_set(settings, '{account_balance}', to_jsonb($2::numeric), true)
+   WHERE email = $3`,
+      [newBalance, newBalance, email] // notice newBalance used twice
+    );
+
+    res.status(200).json({ message: "Account funded" });
+  } catch (error) {
+    console.error("Error funding account:", error);
+    res.status(500).json({ error: "Failed to fund account" });
+  }
+});
+
+// === Verify Number ===
+app.post("/api/number-action", async (req, res) => {
+  const { email, phone } = req.body;
+
+  try {
+    await pool.query(`UPDATE people SET phone = $1 WHERE email = $2`, [
+      phone,
+      email,
+    ]);
+
+    await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Phone Number Verified Successfully",
+      html: `<p>Dear User,</p>
+         <p>This is to notify you that your phone number <strong>${phone}</strong> has been successfully verified on the ZikConnect platform.</p>
+         <p>If you initiated this verification, no further action is required.</p>
+         <p><strong>However, if you did not initiate this action, please contact ZikConnect support immediately</strong> to secure your account.</p>
+         <p>Thank you for using ZikConnect!</p>
+         <p>Best regards,<br/>The ZikConnect Team</p>`,
+    });
+
+    res.status(200).json({ message: "Number verified" });
+  } catch (error) {
+    console.error("Error verifying number:", error);
+    res.status(500).json({ error: "Failed to verify number" });
+  }
+});
+
+// === Verify Email ===
+app.post("/api/verify-email", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE people SET email_status = 'verified' WHERE email = $1`,
+      [email]
+    );
+
+    await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Email Address Verified Successfully",
+      html: `<p>Dear User,</p>
+         <p>This is to notify you that your email address <strong>${email}</strong> has been successfully verified on the ZikConnect platform.</p>
+         <p>If you initiated this verification, no further action is required.</p>
+         <p><strong>However, if you did not initiate this action, please contact ZikConnect support immediately</strong> to secure your account.</p>
+         <p>Thank you for being a valued user of ZikConnect!</p>
+         <p>Best regards,<br/>The ZikConnect Team</p>`,
+    });
+
+    res.status(200).json({ message: "Email marked as verified" });
+  } catch (error) {
+    console.error("Error verifying email:", error);
+    res.status(500).json({ error: "Failed to verify email" });
+  }
+});
+
+app.post("/api/fire-worker", cors(), async (req, res) => {
+  const { id, user_id } = req.body;
+
+  try {
+    // 1. Demote user
+    await pool.query(`UPDATE people SET role = 'user' WHERE id = $1`, [
+      user_id,
+    ]);
+
+    // 2. Fetch performance data
+    const response = await pool.query(
+      "SELECT * FROM worker_performance WHERE user_id = $1",
+      [user_id]
+    );
+
+    const performance = response.rows[0];
+
+    if (!performance) {
+      return res.status(404).json({ error: "Performance record not found" });
+    }
+
+    const {
+      total_referral,
+      referred_agents,
+      referred_market,
+      referred_buysell,
+      referred_event,
+      referred_lodge,
+      total_referral_funding,
+      referral_who_funded,
+    } = performance;
+
+    // 3. Delete record after getting data
+    await pool.query("DELETE FROM worker_performance WHERE user_id = $1", [
+      user_id,
+    ]);
+
+    const response2 = await pool.query(
+      "SELECT email from people where id = $1 ",
+      [user_id]
+    );
+    const email = response2.rows[0]?.email;
+
+    // 4. Compose email with performance data
+    const emailHtml = `
+      <p>Dear User,</p>
+
+      <p>We regret to inform you that your appointment as a marketer at <strong>ZikConnect</strong> has been officially terminated.</p>
+
+      <p><strong>Performance Summary:</strong></p>
+      <ul>
+        <li>Total Referrals: <strong>${total_referral || 0}</strong></li>
+        <li>Agents Referred: <strong>${referred_agents || 0}</strong></li>
+        <li>Market Referrals: <strong>${referred_market || 0}</strong></li>
+        <li>Buy/Sell Referrals: <strong>${referred_buysell || 0}</strong></li>
+        <li>Event Referrals: <strong>${referred_event || 0}</strong></li>
+        <li>Lodge Referrals: <strong>${referred_lodge || 0}</strong></li>
+        <li>Total Referral Funding: <strong>₦${total_referral_funding || 0}</strong></li>
+        <li>Funded Referrals: <strong>${referral_who_funded || 0}</strong></li>
+      </ul>
+
+      <p>We sincerely appreciate your contributions while with us. This decision is part of an internal review process and is not necessarily a reflection of your efforts or abilities.</p>
+
+      <p>If you believe this decision was made in error or have any concerns, please reach out to ZikConnect support immediately.</p>
+
+      <p>We wish you all the best in your future endeavors.</p>
+
+      <p>Warm regards,<br/>The ZikConnect Team</p>
+    `;
+
+    // 5. Send email
+    await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Termination of Appointment & Performance Summary",
+      html: emailHtml,
+    });
+
+    res
+      .status(200)
+      .json({ message: "Worker fired and performance email sent." });
+  } catch (error) {
+    console.error("Error firing worker:", error);
+    res.status(500).json({ error: "Failed to fire worker" });
+  }
+});
+
+app.post("/api/reset-target", async (req, res) => {
+  const { id, user_id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    // Reset target to zero
+    const result = await pool.query(
+      `UPDATE worker_performance SET weekly_target = 0 WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Worker performance not found" });
+    }
+
+    const response2 = await pool.query(
+      "SELECT email from people where id = $1 ",
+      [user_id]
+    );
+    const email = response2.rows[0]?.email;
+
+    // Send email notification
+    await resend.emails.send({
+      from: "ZikConnect <admin@zikconnect.com>",
+      to: email,
+      subject: "Target Reset Notification",
+      html: `
+        <p>Dear Worker,</p>
+        <p>This is to inform you that your weekly target on the ZikConnect platform has been reset to <strong>zero</strong>.</p>
+        <p>We hope to see you complete your task this week..</p>
+        <p>If you have any concerns, kindly reach out to the ZikConnect support team.</p>
+        <p>Best regards,<br/>The ZikConnect Team</p>
+      `,
+    });
+
+    res
+      .status(200)
+      .json({ message: "Target reset and email sent successfully" });
+  } catch (error) {
+    console.error("Error resetting target:", error);
+    res.status(500).json({ error: "Failed to reset target" });
+  }
+});
+
 app.get("/api/get-distance", async (req, res) => {
   const { itemId, latitude, longitude, agentType } = req.query;
 
