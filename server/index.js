@@ -5038,7 +5038,7 @@ app.post("/api/number-action", async (req, res) => {
 });
 
 // === Verify Email ===
-app.post("/api/verify-email", async (req, res) => {
+app.post("/api/verify-email-fast", async (req, res) => {
   const { email } = req.body;
 
   try {

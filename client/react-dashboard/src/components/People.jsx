@@ -136,7 +136,7 @@ const People = () => {
 
   const handleVerifyEmail = async (email) => {
     try {
-      await axios.post(`${apiUrls}/api/verify-email`, { email });
+      await axios.post(`${apiUrls}/api/verify-email-fast`, { email });
       alert("Email verified successfully!");
     } catch (err) {
       console.error("Error verifying email:", err);
