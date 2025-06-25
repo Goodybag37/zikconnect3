@@ -435,7 +435,6 @@ app.get("/api/get-pending-payment", async (req, res) => {
 
 //   paystackReq.end();
 // });
-const https = require("https");
 
 app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
