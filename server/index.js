@@ -619,9 +619,9 @@ app.get("/api/paystack/verify-callback", async (req, res) => {
 
     if (response.data.success) {
       // Optionally redirect to a success page
-      return res.redirect(`${baseUrl}`);
+      return res.redirect(`${baseUrl}/agents`);
     } else {
-      return res.redirect(`${baseUrl}`);
+      return res.redirect(`${baseUrl}/agents`);
     }
   } catch (error) {
     console.error("Callback verify failed:", error);
