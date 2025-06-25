@@ -184,7 +184,7 @@ app.post("/api/paystack/initialize", cors(), (req, res) => {
   const params = JSON.stringify({
     email,
     amount: amount * 100, // Convert to kobo
-    callback_url: `${baseUrl}/verifypayment`,
+    callback_url: `${baseUrl}/api/paystack/verify-callback`,
   });
 
   const options = {
@@ -261,179 +261,372 @@ app.get("/api/get-pending-payment", async (req, res) => {
   }
 });
 
+// app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
+//   const { reference } = req.params;
+
+//   const transactionCheck = await pool.query(
+//     "SELECT status FROM transactions WHERE reference = $1",
+//     [reference]
+//   );
+
+//   if (
+//     transactionCheck.rows.length > 0 &&
+//     transactionCheck.rows[0].status === "success"
+//   ) {
+//     return res
+//       .status(200)
+//       .json({ success: true, message: "Transaction already processed." });
+//   }
+
+//   const options = {
+//     hostname: "api.paystack.co",
+//     port: 443,
+//     path: `/transaction/verify/${reference}`,
+//     method: "GET",
+//     headers: {
+//       Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+//     },
+//   };
+
+//   const paystackReq = https.request(options, (paystackRes) => {
+//     let data = "";
+
+//     paystackRes.on("data", (chunk) => {
+//       data += chunk;
+//     });
+
+//     paystackRes.on("end", async () => {
+//       const response = JSON.parse(data);
+
+//       if (response.status && response.data.status === "success") {
+//         const { amount, customer } = response.data;
+//         const email = customer.email;
+
+//         try {
+//           // Update the user's account balance
+//           await pool.query(
+//             `
+//             UPDATE people
+//             SET
+//               account_balance = account_balance + $1,
+//               settings = jsonb_set(
+//                 settings,
+//                 '{account_balance}',
+//                 to_jsonb(account_balance + $1),
+//                 true
+//               )
+//             WHERE email = $2;
+//             `,
+//             [amount / 100, email]
+//           );
+
+//           // Get the "Referred By" code from a user based on their email
+//           const response = await pool.query(
+//             "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+//             [email]
+//           );
+//           const referrer = response.rows[0]?.referred_by;
+
+//           if (!referrer) {
+//             console.log("No referrer code found for this user.");
+//           } else {
+//             // Find the role of the person who owns that referral code
+//             const roleQuery = await pool.query(
+//               "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+//               [referrer]
+//             );
+//             const role = roleQuery.rows[0]?.role;
+//             const roleEmail = roleQuery.rows[0]?.email;
+//             const roleId = roleQuery.rows[0]?.id;
+
+//             if (role == "worker") {
+//               const result = await pool.query(
+//                 "UPDATE worker_performance SET total_referral_fundings = total_referral_fundings + $1 AND referral_who_funded = referral_who_funded + 1 WHERE user_id = $2 returning total_referral_fundings, referral_who_funded ",
+//                 [amount / 100, roleId]
+//               );
+//               const totlRef = result.rows[0]?.referral_who_funded;
+//               const totlFund = result.rows[0]?.total_referral_fundings;
+
+//               // Send confirmation email
+//               const subject = "Referral Funding ";
+//               const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+//                         <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn.
+//                          please strive to complete your tasks to enjoy full reward of your hardwork from the company!. </p>`;
+
+//               const text = `Dear Worker, you referral has funded with ${
+//                 amount / 100
+//               } `;
+
+//               const mailOptions = {
+//                 from: "admin@zikconnect.com",
+//                 to: roleEmail,
+//                 subject,
+//                 html,
+//                 text,
+//               };
+
+//               // await transporter.sendMail(mailOptions);
+//               await resend.emails.send(mailOptions);
+//             }
+
+//             console.log("Referrer's role is:", role);
+//           }
+
+//           // Update transaction status in the database
+//           await pool.query(
+//             "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
+//             ["success", reference]
+//           );
+
+//           // Send confirmation email
+//           const subject = "Payment Successful!";
+//           const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+//                         <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${
+//                           amount / 100
+//                         } connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
+
+//           const text = `Dear User, you have successfully funded your Zikconnect account with ${
+//             amount / 100
+//           } connects. Please use it carefully. We are excited to have you onboard!`;
+
+//           const mailOptions = {
+//             from: "admin@zikconnect.com",
+//             to: email,
+//             subject,
+//             html,
+//             text,
+//           };
+
+//           // await transporter.sendMail(mailOptions);
+//           await resend.emails.send(mailOptions);
+
+//           // Final response after successful updates and email
+//           return res.json({
+//             success: true,
+//             message: "Payment verified successfully",
+//           });
+//         } catch (error) {
+//           console.error("Error updating account balance:", error);
+
+//           // Return error response if transaction or balance update fails
+//           return res.status(500).json({
+//             success: false,
+//             message: "Failed to update account balance",
+//           });
+//         }
+//       } else {
+//         // Payment verification failed
+//         return res.json({
+//           success: false,
+//           message: "Payment verification failed",
+//         });
+//       }
+//     });
+//   });
+
+//   paystackReq.on("error", (error) => {
+//     console.error("Paystack request error:", error);
+
+//     // Only send one error response for Paystack request failure
+//     return res
+//       .status(500)
+//       .json({ success: false, message: "Payment verification failed" });
+//   });
+
+//   paystackReq.end();
+// });
+const https = require("https");
+
 app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
   const { reference } = req.params;
 
-  const transactionCheck = await pool.query(
-    "SELECT status FROM transactions WHERE reference = $1",
-    [reference]
-  );
+  try {
+    // Check if transaction was already processed
+    const transactionCheck = await pool.query(
+      "SELECT status FROM transactions WHERE reference = $1",
+      [reference]
+    );
 
-  if (
-    transactionCheck.rows.length > 0 &&
-    transactionCheck.rows[0].status === "success"
-  ) {
-    return res
-      .status(200)
-      .json({ success: true, message: "Transaction already processed." });
-  }
+    if (
+      transactionCheck.rows.length > 0 &&
+      transactionCheck.rows[0].status === "success"
+    ) {
+      return res.status(200).json({
+        success: true,
+        message: "Transaction already processed.",
+      });
+    }
 
-  const options = {
-    hostname: "api.paystack.co",
-    port: 443,
-    path: `/transaction/verify/${reference}`,
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-    },
-  };
+    // Set up HTTPS request to Paystack
+    const options = {
+      hostname: "api.paystack.co",
+      port: 443,
+      path: `/transaction/verify/${reference}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+      },
+    };
 
-  const paystackReq = https.request(options, (paystackRes) => {
-    let data = "";
+    const paystackReq = https.request(options, (paystackRes) => {
+      let data = "";
 
-    paystackRes.on("data", (chunk) => {
-      data += chunk;
-    });
+      paystackRes.on("data", (chunk) => {
+        data += chunk;
+      });
 
-    paystackRes.on("end", async () => {
-      const response = JSON.parse(data);
+      paystackRes.on("end", async () => {
+        const parsed = JSON.parse(data);
 
-      if (response.status && response.data.status === "success") {
-        const { amount, customer } = response.data;
-        const email = customer.email;
+        if (parsed.status && parsed.data.status === "success") {
+          const { amount, customer } = parsed.data;
+          const email = customer.email;
 
-        try {
-          // Update the user's account balance
-          await pool.query(
-            `
-            UPDATE people
-            SET 
-              account_balance = account_balance + $1,
-              settings = jsonb_set(
-                settings, 
-                '{account_balance}', 
-                to_jsonb(account_balance + $1), 
-                true 
-              )
-            WHERE email = $2;
-            `,
-            [amount / 100, email]
-          );
-
-          // Get the "Referred By" code from a user based on their email
-          const response = await pool.query(
-            "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
-            [email]
-          );
-          const referrer = response.rows[0]?.referred_by;
-
-          if (!referrer) {
-            console.log("No referrer code found for this user.");
-          } else {
-            // Find the role of the person who owns that referral code
-            const roleQuery = await pool.query(
-              "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
-              [referrer]
+          try {
+            // Update user's account balance
+            await pool.query(
+              `
+              UPDATE people
+              SET 
+                account_balance = account_balance + $1,
+                settings = jsonb_set(
+                  settings, 
+                  '{account_balance}', 
+                  to_jsonb(account_balance + $1), 
+                  true 
+                )
+              WHERE email = $2
+              `,
+              [amount / 100, email]
             );
-            const role = roleQuery.rows[0]?.role;
-            const roleEmail = roleQuery.rows[0]?.email;
-            const roleId = roleQuery.rows[0]?.id;
 
-            if (role == "worker") {
-              const result = await pool.query(
-                "UPDATE worker_performance SET total_referral_fundings = total_referral_fundings + $1 AND referral_who_funded = referral_who_funded + 1 WHERE user_id = $2 returning total_referral_fundings, referral_who_funded ",
-                [amount / 100, roleId]
+            // Check for referrer
+            const refRes = await pool.query(
+              "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+              [email]
+            );
+            const referrer = refRes.rows[0]?.referred_by;
+
+            if (referrer) {
+              const refDetails = await pool.query(
+                "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+                [referrer]
               );
-              const totlRef = result.rows[0]?.referral_who_funded;
-              const totlFund = result.rows[0]?.total_referral_fundings;
 
-              // Send confirmation email
-              const subject = "Referral Funding ";
-              const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn.
-                         please strive to complete your tasks to enjoy full reward of your hardwork from the company!. </p>`;
+              const role = refDetails.rows[0]?.role;
+              const roleEmail = refDetails.rows[0]?.email;
+              const roleId = refDetails.rows[0]?.id;
 
-              const text = `Dear Worker, you referral has funded with ${
-                amount / 100
-              } `;
+              if (role === "worker") {
+                const result = await pool.query(
+                  `UPDATE worker_performance 
+                   SET 
+                     total_referral_fundings = total_referral_fundings + $1,
+                     referral_who_funded = referral_who_funded + 1
+                   WHERE user_id = $2 
+                   RETURNING total_referral_fundings, referral_who_funded`,
+                  [amount / 100, roleId]
+                );
 
-              const mailOptions = {
-                from: "admin@zikconnect.com",
-                to: roleEmail,
-                subject,
-                html,
-                text,
-              };
+                const totlRef = result.rows[0]?.referral_who_funded;
+                const totlFund = result.rows[0]?.total_referral_fundings;
 
-              // await transporter.sendMail(mailOptions);
-              await resend.emails.send(mailOptions);
+                const subject = "Referral Funding";
+                const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                <p style="font-family: Times New Roman;">Dear Zikconnect Worker, a user you referred just funded their account with ₦${amount / 100}. This makes a total of ${totlRef} fundings and ₦${totlFund} earned. Keep it up!</p>`;
+
+                await resend.emails.send({
+                  from: "ZikConnect <admin@zikconnect.com>",
+                  to: roleEmail,
+                  subject,
+                  html,
+                  text: `Referral funded ₦${amount / 100}`,
+                });
+              }
             }
 
-            console.log("Referrer's role is:", role);
+            // Update transaction table
+            await pool.query(
+              "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
+              ["success", reference]
+            );
+
+            // Send confirmation email to user
+            const subject = "Payment Successful!";
+            const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+            <p style="font-family: Times New Roman;">Dear User, your Zikconnect account has been funded with <strong>₦${amount / 100}</strong>. You can now enjoy our services.</p>`;
+
+            await resend.emails.send({
+              from: "ZikConnect <admin@zikconnect.com>",
+              to: email,
+              subject,
+              html,
+              text: `You funded your Zikconnect account with ₦${amount / 100}`,
+            });
+
+            return res.json({
+              success: true,
+              message: "Payment verified successfully",
+            });
+          } catch (err) {
+            console.error("Error updating DB or sending emails:", err);
+            return res.status(500).json({
+              success: false,
+              message: "Failed to update account",
+            });
           }
-
-          // Update transaction status in the database
-          await pool.query(
-            "UPDATE transactions SET status = $1, updated_at = NOW() WHERE reference = $2",
-            ["success", reference]
-          );
-
-          // Send confirmation email
-          const subject = "Payment Successful!";
-          const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                        <strong><p style="font-family: Times New Roman;">Dear User, you have successfully funded your Zikconnect account with <strong style="color: #15b58e;">${
-                          amount / 100
-                        } connects</strong>. Please use it carefully. We are excited to have you onboard!</p>`;
-
-          const text = `Dear User, you have successfully funded your Zikconnect account with ${
-            amount / 100
-          } connects. Please use it carefully. We are excited to have you onboard!`;
-
-          const mailOptions = {
-            from: "admin@zikconnect.com",
-            to: email,
-            subject,
-            html,
-            text,
-          };
-
-          // await transporter.sendMail(mailOptions);
-          await resend.emails.send(mailOptions);
-
-          // Final response after successful updates and email
+        } else {
           return res.json({
-            success: true,
-            message: "Payment verified successfully",
-          });
-        } catch (error) {
-          console.error("Error updating account balance:", error);
-
-          // Return error response if transaction or balance update fails
-          return res.status(500).json({
             success: false,
-            message: "Failed to update account balance",
+            message: "Payment verification failed",
           });
         }
-      } else {
-        // Payment verification failed
-        return res.json({
-          success: false,
-          message: "Payment verification failed",
-        });
-      }
+      });
     });
-  });
 
-  paystackReq.on("error", (error) => {
-    console.error("Paystack request error:", error);
+    paystackReq.on("error", (err) => {
+      console.error("Paystack verify error:", err);
+      return res.status(500).json({
+        success: false,
+        message: "Payment verification request failed",
+      });
+    });
 
-    // Only send one error response for Paystack request failure
+    paystackReq.end();
+  } catch (err) {
+    console.error("Verification route error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+    });
+  }
+});
+
+app.get("/api/paystack/verify-callback", async (req, res) => {
+  const reference = req.query.reference;
+
+  if (!reference) {
     return res
-      .status(500)
-      .json({ success: false, message: "Payment verification failed" });
-  });
+      .status(400)
+      .json({ success: false, message: "No reference provided" });
+  }
 
-  paystackReq.end();
+  try {
+    // Reuse your existing verification logic
+    const response = await axios.get(
+      `${baseUrl}/api/paystack/verify/${reference}`
+    );
+
+    if (response.data.success) {
+      // Optionally redirect to a success page
+      return res.redirect(`${baseUrl}`);
+    } else {
+      return res.redirect(`${baseUrl}`);
+    }
+  } catch (error) {
+    console.error("Callback verify failed:", error);
+    return res.redirect(`${baseUrl}`);
+  }
 });
 
 app.post(
@@ -4754,16 +4947,23 @@ app.post("/api/approve-funding", async (req, res) => {
 
       if (role == "worker") {
         const result = await pool.query(
-          "UPDATE worker_performance SET total_referral_fundings = total_referral_fundings + $1 AND referral_who_funded = referral_who_funded + 1 WHERE user_id = $2 returning total_referral_fundings, referral_who_funded ",
+          `UPDATE worker_performance 
+   SET total_referral_fundings = total_referral_fundings + $1,
+       referral_who_funded = referral_who_funded + 1,
+       weekly_target = weekly_target + 1
+   WHERE user_id = $2 
+   RETURNING total_referral_fundings, referral_who_funded, weekly_target`,
           [amount, roleId]
         );
+
         const totlRef = result.rows[0]?.referral_who_funded;
         const totlFund = result.rows[0]?.total_referral_fundings;
+        const weekly_target = result.rows[0]?.weekly_target;
 
         // Send confirmation email
         const subject = "Referral Funding ";
         const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn.
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn. your weekly target is ${weekly_target}/16
                          please strive to complete your tasks to enjoy full reward of your hardwork from the company!. </p>`;
 
         const text = `Dear Worker, you referral has funded with ${amount} `;
@@ -4965,43 +5165,86 @@ app.post("/api/make-worker", async (req, res) => {
 app.post("/api/fund-action", async (req, res) => {
   const { email, amount } = req.body;
 
+  if (!email || isNaN(parseFloat(amount))) {
+    return res.status(400).json({ error: "Invalid email or amount" });
+  }
+
   try {
-    // First, get the current balance in settings
+    // 1. Check if user exists
     const result = await pool.query(
       `SELECT account_balance, settings FROM people WHERE email = $1`,
       [email]
     );
 
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const currentBalance = parseFloat(result.rows[0].account_balance ?? 0);
+    const fundAmount = parseFloat(amount);
+    const newBalance = currentBalance + fundAmount;
+
+    // 2. Check referral info
+    const response = await pool.query(
+      "SELECT settings ->> 'Referred By' AS referred_by FROM people WHERE email = $1",
+      [email]
+    );
+    const referrer = response.rows[0]?.referred_by;
+
+    if (referrer) {
+      const roleQuery = await pool.query(
+        "SELECT id, role, email FROM people WHERE settings ->> 'Referral Code' = $1 LIMIT 1",
+        [referrer]
+      );
+      const role = roleQuery.rows[0]?.role;
+      const roleEmail = roleQuery.rows[0]?.email;
+      const roleId = roleQuery.rows[0]?.id;
+
+      if (role === "worker") {
+        const perfUpdate = await pool.query(
+          `UPDATE worker_performance 
+           SET total_referral_fundings = total_referral_fundings + $1,
+               referral_who_funded = referral_who_funded + 1,
+               weekly_target = weekly_target + 1
+           WHERE user_id = $2 
+           RETURNING total_referral_fundings, referral_who_funded, weekly_target`,
+          [fundAmount, roleId]
+        );
+
+        const { referral_who_funded, total_referral_fundings, weekly_target } =
+          perfUpdate.rows[0];
+
+        await resend.emails.send({
+          from: "ZikConnect <admin@zikconnect.com>",
+          to: roleEmail,
+          subject: "Referral Funding",
+          html: `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
+                 <p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded their account with ₦${fundAmount}. This makes a total of ${referral_who_funded} fundings, and you have helped earn ₦${total_referral_fundings}. Weekly target: ${weekly_target}/16. Keep up the great work!</p>`,
+          text: `Dear Worker, your referral has funded ₦${fundAmount}`,
+        });
+      }
+    }
+
+    // 3. Notify user
     await resend.emails.send({
       from: "ZikConnect <admin@zikconnect.com>",
       to: email,
       subject: "Account Funded Successfully",
       html: `<p>Dear User,</p>
-         <p>We are pleased to inform you that your ZikConnect account has been successfully funded with the amount of <strong>₦${amount}</strong>.</p>
-         <p>You can now make full use of the funded balance to enjoy all our services on the ZikConnect platform.</p>
-         <p>If you have any questions or require further assistance, please do not hesitate to contact our support team.</p>
-         <p>Thank you for using ZikConnect!</p>
-         <p>Warm regards,<br/>The ZikConnect Team</p>`,
+             <p>Your ZikConnect account has been funded with ₦<strong>${fundAmount}</strong>.</p>
+             <p>Thank you for using ZikConnect.</p>`,
     });
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const currentSettings = result.rows[0].settings || {};
-    const currentBalance = parseFloat(result.rows[0].account_balance) || 0;
-    const newBalance = currentBalance + parseFloat(amount);
-
-    // Update both columns
+    // 4. Update balance
     await pool.query(
       `UPDATE people
-   SET account_balance = $1,
-       settings = jsonb_set(settings, '{account_balance}', to_jsonb($2::numeric), true)
-   WHERE email = $3`,
-      [newBalance, newBalance, email] // notice newBalance used twice
+       SET account_balance = $1,
+           settings = jsonb_set(settings, '{account_balance}', to_jsonb($1::numeric), true)
+       WHERE email = $2`,
+      [newBalance, email]
     );
 
-    res.status(200).json({ message: "Account funded" });
+    res.status(200).json({ message: "Account funded successfully" });
   } catch (error) {
     console.error("Error funding account:", error);
     res.status(500).json({ error: "Failed to fund account" });
