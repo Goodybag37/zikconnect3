@@ -522,18 +522,19 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
                   `UPDATE worker_performance 
                    SET 
                      total_referral_fundings = total_referral_fundings + $1,
-                     referral_who_funded = referral_who_funded + 1
+                     referral_who_funded = referral_who_funded + 1, weekly_target = weekly_target + 1
                    WHERE user_id = $2 
-                   RETURNING total_referral_fundings, referral_who_funded`,
+                   RETURNING total_referral_fundings, referral_who_funded, weekly_target`,
                   [amount / 100, roleId]
                 );
 
                 const totlRef = result.rows[0]?.referral_who_funded;
                 const totlFund = result.rows[0]?.total_referral_fundings;
+                const weekly_target = result.rows[0]?.weekly_target;
 
                 const subject = "Referral Funding";
                 const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                <p style="font-family: Times New Roman;">Dear Zikconnect Worker, a user you referred just funded their account with ₦${amount / 100}. This makes a total of ${totlRef} fundings and ₦${totlFund} earned. Keep it up!</p>`;
+                <p style="font-family: Times New Roman;">Dear Zikconnect Worker, a user you referred just funded their account with ₦${amount / 100}. This makes a total of ${totlRef} fundings and ₦${totlFund} earned. Your weekly target is ${weekly_target}/16 Keep it up!</p>`;
 
                 await resend.emails.send({
                   from: "ZikConnect <admin@zikconnect.com>",
