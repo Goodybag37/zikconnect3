@@ -20,7 +20,6 @@
 client/react-dashboard/.env
 client/react-dashboard/src/.env
 server/.env
-.env
 
 
 npm-debug.log*

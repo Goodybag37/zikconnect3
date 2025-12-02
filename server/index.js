@@ -771,7 +771,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-const pool =
+const poolsss =
   process.env.ENVIRONMENT === "local"
     ? new pg.Pool({
         user: process.env.DB_USER,
@@ -787,6 +787,20 @@ const pool =
         port: 5432,
         password: process.env.RDS_PASSWORD,
         ssl: { rejectUnauthorized: false },
+      });
+
+const pool =
+  process.env.ENVIRONMENT === "local"
+    ? new pg.Pool({
+        user: process.env.DB_USER,
+        host: "localhost",
+        database: "students",
+        password: process.env.DB_PASSWORD,
+        port: 5433,
+      })
+    : new pg.Pool({
+        connectionString: process.env.NEON_CONNECTION_STRING, // <- Neon connection string
+        ssl: { rejectUnauthorized: false }, // required for Neon
       });
 
 const poolss = new pg.Pool({
