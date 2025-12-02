@@ -771,24 +771,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 app.set("trust proxy", 1); // trust first proxy
 
-// const pool =
-//   process.env.ENVIRONMENT === "local"
-//     ? new pg.Pool({
-//         user: process.env.DB_USER,
-//         host: "localhost",
-//         database: "students",
-//         password: process.env.DB_PASSWORD,
-//         port: 5433,
-//       })
-//     : new pg.Pool({
-//         user: process.env.RDS_USER_NAME,
-//         host: process.env.RDS_USER, // Ensure this is intended, might need to be RDS_HOST
-//         database: process.env.RDS_DATABASE,
-//         port: 5432,
-//         password: process.env.RDS_PASSWORD,
-//         ssl: { rejectUnauthorized: false },
-//       });
-
 const pool =
   process.env.ENVIRONMENT === "local"
     ? new pg.Pool({
@@ -799,8 +781,12 @@ const pool =
         port: 5433,
       })
     : new pg.Pool({
-        connectionString: process.env.NEON_CONNECTION_STRING, // <- Neon connection string
-        ssl: { rejectUnauthorized: false }, // required for Neon
+        user: process.env.RDS_USER_NAME,
+        host: process.env.RDS_USER, // Ensure this is intended, might need to be RDS_HOST
+        database: process.env.RDS_DATABASE,
+        port: 5432,
+        password: process.env.RDS_PASSWORD,
+        ssl: { rejectUnauthorized: false },
       });
 
 const poolss = new pg.Pool({
