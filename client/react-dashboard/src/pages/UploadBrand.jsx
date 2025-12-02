@@ -179,7 +179,7 @@ function UploadBrand() {
       }
 
       console.log("Account balance is", accountBalance);
-      if (accountBalance < 200) {
+      if (accountBalance < 1000) {
         const content5 = (
           <>
             <div className="verifyPopup">
@@ -190,7 +190,7 @@ function UploadBrand() {
               />
             </div>
             <p className="popup-paragraph">
-              You need at least 200 naira in your account to upload your
+              You need at least 1000 naira in your account to upload your
               business. Please fund your account and try again.
             </p>
             <Link to="/fundaccount">

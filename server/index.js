@@ -2581,9 +2581,9 @@ app.post(
     settings = jsonb_set(
       settings, 
       '{account_balance}', 
-      to_jsonb((settings->>'account_balance')::int - 200)  -- The new value as JSONB
+      to_jsonb((settings->>'account_balance')::int - 1000)  -- The new value as JSONB
     ),
-    account_balance = account_balance - 200
+    account_balance = account_balance - 1000
   WHERE 
     id = $1;
   `,
@@ -2824,9 +2824,9 @@ app.post(
           settings = jsonb_set(
             settings, 
             '{account_balance}', 
-            to_jsonb((settings->>'account_balance')::int - 200)
+            to_jsonb((settings->>'account_balance')::int - 1000)
           ),
-          account_balance = account_balance - 200
+          account_balance = account_balance - 1000
         WHERE 
           id = $1;
         `,
