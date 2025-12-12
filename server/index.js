@@ -533,7 +533,9 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
 
                 const subject = "Referral Funding";
                 const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                <p style="font-family: Times New Roman;">Dear Zikconnect Worker, a user you referred just funded their account with ₦${amount / 100}. This makes a total of ${totlRef} fundings and ₦${totlFund} earned. Your weekly target is ${weekly_target}/16 Keep it up!</p>`;
+                <p style="font-family: Times New Roman;">Dear Zikconnect Worker, a user you referred just funded their account with ₦${
+                  amount / 100
+                }. This makes a total of ${totlRef} fundings and ₦${totlFund} earned. Your weekly target is ${weekly_target}/16 Keep it up!</p>`;
 
                 await resend.emails.send({
                   from: "ZikConnect <admin@zikconnect.com>",
@@ -554,7 +556,9 @@ app.get("/api/paystack/verify/:reference", cors(), async (req, res) => {
             // Send confirmation email to user
             const subject = "Payment Successful!";
             const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-            <p style="font-family: Times New Roman;">Dear User, your Zikconnect account has been funded with <strong>₦${amount / 100}</strong>. You can now enjoy our services.</p>`;
+            <p style="font-family: Times New Roman;">Dear User, your Zikconnect account has been funded with <strong>₦${
+              amount / 100
+            }</strong>. You can now enjoy our services.</p>`;
 
             await resend.emails.send({
               from: "ZikConnect <admin@zikconnect.com>",
@@ -790,18 +794,20 @@ const poolsss =
       });
 
 const pool =
-  process.env.ENVIRONMENT === "local"
-    ? new pg.Pool({
-        user: process.env.DB_USER,
-        host: "localhost",
-        database: "students",
-        password: process.env.DB_PASSWORD,
-        port: 5433,
-      })
-    : new pg.Pool({
-        connectionString: process.env.NEON_CONNECTION_STRING, // <- Neon connection string
-        ssl: { rejectUnauthorized: false }, // required for Neon
-      });
+  // process.env.ENVIRONMENT === "local"
+  //   ? new pg.Pool({
+  //       user: process.env.DB_USER,
+  //       host: "localhost",
+  //       database: "students",
+  //       password: process.env.DB_PASSWORD,
+  //       port: 5433,
+  //     })
+  //   :
+  //
+  new pg.Pool({
+    connectionString: process.env.NEON_CONNECTION_STRING, // <- Neon connection string
+    ssl: { rejectUnauthorized: false }, // required for Neon
+  });
 
 const poolss = new pg.Pool({
   user: process.env.RDS_USER_NAME,
@@ -4977,7 +4983,9 @@ app.post("/api/approve-funding", async (req, res) => {
         // Send confirmation email
         const subject = "Referral Funding ";
         const html = `<h1 style="color: #15b58e; margin-left: 20%;">SUCCESS 🎉</h1>
-                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${amount / 100} naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn. your weekly target is ${weekly_target}/16
+                        <strong><p style="font-family: Times New Roman;">Dear Zikconnect Worker, A user you referred just funded thier account with ${
+                          amount / 100
+                        } naira. this makes a total of ${totlRef} fundings as against your daily target of 4 fundings. you now have a total of ${totlFund} naira that you have helped the company to earn. your weekly target is ${weekly_target}/16
                          please strive to complete your tasks to enjoy full reward of your hardwork from the company!. </p>`;
 
         const text = `Dear Worker, you referral has funded with ${amount} `;
@@ -5380,7 +5388,9 @@ app.post("/api/fire-worker", cors(), async (req, res) => {
         <li>Buy/Sell Referrals: <strong>${referred_buysell || 0}</strong></li>
         <li>Event Referrals: <strong>${referred_event || 0}</strong></li>
         <li>Lodge Referrals: <strong>${referred_lodge || 0}</strong></li>
-        <li>Total Referral Funding: <strong>₦${total_referral_funding || 0}</strong></li>
+        <li>Total Referral Funding: <strong>₦${
+          total_referral_funding || 0
+        }</strong></li>
         <li>Funded Referrals: <strong>${referral_who_funded || 0}</strong></li>
       </ul>
 
@@ -5904,19 +5914,16 @@ app.post("/api/send-connect-email", async (req, res) => {
 
     const updatedMessage = updatedMessageResponse.rows[0]; // This will include phone and full name
 
-    setTimeout(
-      async () => {
-        await pool.query(
-          `
+    setTimeout(async () => {
+      await pool.query(
+        `
             DELETE FROM connect
             WHERE request_time = $1
             AND status = 'pending'
           `,
-          [requestTime]
-        );
-      },
-      10 * 60 * 1000
-    );
+        [requestTime]
+      );
+    }, 10 * 60 * 1000);
     let result = await pool.query(
       "SELECT email FROM agents WHERE agent_id = $1",
       [agentId]
